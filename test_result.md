@@ -152,15 +152,18 @@ backend:
 
   - task: "Blackjack Game Logic"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Complete blackjack implementation with multi-hand support, card dealing, and hit/stand logic"
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested blackjack game logic. Hit endpoint works correctly, returning appropriate card data."
 
   - task: "Video Poker Game Logic"
     implemented: true
