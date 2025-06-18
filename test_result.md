@@ -282,8 +282,10 @@ test_plan:
     - "Phantom Wallet Integration"
     - "Blackjack Game UI"
     - "Video Poker Game UI"
-    - "Gaming Platform UI/UX"
-  stuck_tasks: []
+  stuck_tasks:
+    - "Phantom Wallet Integration"
+    - "Blackjack Game UI"
+    - "Video Poker Game UI"
   test_all: false
   test_priority: "high_first"
 
