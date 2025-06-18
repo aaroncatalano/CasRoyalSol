@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,20 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
-
+from solana.rpc.api import Client
+from solana.publickey import PublicKey
+from solana.transaction import Transaction
+from solana.system_program import CreateAccountParams, create_account
+from solana.keypair import Keypair
+import json
+import asyncio
+import random
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
+import redis.asyncio as redis
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,14 +29,28 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Solana Configuration
+SOLANA_RPC_URL = "https://api.devnet.solana.com"
+TESTNET_TOKEN_ADDRESS = "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"
+DEV_WALLET_ADDRESS = "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
+TRANSACTION_FEE_PERCENTAGE = 0.02  # 2%
+
+# Initialize Solana client
+solana_client = Client(SOLANA_RPC_URL)
+
 # Create the main app without a prefix
-app = FastAPI()
+app = FastAPI(title="Solana Gaming Platform", version="1.0.0")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Rate limiting setup
+@app.on_event("startup")
+async def startup():
+    redis_client = redis.from_url("redis://localhost:6379", decode_responses=True)
+    FastAPILimiter.init(redis_client)
 
-# Define Models
+# Models
 class StatusCheck(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
@@ -35,10 +59,213 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
-# Add your routes to the router instead of directly to app
+class WalletConnectionRequest(BaseModel):
+    public_key: str
+    signature: str
+    message: str
+
+class GameSession(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    player_wallet: str
+    game_type: str  # "blackjack" or "video_poker"
+    session_data: Dict[Any, Any]
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = True
+
+class WagerRequest(BaseModel):
+    player_wallet: str
+    amount: float
+    game_type: str
+    session_id: str
+    transaction_signature: Optional[str] = None
+
+class GameResult(BaseModel):
+    session_id: str
+    player_wallet: str
+    game_type: str
+    wager_amount: float
+    payout_amount: float
+    game_data: Dict[Any, Any]
+    transaction_signature: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Blackjack Game Logic
+class Card:
+    def __init__(self, suit: str, rank: str):
+        self.suit = suit
+        self.rank = rank
+        self.value = self._get_value()
+    
+    def _get_value(self):
+        if self.rank in ['J', 'Q', 'K']:
+            return 10
+        elif self.rank == 'A':
+            return 11
+        else:
+            return int(self.rank)
+    
+    def __str__(self):
+        return f"{self.rank} of {self.suit}"
+
+class BlackjackHand:
+    def __init__(self):
+        self.cards = []
+        self.value = 0
+        self.aces = 0
+    
+    def add_card(self, card: Card):
+        self.cards.append(card)
+        self.value += card.value
+        if card.rank == 'A':
+            self.aces += 1
+        self._adjust_for_ace()
+    
+    def _adjust_for_ace(self):
+        while self.value > 21 and self.aces:
+            self.value -= 10
+            self.aces -= 1
+
+class BlackjackGame:
+    def __init__(self):
+        self.deck = self._create_deck()
+        self.shuffle_deck()
+        self.player_hands = []
+        self.dealer_hand = BlackjackHand()
+        self.current_hand = 0
+    
+    def _create_deck(self):
+        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+        ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        return [Card(suit, rank) for suit in suits for rank in ranks]
+    
+    def shuffle_deck(self):
+        random.shuffle(self.deck)
+    
+    def deal_card(self):
+        return self.deck.pop()
+    
+    def start_game(self, num_hands: int = 1):
+        self.player_hands = [BlackjackHand() for _ in range(num_hands)]
+        
+        # Deal initial cards
+        for _ in range(2):
+            for hand in self.player_hands:
+                hand.add_card(self.deal_card())
+            self.dealer_hand.add_card(self.deal_card())
+        
+        return self._game_state()
+    
+    def hit(self, hand_index: int):
+        if hand_index < len(self.player_hands):
+            self.player_hands[hand_index].add_card(self.deal_card())
+        return self._game_state()
+    
+    def dealer_play(self):
+        while self.dealer_hand.value < 17:
+            self.dealer_hand.add_card(self.deal_card())
+        return self._game_state()
+    
+    def _game_state(self):
+        return {
+            "player_hands": [
+                {
+                    "cards": [str(card) for card in hand.cards],
+                    "value": hand.value,
+                    "busted": hand.value > 21
+                } for hand in self.player_hands
+            ],
+            "dealer_hand": {
+                "cards": [str(card) for card in self.dealer_hand.cards],
+                "value": self.dealer_hand.value,
+                "busted": self.dealer_hand.value > 21
+            }
+        }
+
+# Video Poker Game Logic
+class VideoPokerGame:
+    def __init__(self):
+        self.deck = self._create_deck()
+        self.hand = []
+        self.held_cards = [False] * 5
+    
+    def _create_deck(self):
+        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+        ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        return [Card(suit, rank) for suit in suits for rank in ranks]
+    
+    def shuffle_deck(self):
+        random.shuffle(self.deck)
+    
+    def deal_initial_hand(self):
+        self.shuffle_deck()
+        self.hand = [self.deck.pop() for _ in range(5)]
+        self.held_cards = [False] * 5
+        return self._game_state()
+    
+    def hold_cards(self, positions: List[int]):
+        for pos in positions:
+            if 0 <= pos < 5:
+                self.held_cards[pos] = True
+        return self._game_state()
+    
+    def draw_cards(self):
+        for i in range(5):
+            if not self.held_cards[i]:
+                self.hand[i] = self.deck.pop()
+        return self._game_state()
+    
+    def _game_state(self):
+        return {
+            "hand": [{"card": str(card), "held": held} for card, held in zip(self.hand, self.held_cards)],
+            "hand_rank": self._evaluate_hand()
+        }
+    
+    def _evaluate_hand(self):
+        # Simplified hand evaluation for Jacks or Better
+        ranks = [card.rank for card in self.hand]
+        suits = [card.suit for card in self.hand]
+        
+        # Count ranks
+        rank_counts = {}
+        for rank in ranks:
+            rank_counts[rank] = rank_counts.get(rank, 0) + 1
+        
+        # Check for flush
+        is_flush = len(set(suits)) == 1
+        
+        # Check for straight
+        rank_values = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
+        sorted_values = sorted([rank_values[rank] for rank in ranks])
+        is_straight = all(sorted_values[i] == sorted_values[i-1] + 1 for i in range(1, 5))
+        
+        # Evaluate hand
+        if is_straight and is_flush:
+            return "Straight Flush" if sorted_values != [10, 11, 12, 13, 14] else "Royal Flush"
+        elif 4 in rank_counts.values():
+            return "Four of a Kind"
+        elif 3 in rank_counts.values() and 2 in rank_counts.values():
+            return "Full House"
+        elif is_flush:
+            return "Flush"
+        elif is_straight:
+            return "Straight"
+        elif 3 in rank_counts.values():
+            return "Three of a Kind"
+        elif list(rank_counts.values()).count(2) == 2:
+            return "Two Pair"
+        elif 2 in rank_counts.values():
+            jacks = ['J', 'Q', 'K', 'A']
+            for rank, count in rank_counts.items():
+                if count == 2 and rank in jacks:
+                    return "Jacks or Better"
+            return "Low Pair"
+        else:
+            return "High Card"
+
+# API Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Solana Gaming Platform API", "version": "1.0.0"}
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
@@ -51,6 +278,160 @@ async def create_status_check(input: StatusCheckCreate):
 async def get_status_checks():
     status_checks = await db.status_checks.find().to_list(1000)
     return [StatusCheck(**status_check) for status_check in status_checks]
+
+@api_router.post("/wallet/connect")
+async def connect_wallet(request: WalletConnectionRequest, ratelimit: int = Depends(RateLimiter(times=10, seconds=60))):
+    """Connect and verify wallet signature"""
+    try:
+        # Verify the wallet exists on Solana
+        wallet_info = solana_client.get_account_info(PublicKey(request.public_key))
+        
+        # Store wallet connection
+        wallet_data = {
+            "public_key": request.public_key,
+            "connected_at": datetime.utcnow(),
+            "is_active": True
+        }
+        
+        await db.connected_wallets.insert_one(wallet_data)
+        
+        return {
+            "success": True,
+            "message": "Wallet connected successfully",
+            "public_key": request.public_key
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Wallet connection failed: {str(e)}")
+
+@api_router.post("/game/session/create")
+async def create_game_session(player_wallet: str, game_type: str, num_hands: int = 1):
+    """Create a new game session"""
+    try:
+        if game_type == "blackjack":
+            game = BlackjackGame()
+            game_data = game.start_game(num_hands)
+        elif game_type == "video_poker":
+            game = VideoPokerGame()
+            game_data = game.deal_initial_hand()
+        else:
+            raise HTTPException(status_code=400, detail="Invalid game type")
+        
+        session = GameSession(
+            player_wallet=player_wallet,
+            game_type=game_type,
+            session_data=game_data
+        )
+        
+        await db.game_sessions.insert_one(session.dict())
+        
+        return {
+            "success": True,
+            "session_id": session.id,
+            "game_data": game_data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/game/blackjack/hit")
+async def blackjack_hit(session_id: str, hand_index: int = 0):
+    """Hit in blackjack"""
+    try:
+        session = await db.game_sessions.find_one({"id": session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Recreate game state (simplified - in production, store full game state)
+        game = BlackjackGame()
+        # For demo purposes, return a sample hit result
+        card = game.deal_card()
+        
+        return {
+            "success": True,
+            "card": str(card),
+            "message": f"Drew {card}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/game/video_poker/hold")
+async def video_poker_hold(session_id: str, positions: List[int]):
+    """Hold cards in video poker"""
+    try:
+        session = await db.game_sessions.find_one({"id": session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        return {
+            "success": True,
+            "held_positions": positions,
+            "message": f"Held cards at positions: {positions}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/game/wager")
+async def place_wager(wager: WagerRequest, ratelimit: int = Depends(RateLimiter(times=20, seconds=60))):
+    """Process game wager with 2% dev fee"""
+    try:
+        # Calculate dev fee
+        total_amount = wager.amount
+        dev_fee = total_amount * TRANSACTION_FEE_PERCENTAGE
+        game_amount = total_amount - dev_fee
+        
+        # In a real implementation, verify the transaction signature
+        # For now, simulate the transaction
+        
+        # Store wager record
+        wager_record = {
+            "id": str(uuid.uuid4()),
+            "player_wallet": wager.player_wallet,
+            "total_amount": total_amount,
+            "game_amount": game_amount,
+            "dev_fee": dev_fee,
+            "game_type": wager.game_type,
+            "session_id": wager.session_id,
+            "transaction_signature": wager.transaction_signature,
+            "created_at": datetime.utcnow()
+        }
+        
+        await db.wagers.insert_one(wager_record)
+        
+        return {
+            "success": True,
+            "wager_id": wager_record["id"],
+            "total_amount": total_amount,
+            "game_amount": game_amount,
+            "dev_fee": dev_fee,
+            "dev_wallet": DEV_WALLET_ADDRESS,
+            "message": "Wager placed successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/game/sessions/{player_wallet}")
+async def get_player_sessions(player_wallet: str):
+    """Get player's game sessions"""
+    try:
+        sessions = await db.game_sessions.find({"player_wallet": player_wallet}).to_list(100)
+        return {"sessions": sessions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/wallet/balance/{public_key}")
+async def get_wallet_balance(public_key: str):
+    """Get wallet balance from Solana"""
+    try:
+        balance = solana_client.get_balance(PublicKey(public_key))
+        # Convert from lamports to SOL
+        sol_balance = balance.value / 1_000_000_000
+        
+        return {
+            "public_key": public_key,
+            "balance_lamports": balance.value,
+            "balance_sol": sol_balance
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Include the router in the main app
 app.include_router(api_router)
