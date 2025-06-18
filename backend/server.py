@@ -341,7 +341,7 @@ async def blackjack_hit(session_id: str, hand_index: int = 0):
     try:
         session = await db.game_sessions.find_one({"id": session_id})
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
         
         # Recreate game state (simplified - in production, store full game state)
         game = BlackjackGame()
@@ -353,6 +353,8 @@ async def blackjack_hit(session_id: str, hand_index: int = 0):
             "card": str(card),
             "message": f"Drew {card}"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
