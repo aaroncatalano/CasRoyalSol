@@ -137,15 +137,18 @@ backend:
 
   - task: "Game Session Management"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented game session creation for both blackjack and video poker with MongoDB storage"
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested game session creation for both blackjack and video poker. Sessions are correctly created with appropriate game data and stored in MongoDB."
 
   - task: "Blackjack Game Logic"
     implemented: true
