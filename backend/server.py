@@ -364,13 +364,15 @@ async def video_poker_hold(session_id: str, positions: List[int]):
     try:
         session = await db.game_sessions.find_one({"id": session_id})
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
         
         return {
             "success": True,
             "held_positions": positions,
             "message": f"Held cards at positions: {positions}"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
