@@ -255,10 +255,15 @@ class BlackjackGame:
 
 # Video Poker Game Logic
 class VideoPokerGame:
-    def __init__(self):
+    def __init__(self, winning_percentage: float = 0.65):
         self.deck = self._create_deck()
         self.hand = []
         self.held_cards = [False] * 5
+        self.winning_percentage = winning_percentage
+        self.initial_deal = True
+        self.game_complete = False
+        self.final_hand_rank = ""
+        self.payout_multiplier = 0
     
     def _create_deck(self):
         suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
@@ -272,6 +277,8 @@ class VideoPokerGame:
         self.shuffle_deck()
         self.hand = [self.deck.pop() for _ in range(5)]
         self.held_cards = [False] * 5
+        self.initial_deal = True
+        self.game_complete = False
         return self._game_state()
     
     def hold_cards(self, positions: List[int]):
@@ -281,15 +288,48 @@ class VideoPokerGame:
         return self._game_state()
     
     def draw_cards(self):
+        """Draw final cards with bias towards winning hands"""
         for i in range(5):
             if not self.held_cards[i]:
                 self.hand[i] = self.deck.pop()
+        
+        self.initial_deal = False
+        self.game_complete = True
+        
+        # Evaluate final hand
+        hand_rank = self._evaluate_hand()
+        self.final_hand_rank = hand_rank
+        self.payout_multiplier = self._get_payout_multiplier(hand_rank)
+        
+        # Apply winning bias - if should win but got losing hand, try to improve it
+        should_player_win = random.random() < self.winning_percentage
+        if should_player_win and self.payout_multiplier == 0:
+            # Try to create a winning hand
+            self._bias_towards_winning()
+        
         return self._game_state()
+    
+    def _bias_towards_winning(self):
+        """Attempt to improve hand to a winning combination"""
+        # Simple bias: try to create at least Jacks or Better
+        high_cards = [Card('Hearts', 'J'), Card('Diamonds', 'Q'), Card('Clubs', 'K'), Card('Spades', 'A')]
+        
+        # Find non-held positions and try to place high pairs
+        non_held = [i for i in range(5) if not self.held_cards[i]]
+        if len(non_held) >= 2:
+            # Place a pair of Jacks
+            self.hand[non_held[0]] = Card('Hearts', 'J')
+            self.hand[non_held[1]] = Card('Diamonds', 'J')
+            self.final_hand_rank = "Jacks or Better"
+            self.payout_multiplier = 1.0
     
     def _game_state(self):
         return {
             "hand": [{"card": str(card), "held": held} for card, held in zip(self.hand, self.held_cards)],
-            "hand_rank": self._evaluate_hand()
+            "hand_rank": self.final_hand_rank if self.game_complete else self._evaluate_hand(),
+            "initial_deal": self.initial_deal,
+            "game_complete": self.game_complete,
+            "payout_multiplier": self.payout_multiplier if self.game_complete else 0
         }
     
     def _evaluate_hand(self):
@@ -310,9 +350,16 @@ class VideoPokerGame:
         sorted_values = sorted([rank_values[rank] for rank in ranks])
         is_straight = all(sorted_values[i] == sorted_values[i-1] + 1 for i in range(1, 5))
         
+        # Special case for A-2-3-4-5 straight (wheel)
+        if sorted_values == [2, 3, 4, 5, 14]:
+            is_straight = True
+        
         # Evaluate hand
         if is_straight and is_flush:
-            return "Straight Flush" if sorted_values != [10, 11, 12, 13, 14] else "Royal Flush"
+            if sorted_values == [10, 11, 12, 13, 14]:
+                return "Royal Flush"
+            else:
+                return "Straight Flush"
         elif 4 in rank_counts.values():
             return "Four of a Kind"
         elif 3 in rank_counts.values() and 2 in rank_counts.values():
@@ -333,6 +380,23 @@ class VideoPokerGame:
             return "Low Pair"
         else:
             return "High Card"
+    
+    def _get_payout_multiplier(self, hand_rank: str):
+        """Get payout multiplier based on hand rank"""
+        payout_table = {
+            "Royal Flush": 250,
+            "Straight Flush": 50,
+            "Four of a Kind": 25,
+            "Full House": 9,
+            "Flush": 6,
+            "Straight": 4,
+            "Three of a Kind": 3,
+            "Two Pair": 2,
+            "Jacks or Better": 1,
+            "Low Pair": 0,
+            "High Card": 0
+        }
+        return payout_table.get(hand_rank, 0)
 
 # API Routes
 @api_router.get("/")
