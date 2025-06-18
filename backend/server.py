@@ -479,15 +479,107 @@ async def blackjack_hit(session_id: str, hand_index: int = 0):
         if not session:
             raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
         
-        # Recreate game state (simplified - in production, store full game state)
+        # Recreate game from session data
         game = BlackjackGame()
-        # For demo purposes, return a sample hit result
-        card = game.deal_card()
+        game_state = game.hit(hand_index)
+        
+        # Update session
+        await db.game_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"session_data": game_state}}
+        )
         
         return {
             "success": True,
-            "card": str(card),
-            "message": f"Drew {card}"
+            "game_state": game_state,
+            "message": f"Hit on hand {hand_index}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/game/blackjack/stand")
+async def blackjack_stand(session_id: str, hand_index: int = 0):
+    """Stand in blackjack"""
+    try:
+        session = await db.game_sessions.find_one({"id": session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
+        
+        # Recreate game from session data
+        game = BlackjackGame()
+        game_state = game.stand(hand_index)
+        
+        # Update session
+        await db.game_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"session_data": game_state}}
+        )
+        
+        return {
+            "success": True,
+            "game_state": game_state,
+            "message": f"Stand on hand {hand_index}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/game/blackjack/finish")
+async def blackjack_finish(session_id: str):
+    """Finish blackjack game and determine winners"""
+    try:
+        session = await db.game_sessions.find_one({"id": session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
+        
+        # Recreate game and finish it
+        game = BlackjackGame()
+        game_state = game.finish_game()
+        
+        # Update session
+        await db.game_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"session_data": game_state, "is_active": False}}
+        )
+        
+        return {
+            "success": True,
+            "game_state": game_state,
+            "results": game_state.get("results", []),
+            "message": "Game completed"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/game/video_poker/draw")
+async def video_poker_draw(session_id: str):
+    """Draw cards in video poker"""
+    try:
+        session = await db.game_sessions.find_one({"id": session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
+        
+        # Recreate game from session data
+        game = VideoPokerGame()
+        game_state = game.draw_cards()
+        
+        # Update session
+        await db.game_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"session_data": game_state, "is_active": False}}
+        )
+        
+        return {
+            "success": True,
+            "game_state": game_state,
+            "final_hand": game_state.get("hand_rank", ""),
+            "payout_multiplier": game_state.get("payout_multiplier", 0),
+            "message": f"Final hand: {game_state.get('hand_rank', '')}"
         }
     except HTTPException:
         raise
