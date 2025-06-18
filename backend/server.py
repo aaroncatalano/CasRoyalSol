@@ -10,10 +10,10 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
 from solana.rpc.api import Client
-from solana.publickey import PublicKey
-from solana.transaction import Transaction
-from solana.system_program import CreateAccountParams, create_account
-from solana.keypair import Keypair
+from solders.pubkey import Pubkey as PublicKey
+from solders.transaction import Transaction
+from solders.system_program import create_account, CreateAccountParams
+from solders.keypair import Keypair
 import json
 import asyncio
 import random
