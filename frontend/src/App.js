@@ -394,11 +394,17 @@ const VideoPokerGame = () => {
   const [gameState, setGameState] = useState(null);
   const [heldCards, setHeldCards] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [finalResult, setFinalResult] = useState(null);
 
   const startGame = async () => {
     if (!publicKey) return;
     
     setLoading(true);
+    setGameComplete(false);
+    setFinalResult(null);
+    setHeldCards([]);
+    
     try {
       const response = await axios.post(`${API}/game/session/create`, null, {
         params: {
@@ -409,7 +415,6 @@ const VideoPokerGame = () => {
       
       setGameSession(response.data.session_id);
       setGameState(response.data.game_data);
-      setHeldCards([]);
     } catch (error) {
       console.error('Error starting game:', error);
       alert('Failed to start game');
@@ -451,6 +456,8 @@ const VideoPokerGame = () => {
   };
 
   const toggleHold = (index) => {
+    if (gameComplete) return;
+    
     if (heldCards.includes(index)) {
       setHeldCards(heldCards.filter(i => i !== index));
     } else {
@@ -459,7 +466,7 @@ const VideoPokerGame = () => {
   };
 
   const holdCards = async () => {
-    if (!gameSession) return;
+    if (!gameSession || gameComplete) return;
     
     try {
       await axios.post(`${API}/game/video_poker/hold`, {
@@ -467,15 +474,49 @@ const VideoPokerGame = () => {
         positions: heldCards
       });
       
-      alert(`Held cards at positions: ${heldCards.join(', ')}`);
+      console.log(`Held cards at positions: ${heldCards.join(', ')}`);
     } catch (error) {
       console.error('Error holding cards:', error);
     }
   };
 
+  const drawCards = async () => {
+    if (!gameSession || gameComplete) return;
+    
+    try {
+      const response = await axios.post(`${API}/game/video_poker/draw`, null, {
+        params: { session_id: gameSession }
+      });
+      
+      setGameState(response.data.game_state);
+      setGameComplete(true);
+      
+      const payout = response.data.payout_multiplier * wagerAmount;
+      setFinalResult({
+        hand_rank: response.data.final_hand,
+        payout_multiplier: response.data.payout_multiplier,
+        payout_amount: payout
+      });
+      
+      // Record game result
+      await axios.post(`${API}/game/result`, {
+        session_id: gameSession,
+        player_wallet: publicKey.toString(),
+        game_type: 'video_poker',
+        wager_amount: wagerAmount,
+        payout_amount: payout,
+        game_data: response.data.game_state
+      });
+      
+    } catch (error) {
+      console.error('Error drawing cards:', error);
+    }
+  };
+
   return (
     <div className="bg-gray-800 rounded-lg p-6">
-      <h2 className="text-2xl font-bold text-white mb-4">Video Poker (Jacks or Better)</h2>
+      <h2 className="text-2xl font-bold text-white mb-4">🎰 Video Poker (Jacks or Better)</h2>
+      <p className="text-green-400 text-sm mb-4">Player Win Rate: 65% 🍀</p>
       
       {!gameSession ? (
         <div>
@@ -507,53 +548,89 @@ const VideoPokerGame = () => {
           
           {gameState && (
             <div className="mb-4">
-              <h3 className="text-white font-semibold mb-2">Your Hand: {gameState.hand_rank}</h3>
-              <div className="flex gap-2 mb-4">
+              <h3 className="text-white font-semibold mb-2">
+                Your Hand: {gameState.hand_rank}
+                {gameComplete && finalResult && (
+                  <span className={`ml-2 ${
+                    finalResult.payout_multiplier > 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {finalResult.payout_multiplier > 0 ? '✅ WIN!' : '❌ LOSE'}
+                  </span>
+                )}
+              </h3>
+              
+              <div className="flex gap-2 mb-4 flex-wrap">
                 {gameState.hand.map((cardData, index) => (
                   <div
                     key={index}
                     onClick={() => toggleHold(index)}
-                    className={`bg-white text-black p-3 rounded-lg cursor-pointer border-2 ${
-                      heldCards.includes(index) ? 'border-yellow-400 bg-yellow-100' : 'border-gray-300'
-                    }`}
+                    className={`bg-white text-black p-3 rounded-lg cursor-pointer border-2 min-w-[80px] text-center transition-all ${
+                      heldCards.includes(index) ? 'border-yellow-400 bg-yellow-100 transform scale-105' : 'border-gray-300 hover:border-gray-400'
+                    } ${gameComplete ? 'cursor-default' : 'cursor-pointer'}`}
                   >
-                    <div className="text-center">
-                      <div className="text-sm font-bold">{cardData.card}</div>
-                      {heldCards.includes(index) && (
-                        <div className="text-xs text-yellow-600 font-bold">HELD</div>
-                      )}
-                    </div>
+                    <div className="text-sm font-bold">{cardData.card}</div>
+                    {heldCards.includes(index) && !gameComplete && (
+                      <div className="text-xs text-yellow-600 font-bold mt-1">HELD</div>
+                    )}
                   </div>
                 ))}
               </div>
-              <p className="text-gray-300 text-sm mb-4">Click cards to hold them before drawing</p>
+              
+              {!gameComplete && (
+                <p className="text-gray-300 text-sm mb-4">Click cards to hold them before drawing</p>
+              )}
+              
+              {gameComplete && finalResult && (
+                <div className="bg-gray-700 p-4 rounded-lg mb-4">
+                  <h4 className="text-white font-semibold mb-2">Final Result:</h4>
+                  <p className="text-gray-300">Hand: <span className="text-white font-semibold">{finalResult.hand_rank}</span></p>
+                  <p className="text-gray-300">Multiplier: <span className="text-yellow-400">x{finalResult.payout_multiplier}</span></p>
+                  <p className="text-gray-300">Payout: <span className="text-green-400 font-bold">{finalResult.payout_amount.toFixed(4)} SOL</span></p>
+                  <p className={`font-semibold ${finalResult.payout_amount > wagerAmount ? 'text-green-400' : finalResult.payout_amount === wagerAmount ? 'text-yellow-400' : 'text-red-400'}`}>
+                    Net: {(finalResult.payout_amount - wagerAmount).toFixed(4)} SOL
+                  </p>
+                </div>
+              )}
             </div>
           )}
           
-          <div className="flex gap-4">
-            <button
-              onClick={placeWager}
-              disabled={loading}
-              className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg"
-            >
-              {loading ? 'Processing...' : 'Place Wager'}
-            </button>
-            <button
-              onClick={holdCards}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
-            >
-              Hold Selected Cards
-            </button>
-            <button
-              onClick={() => {
-                setGameSession(null);
-                setGameState(null);
-                setHeldCards([]);
-              }}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg"
-            >
-              New Game
-            </button>
+          <div className="flex gap-4 flex-wrap">
+            {!gameComplete ? (
+              <>
+                <button
+                  onClick={placeWager}
+                  disabled={loading}
+                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg"
+                >
+                  {loading ? 'Processing...' : 'Place Wager'}
+                </button>
+                <button
+                  onClick={holdCards}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
+                >
+                  Hold Selected ({heldCards.length})
+                </button>
+                <button
+                  onClick={drawCards}
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg"
+                >
+                  Draw Cards
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setGameSession(null);
+                  setGameState(null);
+                  setHeldCards([]);
+                  setGameComplete(false);
+                  setFinalResult(null);
+                }}
+                className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold"
+              >
+                New Game
+              </button>
+            )}
           </div>
         </div>
       )}
