@@ -126,12 +126,15 @@ class BlackjackHand:
             self.aces -= 1
 
 class BlackjackGame:
-    def __init__(self):
+    def __init__(self, winning_percentage: float = 0.69):
         self.deck = self._create_deck()
         self.shuffle_deck()
         self.player_hands = []
         self.dealer_hand = BlackjackHand()
         self.current_hand = 0
+        self.winning_percentage = winning_percentage
+        self.game_over = False
+        self.results = []
     
     def _create_deck(self):
         suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
@@ -142,10 +145,16 @@ class BlackjackGame:
         random.shuffle(self.deck)
     
     def deal_card(self):
+        if len(self.deck) == 0:
+            self.deck = self._create_deck()
+            self.shuffle_deck()
         return self.deck.pop()
     
     def start_game(self, num_hands: int = 1):
         self.player_hands = [BlackjackHand() for _ in range(num_hands)]
+        self.dealer_hand = BlackjackHand()
+        self.game_over = False
+        self.results = []
         
         # Deal initial cards
         for _ in range(2):
@@ -156,13 +165,74 @@ class BlackjackGame:
         return self._game_state()
     
     def hit(self, hand_index: int):
-        if hand_index < len(self.player_hands):
+        if hand_index < len(self.player_hands) and not self.game_over:
             self.player_hands[hand_index].add_card(self.deal_card())
         return self._game_state()
     
+    def stand(self, hand_index: int):
+        """Player stands on current hand"""
+        return self._game_state()
+    
     def dealer_play(self):
-        while self.dealer_hand.value < 17:
-            self.dealer_hand.add_card(self.deal_card())
+        """Dealer plays according to standard rules with bias towards player winning"""
+        should_player_win = random.random() < self.winning_percentage
+        
+        if should_player_win:
+            # Bias dealer to bust or get a worse hand
+            while self.dealer_hand.value < 17:
+                card = self.deal_card()
+                self.dealer_hand.add_card(card)
+                # Increase chance of dealer busting
+                if self.dealer_hand.value >= 16 and random.random() < 0.4:
+                    break
+        else:
+            # Standard dealer play
+            while self.dealer_hand.value < 17:
+                self.dealer_hand.add_card(self.deal_card())
+        
+        return self._game_state()
+    
+    def finish_game(self):
+        """Complete the game and determine winners"""
+        self.dealer_play()
+        self.game_over = True
+        
+        dealer_value = self.dealer_hand.value
+        dealer_busted = dealer_value > 21
+        
+        for i, hand in enumerate(self.player_hands):
+            player_value = hand.value
+            player_busted = player_value > 21
+            
+            if player_busted:
+                result = "lose"
+                payout_multiplier = 0
+            elif dealer_busted:
+                result = "win"
+                payout_multiplier = 2.0
+            elif player_value > dealer_value:
+                result = "win"
+                payout_multiplier = 2.0
+            elif player_value == dealer_value:
+                result = "push"
+                payout_multiplier = 1.0
+            else:
+                result = "lose"
+                payout_multiplier = 0
+            
+            # Check for blackjack (21 with 2 cards)
+            if len(hand.cards) == 2 and player_value == 21:
+                result = "blackjack"
+                payout_multiplier = 2.5
+            
+            self.results.append({
+                "hand_index": i,
+                "result": result,
+                "payout_multiplier": payout_multiplier,
+                "player_value": player_value,
+                "dealer_value": dealer_value
+            })
+        
         return self._game_state()
     
     def _game_state(self):
@@ -178,7 +248,9 @@ class BlackjackGame:
                 "cards": [str(card) for card in self.dealer_hand.cards],
                 "value": self.dealer_hand.value,
                 "busted": self.dealer_hand.value > 21
-            }
+            },
+            "game_over": self.game_over,
+            "results": self.results if self.game_over else []
         }
 
 # Video Poker Game Logic
