@@ -122,15 +122,18 @@ backend:
 
   - task: "Phantom Wallet Backend APIs"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Created wallet connection endpoint, signature verification, and balance checking APIs"
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested wallet connection endpoint. API correctly accepts wallet public key and signature, and returns appropriate response."
 
   - task: "Game Session Management"
     implemented: true
