@@ -421,7 +421,7 @@ async def get_player_sessions(player_wallet: str):
 async def get_wallet_balance(public_key: str):
     """Get wallet balance from Solana"""
     try:
-        balance = solana_client.get_balance(PublicKey(public_key))
+        balance = solana_client.get_balance(PublicKey.from_string(public_key))
         # Convert from lamports to SOL
         sol_balance = balance.value / 1_000_000_000
         
