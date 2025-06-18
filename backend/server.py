@@ -48,7 +48,7 @@ api_router = APIRouter(prefix="/api")
 @app.on_event("startup")
 async def startup():
     redis_client = redis.from_url("redis://localhost:6379", decode_responses=True)
-    FastAPILimiter.init(redis_client)
+    await FastAPILimiter.init(redis_client)
 
 # Models
 class StatusCheck(BaseModel):
