@@ -197,15 +197,18 @@ backend:
 
   - task: "Rate Limiting and Security"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "FastAPI limiter with Redis backend for API rate limiting and CORS configuration"
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested rate limiting. API correctly limits requests after threshold is reached. Fixed an issue with the FastAPILimiter.init() call by adding 'await'."
 
 frontend:
   - task: "Phantom Wallet Integration"
