@@ -656,19 +656,95 @@ async def get_player_sessions(player_wallet: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.get("/wallet/balance/{public_key}")
-async def get_wallet_balance(public_key: str):
-    """Get wallet balance from Solana"""
+@api_router.post("/game/result")
+async def record_game_result(result: GameResult):
+    """Record game result and payout"""
     try:
-        balance = solana_client.get_balance(PublicKey.from_string(public_key))
-        # Convert from lamports to SOL
-        sol_balance = balance.value / 1_000_000_000
+        await db.game_results.insert_one(result.dict())
         
         return {
-            "public_key": public_key,
-            "balance_lamports": balance.value,
-            "balance_sol": sol_balance
+            "success": True,
+            "message": "Game result recorded",
+            "payout_amount": result.payout_amount
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/player/stats/{player_wallet}")
+async def get_player_stats(player_wallet: str):
+    """Get player's game statistics"""
+    try:
+        # Get total games played
+        total_games = await db.game_results.count_documents({"player_wallet": player_wallet})
+        
+        # Get recent results
+        recent_results = await db.game_results.find(
+            {"player_wallet": player_wallet}
+        ).sort("created_at", -1).limit(10).to_list(10)
+        
+        # Calculate statistics
+        total_wagered = sum(result.get("wager_amount", 0) for result in recent_results)
+        total_payout = sum(result.get("payout_amount", 0) for result in recent_results)
+        net_profit = total_payout - total_wagered
+        
+        # Game type breakdown
+        blackjack_games = len([r for r in recent_results if r.get("game_type") == "blackjack"])
+        poker_games = len([r for r in recent_results if r.get("game_type") == "video_poker"])
+        
+        # Clean up ObjectIds for JSON serialization
+        for result in recent_results:
+            if "_id" in result:
+                result["_id"] = str(result["_id"])
+        
+        return {
+            "player_wallet": player_wallet,
+            "total_games": total_games,
+            "total_wagered": total_wagered,
+            "total_payout": total_payout,
+            "net_profit": net_profit,
+            "blackjack_games": blackjack_games,
+            "poker_games": poker_games,
+            "recent_results": recent_results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/leaderboard")
+async def get_leaderboard():
+    """Get top players leaderboard"""
+    try:
+        # Aggregate player stats
+        pipeline = [
+            {
+                "$group": {
+                    "_id": "$player_wallet",
+                    "total_games": {"$sum": 1},
+                    "total_wagered": {"$sum": "$wager_amount"},
+                    "total_payout": {"$sum": "$payout_amount"},
+                    "last_played": {"$max": "$created_at"}
+                }
+            },
+            {
+                "$addFields": {
+                    "net_profit": {"$subtract": ["$total_payout", "$total_wagered"]}
+                }
+            },
+            {
+                "$sort": {"net_profit": -1}
+            },
+            {
+                "$limit": 10
+            }
+        ]
+        
+        leaderboard = await db.game_results.aggregate(pipeline).to_list(10)
+        
+        # Format wallet addresses for display
+        for entry in leaderboard:
+            wallet = entry["_id"]
+            entry["display_wallet"] = f"{wallet[:8]}...{wallet[-8:]}" if len(wallet) > 16 else wallet
+        
+        return {"leaderboard": leaderboard}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
