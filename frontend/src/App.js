@@ -638,9 +638,133 @@ const VideoPokerGame = () => {
   );
 };
 
+// Player Statistics Component
+const PlayerStats = () => {
+  const { publicKey } = useWallet();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchStats = async () => {
+    if (!publicKey) return;
+    
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/player/stats/${publicKey.toString()}`);
+      setStats(response.data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (publicKey) {
+      fetchStats();
+    }
+  }, [publicKey]);
+
+  if (!publicKey) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 text-center">
+        <p className="text-gray-400">Connect your wallet to view statistics</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 text-center">
+        <p className="text-white">Loading statistics...</p>
+      </div>
+    );
+  }
+
+  if (!stats || stats.total_games === 0) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 text-center">
+        <p className="text-gray-400">No games played yet. Start playing to see your statistics!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6">
+      <h3 className="text-xl font-bold text-white mb-4">📊 Your Statistics</h3>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-gray-700 p-3 rounded-lg text-center">
+          <p className="text-gray-300 text-sm">Total Games</p>
+          <p className="text-white font-bold text-lg">{stats.total_games}</p>
+        </div>
+        <div className="bg-gray-700 p-3 rounded-lg text-center">
+          <p className="text-gray-300 text-sm">Total Wagered</p>
+          <p className="text-white font-bold text-lg">{stats.total_wagered.toFixed(4)} SOL</p>
+        </div>
+        <div className="bg-gray-700 p-3 rounded-lg text-center">
+          <p className="text-gray-300 text-sm">Total Payout</p>
+          <p className="text-white font-bold text-lg">{stats.total_payout.toFixed(4)} SOL</p>
+        </div>
+        <div className="bg-gray-700 p-3 rounded-lg text-center">
+          <p className="text-gray-300 text-sm">Net Profit</p>
+          <p className={`font-bold text-lg ${stats.net_profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {stats.net_profit >= 0 ? '+' : ''}{stats.net_profit.toFixed(4)} SOL
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-gray-700 p-3 rounded-lg text-center">
+          <p className="text-gray-300 text-sm">🃏 Blackjack Games</p>
+          <p className="text-white font-bold text-lg">{stats.blackjack_games}</p>
+        </div>
+        <div className="bg-gray-700 p-3 rounded-lg text-center">
+          <p className="text-gray-300 text-sm">🎰 Poker Games</p>
+          <p className="text-white font-bold text-lg">{stats.poker_games}</p>
+        </div>
+      </div>
+
+      {stats.recent_results.length > 0 && (
+        <div>
+          <h4 className="text-white font-semibold mb-3">Recent Games</h4>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {stats.recent_results.map((result, index) => (
+              <div key={index} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                <div>
+                  <p className="text-white font-semibold">
+                    {result.game_type === 'blackjack' ? '🃏' : '🎰'} {result.game_type}
+                  </p>
+                  <p className="text-gray-300 text-sm">
+                    Wagered: {result.wager_amount.toFixed(4)} SOL
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold ${result.payout_amount > result.wager_amount ? 'text-green-400' : result.payout_amount === result.wager_amount ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {result.payout_amount > result.wager_amount ? 'WIN' : result.payout_amount === result.wager_amount ? 'PUSH' : 'LOSE'}
+                  </p>
+                  <p className="text-gray-300 text-sm">
+                    {(result.payout_amount - result.wager_amount).toFixed(4)} SOL
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      <button
+        onClick={fetchStats}
+        className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg w-full"
+      >
+        Refresh Stats
+      </button>
+    </div>
+  );
+};
+
 // Main App Component
 const AppContent = () => {
   const [activeGame, setActiveGame] = useState('blackjack');
+  const [showStats, setShowStats] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
@@ -654,13 +778,13 @@ const AppContent = () => {
         {/* Wallet Connection */}
         <WalletConnection />
 
-        {/* Game Selection */}
+        {/* Navigation */}
         <div className="mb-6">
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-4 flex-wrap">
             <button
-              onClick={() => setActiveGame('blackjack')}
+              onClick={() => {setActiveGame('blackjack'); setShowStats(false);}}
               className={`px-6 py-3 rounded-lg font-semibold ${
-                activeGame === 'blackjack'
+                activeGame === 'blackjack' && !showStats
                   ? 'bg-purple-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
@@ -668,26 +792,43 @@ const AppContent = () => {
               🃏 Multi-Hand Blackjack
             </button>
             <button
-              onClick={() => setActiveGame('video_poker')}
+              onClick={() => {setActiveGame('video_poker'); setShowStats(false);}}
               className={`px-6 py-3 rounded-lg font-semibold ${
-                activeGame === 'video_poker'
+                activeGame === 'video_poker' && !showStats
                   ? 'bg-purple-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
               🎰 Video Poker
             </button>
+            <button
+              onClick={() => setShowStats(!showStats)}
+              className={`px-6 py-3 rounded-lg font-semibold ${
+                showStats
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              📊 Statistics
+            </button>
           </div>
         </div>
 
         {/* Game Components */}
-        {activeGame === 'blackjack' && <BlackjackGame />}
-        {activeGame === 'video_poker' && <VideoPokerGame />}
+        {showStats ? (
+          <PlayerStats />
+        ) : (
+          <>
+            {activeGame === 'blackjack' && <BlackjackGame />}
+            {activeGame === 'video_poker' && <VideoPokerGame />}
+          </>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-8 text-gray-400">
           <p>🔗 Running on Solana Testnet</p>
           <p className="text-sm">Dev Fee: 2% | Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
+          <p className="text-xs mt-2">🍀 Blackjack: 69% win rate | Video Poker: 65% win rate</p>
         </div>
       </div>
     </div>
