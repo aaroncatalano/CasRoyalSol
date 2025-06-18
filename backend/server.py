@@ -307,14 +307,15 @@ async def connect_wallet(request: WalletConnectionRequest, ratelimit: int = Depe
 async def create_game_session(player_wallet: str, game_type: str, num_hands: int = 1):
     """Create a new game session"""
     try:
+        if game_type not in ["blackjack", "video_poker"]:
+            raise HTTPException(status_code=400, detail=f"Invalid game type: {game_type}. Must be 'blackjack' or 'video_poker'")
+            
         if game_type == "blackjack":
             game = BlackjackGame()
             game_data = game.start_game(num_hands)
         elif game_type == "video_poker":
             game = VideoPokerGame()
             game_data = game.deal_initial_hand()
-        else:
-            raise HTTPException(status_code=400, detail="Invalid game type")
         
         session = GameSession(
             player_wallet=player_wallet,
@@ -329,6 +330,8 @@ async def create_game_session(player_wallet: str, game_type: str, num_hands: int
             "session_id": session.id,
             "game_data": game_data
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
