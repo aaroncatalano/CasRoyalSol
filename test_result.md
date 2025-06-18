@@ -291,10 +291,7 @@ test_plan:
     - "Phantom Wallet Integration"
     - "Blackjack Game UI"
     - "Video Poker Game UI"
-  stuck_tasks:
-    - "Phantom Wallet Integration"
-    - "Blackjack Game UI"
-    - "Video Poker Game UI"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
