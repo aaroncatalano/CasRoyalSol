@@ -182,15 +182,18 @@ backend:
 
   - task: "Wagering System with 2% Dev Fee"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Wager processing with automatic 2% fee calculation to dev wallet A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested wagering system. 2% dev fee is correctly calculated and attributed to the developer wallet."
 
   - task: "Rate Limiting and Security"
     implemented: true
