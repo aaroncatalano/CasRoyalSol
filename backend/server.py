@@ -413,6 +413,10 @@ async def get_player_sessions(player_wallet: str):
     """Get player's game sessions"""
     try:
         sessions = await db.game_sessions.find({"player_wallet": player_wallet}).to_list(100)
+        # Convert MongoDB ObjectId to string for JSON serialization
+        for session in sessions:
+            if "_id" in session:
+                session["_id"] = str(session["_id"])
         return {"sessions": sessions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
