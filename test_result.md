@@ -267,10 +267,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Solana Web3 Integration"
-    - "Phantom Wallet Backend APIs"
-    - "Wagering System with 2% Dev Fee"
-    - "Game Session Management"
+    - "Phantom Wallet Integration"
+    - "Blackjack Game UI"
+    - "Video Poker Game UI"
+    - "Gaming Platform UI/UX"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
