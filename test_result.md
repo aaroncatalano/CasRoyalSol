@@ -107,15 +107,18 @@ user_problem_statement: "Build hyper casual game site with multi hand black jack
 backend:
   - task: "Solana Web3 Integration"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented Solana client integration with devnet endpoint, wallet connection APIs, and transaction processing capabilities"
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested Solana Web3 integration. Wallet balance checking is working correctly. Fixed import issues by updating from solana.publickey to solders.pubkey.Pubkey."
 
   - task: "Phantom Wallet Backend APIs"
     implemented: true
