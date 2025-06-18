@@ -748,6 +748,22 @@ async def get_leaderboard():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/wallet/balance/{public_key}")
+async def get_wallet_balance(public_key: str):
+    """Get wallet balance from Solana"""
+    try:
+        balance = solana_client.get_balance(PublicKey.from_string(public_key))
+        # Convert from lamports to SOL
+        sol_balance = balance.value / 1_000_000_000
+        
+        return {
+            "public_key": public_key,
+            "balance_lamports": balance.value,
+            "balance_sol": sol_balance
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
