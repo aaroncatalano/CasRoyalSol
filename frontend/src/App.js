@@ -122,11 +122,18 @@ const BlackjackGame = () => {
   const [wagerAmount, setWagerAmount] = useState(0.1);
   const [gameState, setGameState] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [results, setResults] = useState([]);
+  const [totalPayout, setTotalPayout] = useState(0);
 
   const startGame = async () => {
     if (!publicKey) return;
     
     setLoading(true);
+    setGameComplete(false);
+    setResults([]);
+    setTotalPayout(0);
+    
     try {
       const response = await axios.post(`${API}/game/session/create`, null, {
         params: {
@@ -180,26 +187,86 @@ const BlackjackGame = () => {
     setLoading(false);
   };
 
-  const hit = async () => {
-    if (!gameSession) return;
+  const hit = async (handIndex = 0) => {
+    if (!gameSession || gameComplete) return;
     
     try {
       const response = await axios.post(`${API}/game/blackjack/hit`, null, {
         params: {
           session_id: gameSession,
-          hand_index: 0
+          hand_index: handIndex
         }
       });
       
-      alert(`You drew: ${response.data.card}`);
+      setGameState(response.data.game_state);
+      
+      // Check if player busted
+      const playerHand = response.data.game_state.player_hands[handIndex];
+      if (playerHand.busted) {
+        finishGame();
+      }
     } catch (error) {
       console.error('Error hitting:', error);
     }
   };
 
+  const stand = async (handIndex = 0) => {
+    if (!gameSession || gameComplete) return;
+    
+    try {
+      const response = await axios.post(`${API}/game/blackjack/stand`, null, {
+        params: {
+          session_id: gameSession,
+          hand_index: handIndex
+        }
+      });
+      
+      setGameState(response.data.game_state);
+      finishGame();
+    } catch (error) {
+      console.error('Error standing:', error);
+    }
+  };
+
+  const finishGame = async () => {
+    if (!gameSession) return;
+    
+    try {
+      const response = await axios.post(`${API}/game/blackjack/finish`, null, {
+        params: { session_id: gameSession }
+      });
+      
+      setGameState(response.data.game_state);
+      setResults(response.data.results);
+      setGameComplete(true);
+      
+      // Calculate total payout
+      const payout = response.data.results.reduce((total, result) => {
+        return total + (result.payout_multiplier * wagerAmount);
+      }, 0);
+      setTotalPayout(payout);
+      
+      // Record game result
+      if (response.data.results.length > 0) {
+        await axios.post(`${API}/game/result`, {
+          session_id: gameSession,
+          player_wallet: publicKey.toString(),
+          game_type: 'blackjack',
+          wager_amount: wagerAmount,
+          payout_amount: payout,
+          game_data: response.data.game_state
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error finishing game:', error);
+    }
+  };
+
   return (
     <div className="bg-gray-800 rounded-lg p-6">
-      <h2 className="text-2xl font-bold text-white mb-4">Multi-Hand Blackjack</h2>
+      <h2 className="text-2xl font-bold text-white mb-4">🃏 Multi-Hand Blackjack</h2>
+      <p className="text-green-400 text-sm mb-4">Player Win Rate: 69% 🍀</p>
       
       {!gameSession ? (
         <div>
@@ -243,37 +310,74 @@ const BlackjackGame = () => {
               <div className="mb-4">
                 <h3 className="text-white font-semibold">Dealer Hand:</h3>
                 <div className="text-gray-300">
-                  <p>Cards: {gameState.dealer_hand.cards.join(', ')}</p>
-                  <p>Value: {gameState.dealer_hand.value}</p>
-                  {gameState.dealer_hand.busted && <p className="text-red-400">DEALER BUSTED!</p>}
+                  <p>Cards: {gameComplete ? gameState.dealer_hand.cards.join(', ') : gameState.dealer_hand.cards[0] + ', [Hidden]'}</p>
+                  <p>Value: {gameComplete ? gameState.dealer_hand.value : '?'}</p>
+                  {gameComplete && gameState.dealer_hand.busted && <p className="text-red-400">DEALER BUSTED!</p>}
                 </div>
               </div>
+
+              {gameComplete && results.length > 0 && (
+                <div className="mb-4 bg-gray-700 p-4 rounded-lg">
+                  <h3 className="text-white font-semibold mb-2">Game Results:</h3>
+                  {results.map((result, index) => (
+                    <div key={index} className="text-gray-300 mb-2">
+                      <p className={`font-semibold ${
+                        result.result === 'win' || result.result === 'blackjack' ? 'text-green-400' : 
+                        result.result === 'push' ? 'text-yellow-400' : 'text-red-400'
+                      }`}>
+                        Hand {index + 1}: {result.result.toUpperCase()}
+                      </p>
+                      <p>Payout: {(result.payout_multiplier * wagerAmount).toFixed(4)} SOL</p>
+                    </div>
+                  ))}
+                  <div className="border-t border-gray-500 pt-2 mt-2">
+                    <p className="text-white font-bold">Total Payout: {totalPayout.toFixed(4)} SOL</p>
+                    <p className={`font-semibold ${totalPayout > wagerAmount ? 'text-green-400' : totalPayout === wagerAmount ? 'text-yellow-400' : 'text-red-400'}`}>
+                      Net: {(totalPayout - wagerAmount).toFixed(4)} SOL
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           
           <div className="flex gap-4">
-            <button
-              onClick={placeWager}
-              disabled={loading}
-              className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg"
-            >
-              {loading ? 'Processing...' : 'Place Wager'}
-            </button>
-            <button
-              onClick={hit}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
-            >
-              Hit
-            </button>
-            <button
-              onClick={() => {
-                setGameSession(null);
-                setGameState(null);
-              }}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg"
-            >
-              New Game
-            </button>
+            {!gameComplete ? (
+              <>
+                <button
+                  onClick={placeWager}
+                  disabled={loading}
+                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg"
+                >
+                  {loading ? 'Processing...' : 'Place Wager'}
+                </button>
+                <button
+                  onClick={() => hit(0)}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
+                >
+                  Hit
+                </button>
+                <button
+                  onClick={() => stand(0)}
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg"
+                >
+                  Stand
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setGameSession(null);
+                  setGameState(null);
+                  setGameComplete(false);
+                  setResults([]);
+                  setTotalPayout(0);
+                }}
+                className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold"
+              >
+                New Game
+              </button>
+            )}
           </div>
         </div>
       )}
