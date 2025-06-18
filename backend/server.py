@@ -284,7 +284,7 @@ async def connect_wallet(request: WalletConnectionRequest, ratelimit: int = Depe
     """Connect and verify wallet signature"""
     try:
         # Verify the wallet exists on Solana
-        wallet_info = solana_client.get_account_info(PublicKey(request.public_key))
+        wallet_info = solana_client.get_account_info(PublicKey.from_string(request.public_key))
         
         # Store wallet connection
         wallet_data = {
