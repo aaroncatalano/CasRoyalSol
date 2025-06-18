@@ -167,15 +167,18 @@ backend:
 
   - task: "Video Poker Game Logic"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Jacks or Better video poker with hand evaluation, card holding, and drawing mechanics"
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested video poker game logic. Hold endpoint works correctly, allowing players to select which cards to hold."
 
   - task: "Wagering System with 2% Dev Fee"
     implemented: true
