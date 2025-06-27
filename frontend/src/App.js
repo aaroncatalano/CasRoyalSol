@@ -635,7 +635,12 @@ const VideoPokerGame = () => {
         <div>
           <div className="mb-4">
             <p className="text-white">Game Session: {gameSession.slice(0, 8)}...</p>
-            <p className="text-gray-300">Wager: {wagerAmount} SOL</p>
+            <div className="bg-gray-700 p-3 rounded-lg mb-2">
+              <p className="text-gray-300 text-sm">Wager Breakdown:</p>
+              <p className="text-white">Total Wager: {wagerAmount} SOL</p>
+              <p className="text-yellow-400">Dev Fee (2%): {(wagerAmount * 0.02).toFixed(6)} SOL</p>
+              <p className="text-green-400">Game Amount: {(wagerAmount * 0.98).toFixed(6)} SOL</p>
+            </div>
           </div>
           
           {gameState && (
