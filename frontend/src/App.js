@@ -404,7 +404,11 @@ const VideoPokerGame = () => {
   const [finalResult, setFinalResult] = useState(null);
 
   const startGame = async () => {
-    if (!publicKey) return;
+    console.log('startGame called, publicKey:', publicKey);
+    if (!publicKey) {
+      alert('Please connect your wallet first!');
+      return;
+    }
     
     setLoading(true);
     setGameComplete(false);
@@ -412,6 +416,7 @@ const VideoPokerGame = () => {
     setHeldCards([]);
     
     try {
+      console.log('Creating video poker session...');
       const response = await axios.post(`${API}/game/session/create`, null, {
         params: {
           player_wallet: publicKey.toString(),
@@ -419,11 +424,12 @@ const VideoPokerGame = () => {
         }
       });
       
+      console.log('Video poker session created:', response.data);
       setGameSession(response.data.session_id);
       setGameState(response.data.game_data);
     } catch (error) {
       console.error('Error starting game:', error);
-      alert('Failed to start game');
+      alert(`Failed to start game: ${error.message}`);
     }
     setLoading(false);
   };
