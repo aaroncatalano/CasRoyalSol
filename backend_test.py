@@ -853,6 +853,343 @@ def test_video_poker_win_rate():
     except Exception as e:
         return False, str(e)
 
+# Test 24: Video Poker with Different Hold Combinations
+def test_video_poker_different_holds():
+    try:
+        results = []
+        
+        # Test different hold combinations
+        hold_combinations = [
+            [],  # Hold no cards
+            [0, 1, 2, 3, 4],  # Hold all cards
+            [0, 1],  # Hold first two cards
+            [3, 4],  # Hold last two cards
+            [1, 3]   # Hold middle and second-to-last
+        ]
+        
+        for positions in hold_combinations:
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "video_poker"
+                }
+            )
+            session_response.raise_for_status()
+            session_data = session_response.json()
+            session_id = session_data["session_id"]
+            initial_hand = session_data["game_data"]["hand"]
+            
+            # Hold cards
+            hold_response = requests.post(
+                f"{API_URL}/game/video_poker/hold",
+                params={
+                    "session_id": session_id
+                },
+                json=positions
+            )
+            hold_response.raise_for_status()
+            
+            # Draw new cards
+            draw_response = requests.post(
+                f"{API_URL}/game/video_poker/draw",
+                params={
+                    "session_id": session_id
+                }
+            )
+            draw_response.raise_for_status()
+            draw_data = draw_response.json()
+            
+            # Verify held cards remained the same
+            final_hand = draw_data["game_state"]["hand"]
+            held_cards_unchanged = True
+            for pos in positions:
+                if final_hand[pos]["card"] != initial_hand[pos]["card"]:
+                    held_cards_unchanged = False
+                    break
+            
+            # Verify non-held cards were replaced
+            non_held_cards_changed = True
+            for i in range(5):
+                if i not in positions and final_hand[i]["card"] == initial_hand[i]["card"]:
+                    non_held_cards_changed = False
+                    break
+            
+            # Special case for holding all cards
+            if len(positions) == 5:
+                non_held_cards_changed = True
+            
+            results.append({
+                "hold_positions": positions,
+                "initial_hand": [card["card"] for card in initial_hand],
+                "final_hand": [card["card"] for card in final_hand],
+                "hand_rank": draw_data["final_hand"],
+                "payout_multiplier": draw_data["payout_multiplier"],
+                "held_cards_unchanged": held_cards_unchanged,
+                "non_held_cards_changed": non_held_cards_changed if len(positions) < 5 else "N/A (all cards held)"
+            })
+        
+        all_tests_passed = all(result["held_cards_unchanged"] for result in results)
+        all_tests_passed = all_tests_passed and all(
+            result["non_held_cards_changed"] == True or 
+            result["non_held_cards_changed"] == "N/A (all cards held)" 
+            for result in results
+        )
+        
+        return all_tests_passed, {
+            "hold_combinations_tested": len(hold_combinations),
+            "results": results
+        }
+    except Exception as e:
+        return False, str(e)
+
+# Test 25: Blackjack Different Scenarios
+def test_blackjack_different_scenarios():
+    try:
+        results = []
+        
+        # Test different scenarios
+        scenarios = [
+            "hit_until_bust",  # Hit until bust
+            "stand_immediately",  # Stand immediately
+            "hit_once_stand"  # Hit once then stand
+        ]
+        
+        for scenario in scenarios:
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "blackjack"
+                }
+            )
+            session_response.raise_for_status()
+            session_data = session_response.json()
+            session_id = session_data["session_id"]
+            initial_hand = session_data["game_data"]["player_hands"][0]
+            
+            if scenario == "hit_until_bust":
+                # Hit until bust or reach 10 hits (to prevent infinite loop)
+                busted = False
+                hit_count = 0
+                max_hits = 10
+                final_value = initial_hand["value"]
+                
+                while hit_count < max_hits and not busted:
+                    hit_response = requests.post(
+                        f"{API_URL}/game/blackjack/hit",
+                        params={
+                            "session_id": session_id,
+                            "hand_index": 0
+                        }
+                    )
+                    hit_response.raise_for_status()
+                    hit_data = hit_response.json()
+                    
+                    hit_count += 1
+                    final_value = hit_data["game_state"]["player_hands"][0]["value"]
+                    
+                    # Check if busted
+                    if hit_data["game_state"]["player_hands"][0]["busted"]:
+                        busted = True
+                        break
+                
+                # Finish game
+                finish_response = requests.post(
+                    f"{API_URL}/game/blackjack/finish",
+                    params={
+                        "session_id": session_id
+                    }
+                )
+                finish_response.raise_for_status()
+                finish_data = finish_response.json()
+                
+                results.append({
+                    "scenario": scenario,
+                    "initial_value": initial_hand["value"],
+                    "final_value": final_value,
+                    "hit_count": hit_count,
+                    "busted": busted,
+                    "result": finish_data["results"][0]["result"],
+                    "payout_multiplier": finish_data["results"][0]["payout_multiplier"]
+                })
+                
+            elif scenario == "stand_immediately":
+                # Stand immediately
+                stand_response = requests.post(
+                    f"{API_URL}/game/blackjack/stand",
+                    params={
+                        "session_id": session_id,
+                        "hand_index": 0
+                    }
+                )
+                stand_response.raise_for_status()
+                
+                # Finish game
+                finish_response = requests.post(
+                    f"{API_URL}/game/blackjack/finish",
+                    params={
+                        "session_id": session_id
+                    }
+                )
+                finish_response.raise_for_status()
+                finish_data = finish_response.json()
+                
+                results.append({
+                    "scenario": scenario,
+                    "initial_value": initial_hand["value"],
+                    "final_value": initial_hand["value"],  # Unchanged
+                    "dealer_value": finish_data["game_state"]["dealer_hand"]["value"],
+                    "result": finish_data["results"][0]["result"],
+                    "payout_multiplier": finish_data["results"][0]["payout_multiplier"]
+                })
+                
+            elif scenario == "hit_once_stand":
+                # Hit once
+                hit_response = requests.post(
+                    f"{API_URL}/game/blackjack/hit",
+                    params={
+                        "session_id": session_id,
+                        "hand_index": 0
+                    }
+                )
+                hit_response.raise_for_status()
+                hit_data = hit_response.json()
+                
+                # Stand
+                stand_response = requests.post(
+                    f"{API_URL}/game/blackjack/stand",
+                    params={
+                        "session_id": session_id,
+                        "hand_index": 0
+                    }
+                )
+                stand_response.raise_for_status()
+                
+                # Finish game
+                finish_response = requests.post(
+                    f"{API_URL}/game/blackjack/finish",
+                    params={
+                        "session_id": session_id
+                    }
+                )
+                finish_response.raise_for_status()
+                finish_data = finish_response.json()
+                
+                results.append({
+                    "scenario": scenario,
+                    "initial_value": initial_hand["value"],
+                    "after_hit_value": hit_data["game_state"]["player_hands"][0]["value"],
+                    "dealer_value": finish_data["game_state"]["dealer_hand"]["value"],
+                    "result": finish_data["results"][0]["result"],
+                    "payout_multiplier": finish_data["results"][0]["payout_multiplier"]
+                })
+        
+        return True, {
+            "scenarios_tested": len(scenarios),
+            "results": results
+        }
+    except Exception as e:
+        return False, str(e)
+
+# Test 26: Win Rate Verification with More Games
+def test_win_rates_with_more_games():
+    try:
+        # Test blackjack win rate with more games
+        blackjack_results = []
+        blackjack_total_games = 50
+        
+        for _ in range(blackjack_total_games):
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "blackjack"
+                }
+            )
+            session_id = session_response.json()["session_id"]
+            
+            # Finish game immediately
+            finish_response = requests.post(
+                f"{API_URL}/game/blackjack/finish",
+                params={
+                    "session_id": session_id
+                }
+            )
+            finish_data = finish_response.json()
+            
+            # Record result
+            result = finish_data["results"][0]["result"]
+            blackjack_results.append(result)
+        
+        # Calculate blackjack win rate
+        blackjack_wins = blackjack_results.count("win") + blackjack_results.count("blackjack")
+        blackjack_win_rate = (blackjack_wins / blackjack_total_games) * 100
+        
+        # Test video poker win rate with more games
+        poker_results = []
+        poker_total_games = 50
+        
+        for _ in range(poker_total_games):
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "video_poker"
+                }
+            )
+            session_id = session_response.json()["session_id"]
+            
+            # Draw cards immediately
+            draw_response = requests.post(
+                f"{API_URL}/game/video_poker/draw",
+                params={
+                    "session_id": session_id
+                }
+            )
+            draw_data = draw_response.json()
+            
+            # Record result
+            payout_multiplier = draw_data["payout_multiplier"]
+            hand_rank = draw_data["final_hand"]
+            poker_results.append({
+                "hand_rank": hand_rank,
+                "payout_multiplier": payout_multiplier,
+                "win": payout_multiplier > 0
+            })
+        
+        # Calculate video poker win rate
+        poker_wins = sum(1 for result in poker_results if result["win"])
+        poker_win_rate = (poker_wins / poker_total_games) * 100
+        
+        return True, {
+            "blackjack": {
+                "total_games": blackjack_total_games,
+                "wins": blackjack_wins,
+                "win_rate": f"{blackjack_win_rate:.2f}%",
+                "expected_win_rate": "69%",
+                "within_target": abs(blackjack_win_rate - 69) <= 15,
+                "result_distribution": {result: blackjack_results.count(result) for result in set(blackjack_results)}
+            },
+            "video_poker": {
+                "total_games": poker_total_games,
+                "wins": poker_wins,
+                "win_rate": f"{poker_win_rate:.2f}%",
+                "expected_win_rate": "65%",
+                "within_target": abs(poker_win_rate - 65) <= 15,
+                "hand_rank_distribution": {
+                    hand_rank: len([r for r in poker_results if r["hand_rank"] == hand_rank])
+                    for hand_rank in set(r["hand_rank"] for r in poker_results)
+                }
+            }
+        }
+    except Exception as e:
+        return False, str(e)
+
 # Test 18: Blackjack Payout Multipliers
 def test_blackjack_payout_multipliers():
     try:
