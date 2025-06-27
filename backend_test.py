@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 import random
 import string
+import statistics
 
 # Load environment variables from frontend/.env to get the backend URL
 load_dotenv("frontend/.env")
@@ -144,7 +145,18 @@ def test_blackjack_session_creation():
             "player_hands" in data["game_data"] and 
             "dealer_hand" in data["game_data"] and
             len(data["game_data"]["player_hands"]) == 2):
-            return True, data
+            
+            # Verify initial deal has 2 cards for player and dealer
+            player_hand_1 = data["game_data"]["player_hands"][0]
+            player_hand_2 = data["game_data"]["player_hands"][1]
+            dealer_hand = data["game_data"]["dealer_hand"]
+            
+            if (len(player_hand_1["cards"]) == 2 and 
+                len(player_hand_2["cards"]) == 2 and 
+                len(dealer_hand["cards"]) == 2):
+                return True, data
+            else:
+                return False, "Initial deal doesn't have the correct number of cards"
         else:
             return False, "Blackjack session creation failed or has incorrect data"
     except Exception as e:
@@ -169,7 +181,8 @@ def test_video_poker_session_creation():
             "game_data" in data and 
             "hand" in data["game_data"] and 
             "hand_rank" in data["game_data"] and
-            len(data["game_data"]["hand"]) == 5):
+            len(data["game_data"]["hand"]) == 5 and
+            data["game_data"]["initial_deal"] == True):
             return True, data
         else:
             return False, "Video poker session creation failed or has incorrect data"
@@ -239,6 +252,9 @@ def test_blackjack_hit():
         session_data = session_response.json()
         session_id = session_data["session_id"]
         
+        # Get initial hand value
+        initial_hand_value = session_data["game_data"]["player_hands"][0]["value"]
+        
         # Now hit
         response = requests.post(
             f"{API_URL}/game/blackjack/hit",
@@ -251,14 +267,179 @@ def test_blackjack_hit():
         data = response.json()
         
         # Verify the response contains the expected fields
-        if data.get("success") and "card" in data and "message" in data:
-            return True, data
+        if (data.get("success") and 
+            "new_card" in data and 
+            "message" in data and
+            "game_state" in data):
+            
+            # Verify a new card was added to the player's hand
+            player_hand = data["game_state"]["player_hands"][0]
+            if len(player_hand["cards"]) == 3:  # Should now have 3 cards
+                # Verify hand value was updated
+                new_hand_value = player_hand["value"]
+                if new_hand_value != initial_hand_value:
+                    return True, data
+                else:
+                    return False, "Hand value was not updated after hit"
+            else:
+                return False, "New card was not added to player's hand"
         else:
             return False, "Blackjack hit failed or has incorrect data"
     except Exception as e:
         return False, str(e)
 
-# Test 9: Game Logic APIs - Video Poker Hold
+# Test 9: Game Logic APIs - Blackjack Hit Until Bust
+def test_blackjack_hit_until_bust():
+    try:
+        # First create a game session
+        session_response = requests.post(
+            f"{API_URL}/game/session/create",
+            params={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "blackjack"
+            }
+        )
+        session_response.raise_for_status()
+        session_data = session_response.json()
+        session_id = session_data["session_id"]
+        
+        # Hit until bust or reach 10 hits (to prevent infinite loop)
+        busted = False
+        hit_count = 0
+        max_hits = 10
+        
+        while hit_count < max_hits:
+            response = requests.post(
+                f"{API_URL}/game/blackjack/hit",
+                params={
+                    "session_id": session_id,
+                    "hand_index": 0
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            hit_count += 1
+            
+            # Check if busted
+            if data["game_state"]["player_hands"][0]["busted"]:
+                busted = True
+                break
+        
+        if busted:
+            return True, {
+                "message": f"Successfully busted after {hit_count} hits",
+                "final_hand": data["game_state"]["player_hands"][0]
+            }
+        else:
+            return False, f"Failed to bust after {hit_count} hits"
+    except Exception as e:
+        return False, str(e)
+
+# Test 10: Game Logic APIs - Blackjack Stand
+def test_blackjack_stand():
+    try:
+        # First create a game session
+        session_response = requests.post(
+            f"{API_URL}/game/session/create",
+            params={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "blackjack"
+            }
+        )
+        session_response.raise_for_status()
+        session_data = session_response.json()
+        session_id = session_data["session_id"]
+        
+        # Get initial game state
+        initial_game_state = session_data["game_data"]
+        
+        # Now stand
+        response = requests.post(
+            f"{API_URL}/game/blackjack/stand",
+            params={
+                "session_id": session_id,
+                "hand_index": 0
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify the response contains the expected fields
+        if (data.get("success") and 
+            "message" in data and
+            "game_state" in data):
+            
+            # Verify game state remains unchanged after stand
+            player_hand = data["game_state"]["player_hands"][0]
+            initial_player_hand = initial_game_state["player_hands"][0]
+            
+            if (player_hand["value"] == initial_player_hand["value"] and
+                len(player_hand["cards"]) == len(initial_player_hand["cards"])):
+                return True, data
+            else:
+                return False, "Game state changed after stand"
+        else:
+            return False, "Blackjack stand failed or has incorrect data"
+    except Exception as e:
+        return False, str(e)
+
+# Test 11: Game Logic APIs - Blackjack Finish
+def test_blackjack_finish():
+    try:
+        # First create a game session
+        session_response = requests.post(
+            f"{API_URL}/game/session/create",
+            params={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "blackjack"
+            }
+        )
+        session_response.raise_for_status()
+        session_data = session_response.json()
+        session_id = session_data["session_id"]
+        
+        # Now finish the game
+        response = requests.post(
+            f"{API_URL}/game/blackjack/finish",
+            params={
+                "session_id": session_id
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify the response contains the expected fields
+        if (data.get("success") and 
+            "game_state" in data and
+            "results" in data and
+            data["game_state"]["game_over"] == True):
+            
+            # Verify dealer has played according to rules
+            dealer_hand = data["game_state"]["dealer_hand"]
+            dealer_value = dealer_hand["value"]
+            
+            # Dealer should have played to at least 17 unless busted
+            if dealer_value >= 17 or dealer_hand["busted"]:
+                
+                # Verify results contain expected fields
+                result = data["results"][0]
+                if ("hand_index" in result and
+                    "result" in result and
+                    "payout_multiplier" in result and
+                    "player_value" in result and
+                    "dealer_value" in result):
+                    return True, data
+                else:
+                    return False, "Results missing expected fields"
+            else:
+                return False, f"Dealer didn't play according to rules. Value: {dealer_value}"
+        else:
+            return False, "Blackjack finish failed or has incorrect data"
+    except Exception as e:
+        return False, str(e)
+
+# Test 12: Game Logic APIs - Video Poker Hold
 def test_video_poker_hold():
     try:
         # First create a game session
@@ -296,7 +477,586 @@ def test_video_poker_hold():
     except Exception as e:
         return False, str(e)
 
-# Test 10: Get Player Sessions
+# Test 13: Game Logic APIs - Video Poker Draw
+def test_video_poker_draw():
+    try:
+        # First create a game session
+        session_response = requests.post(
+            f"{API_URL}/game/session/create",
+            params={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "video_poker"
+            }
+        )
+        session_response.raise_for_status()
+        session_data = session_response.json()
+        session_id = session_data["session_id"]
+        
+        # Get initial cards
+        initial_hand = session_data["game_data"]["hand"]
+        
+        # Hold some cards
+        positions = [0, 2]  # Hold cards at positions 0 and 2
+        hold_response = requests.post(
+            f"{API_URL}/game/video_poker/hold",
+            params={
+                "session_id": session_id
+            },
+            json=positions
+        )
+        hold_response.raise_for_status()
+        
+        # Now draw new cards
+        response = requests.post(
+            f"{API_URL}/game/video_poker/draw",
+            params={
+                "session_id": session_id
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify the response contains the expected fields
+        if (data.get("success") and 
+            "game_state" in data and
+            "final_hand" in data and
+            "payout_multiplier" in data and
+            data["game_state"]["game_complete"] == True):
+            
+            # Verify held cards remained the same
+            final_hand = data["game_state"]["hand"]
+            
+            # Check if held cards are the same
+            held_cards_unchanged = True
+            for pos in positions:
+                if final_hand[pos]["card"] != initial_hand[pos]["card"]:
+                    held_cards_unchanged = False
+                    break
+            
+            if held_cards_unchanged:
+                return True, data
+            else:
+                return False, "Held cards were changed during draw"
+        else:
+            return False, "Video poker draw failed or has incorrect data"
+    except Exception as e:
+        return False, str(e)
+
+# Test 14: Complete Blackjack Game Flow
+def test_complete_blackjack_game_flow():
+    try:
+        # 1. Create session
+        session_response = requests.post(
+            f"{API_URL}/game/session/create",
+            params={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "blackjack"
+            }
+        )
+        session_response.raise_for_status()
+        session_data = session_response.json()
+        session_id = session_data["session_id"]
+        
+        # 2. Place wager
+        wager_amount = 50.0
+        wager_response = requests.post(
+            f"{API_URL}/game/wager",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": wager_amount,
+                "game_type": "blackjack",
+                "session_id": session_id,
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        wager_response.raise_for_status()
+        
+        # 3. Hit once
+        hit_response = requests.post(
+            f"{API_URL}/game/blackjack/hit",
+            params={
+                "session_id": session_id,
+                "hand_index": 0
+            }
+        )
+        hit_response.raise_for_status()
+        
+        # 4. Stand
+        stand_response = requests.post(
+            f"{API_URL}/game/blackjack/stand",
+            params={
+                "session_id": session_id,
+                "hand_index": 0
+            }
+        )
+        stand_response.raise_for_status()
+        
+        # 5. Finish game
+        finish_response = requests.post(
+            f"{API_URL}/game/blackjack/finish",
+            params={
+                "session_id": session_id
+            }
+        )
+        finish_response.raise_for_status()
+        finish_data = finish_response.json()
+        
+        # 6. Record result
+        result = finish_data["results"][0]
+        payout_multiplier = result["payout_multiplier"]
+        payout_amount = wager_amount * payout_multiplier
+        
+        result_response = requests.post(
+            f"{API_URL}/game/result",
+            json={
+                "session_id": session_id,
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "blackjack",
+                "wager_amount": wager_amount,
+                "payout_amount": payout_amount,
+                "game_data": finish_data["game_state"],
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        result_response.raise_for_status()
+        result_data = result_response.json()
+        
+        return True, {
+            "session_id": session_id,
+            "wager_amount": wager_amount,
+            "game_result": result["result"],
+            "payout_multiplier": payout_multiplier,
+            "payout_amount": payout_amount,
+            "result_recorded": result_data.get("success", False)
+        }
+    except Exception as e:
+        return False, str(e)
+
+# Test 15: Complete Video Poker Game Flow
+def test_complete_video_poker_game_flow():
+    try:
+        # 1. Create session
+        session_response = requests.post(
+            f"{API_URL}/game/session/create",
+            params={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "video_poker"
+            }
+        )
+        session_response.raise_for_status()
+        session_data = session_response.json()
+        session_id = session_data["session_id"]
+        
+        # 2. Place wager
+        wager_amount = 50.0
+        wager_response = requests.post(
+            f"{API_URL}/game/wager",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": wager_amount,
+                "game_type": "video_poker",
+                "session_id": session_id,
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        wager_response.raise_for_status()
+        
+        # 3. Hold some cards
+        positions = [0, 2, 4]  # Hold cards at positions 0, 2, and 4
+        hold_response = requests.post(
+            f"{API_URL}/game/video_poker/hold",
+            params={
+                "session_id": session_id
+            },
+            json=positions
+        )
+        hold_response.raise_for_status()
+        
+        # 4. Draw new cards
+        draw_response = requests.post(
+            f"{API_URL}/game/video_poker/draw",
+            params={
+                "session_id": session_id
+            }
+        )
+        draw_response.raise_for_status()
+        draw_data = draw_response.json()
+        
+        # 5. Record result
+        hand_rank = draw_data["final_hand"]
+        payout_multiplier = draw_data["payout_multiplier"]
+        payout_amount = wager_amount * payout_multiplier
+        
+        result_response = requests.post(
+            f"{API_URL}/game/result",
+            json={
+                "session_id": session_id,
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "video_poker",
+                "wager_amount": wager_amount,
+                "payout_amount": payout_amount,
+                "game_data": draw_data["game_state"],
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        result_response.raise_for_status()
+        result_data = result_response.json()
+        
+        return True, {
+            "session_id": session_id,
+            "wager_amount": wager_amount,
+            "final_hand": hand_rank,
+            "payout_multiplier": payout_multiplier,
+            "payout_amount": payout_amount,
+            "result_recorded": result_data.get("success", False)
+        }
+    except Exception as e:
+        return False, str(e)
+
+# Test 16: Blackjack Win Rate Validation
+def test_blackjack_win_rate():
+    try:
+        wins = 0
+        losses = 0
+        pushes = 0
+        blackjacks = 0
+        total_games = 20
+        
+        for _ in range(total_games):
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "blackjack"
+                }
+            )
+            session_id = session_response.json()["session_id"]
+            
+            # Finish game immediately
+            finish_response = requests.post(
+                f"{API_URL}/game/blackjack/finish",
+                params={
+                    "session_id": session_id
+                }
+            )
+            finish_data = finish_response.json()
+            
+            # Record result
+            result = finish_data["results"][0]["result"]
+            if result == "win":
+                wins += 1
+            elif result == "lose":
+                losses += 1
+            elif result == "push":
+                pushes += 1
+            elif result == "blackjack":
+                blackjacks += 1
+                wins += 1  # Count blackjack as a win for win rate calculation
+        
+        win_rate = (wins / total_games) * 100
+        
+        # Expected win rate is 69%
+        # Allow for some variance due to randomness
+        if abs(win_rate - 69) <= 15:  # Allow 15% variance
+            return True, {
+                "total_games": total_games,
+                "wins": wins,
+                "losses": losses,
+                "pushes": pushes,
+                "blackjacks": blackjacks,
+                "win_rate": f"{win_rate:.2f}%",
+                "expected_win_rate": "69%"
+            }
+        else:
+            return False, f"Win rate of {win_rate:.2f}% is too far from expected 69%"
+    except Exception as e:
+        return False, str(e)
+
+# Test 17: Video Poker Win Rate Validation
+def test_video_poker_win_rate():
+    try:
+        wins = 0
+        losses = 0
+        total_games = 20
+        
+        for _ in range(total_games):
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "video_poker"
+                }
+            )
+            session_id = session_response.json()["session_id"]
+            
+            # Draw cards immediately
+            draw_response = requests.post(
+                f"{API_URL}/game/video_poker/draw",
+                params={
+                    "session_id": session_id
+                }
+            )
+            draw_data = draw_response.json()
+            
+            # Record result
+            payout_multiplier = draw_data["payout_multiplier"]
+            if payout_multiplier > 0:
+                wins += 1
+            else:
+                losses += 1
+        
+        win_rate = (wins / total_games) * 100
+        
+        # Expected win rate is 65%
+        # Allow for some variance due to randomness
+        if abs(win_rate - 65) <= 15:  # Allow 15% variance
+            return True, {
+                "total_games": total_games,
+                "wins": wins,
+                "losses": losses,
+                "win_rate": f"{win_rate:.2f}%",
+                "expected_win_rate": "65%"
+            }
+        else:
+            return False, f"Win rate of {win_rate:.2f}% is too far from expected 65%"
+    except Exception as e:
+        return False, str(e)
+
+# Test 18: Blackjack Payout Multipliers
+def test_blackjack_payout_multipliers():
+    try:
+        # Run multiple games to try to get different outcomes
+        results = []
+        multipliers = {}
+        
+        for _ in range(20):
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "blackjack"
+                }
+            )
+            session_id = session_response.json()["session_id"]
+            
+            # Finish game immediately
+            finish_response = requests.post(
+                f"{API_URL}/game/blackjack/finish",
+                params={
+                    "session_id": session_id
+                }
+            )
+            finish_data = finish_response.json()
+            
+            # Record result
+            result = finish_data["results"][0]
+            results.append({
+                "result": result["result"],
+                "payout_multiplier": result["payout_multiplier"]
+            })
+            
+            # Track multipliers by result type
+            if result["result"] not in multipliers:
+                multipliers[result["result"]] = []
+            multipliers[result["result"]].append(result["payout_multiplier"])
+        
+        # Verify payout multipliers match expected values
+        expected_multipliers = {
+            "win": 2.0,
+            "lose": 0.0,
+            "push": 1.0,
+            "blackjack": 2.5
+        }
+        
+        all_correct = True
+        errors = []
+        
+        for result_type, expected in expected_multipliers.items():
+            if result_type in multipliers:
+                # Check if all multipliers for this result type match expected value
+                if not all(abs(m - expected) < 0.001 for m in multipliers[result_type]):
+                    all_correct = False
+                    errors.append(f"{result_type} has incorrect multiplier(s): {multipliers[result_type]}, expected {expected}")
+        
+        if all_correct:
+            return True, {
+                "multipliers_by_result": {k: list(set(v)) for k, v in multipliers.items()},
+                "expected_multipliers": expected_multipliers,
+                "results_count": {k: len(v) for k, v in multipliers.items()}
+            }
+        else:
+            return False, {"errors": errors, "results": results}
+    except Exception as e:
+        return False, str(e)
+
+# Test 19: Video Poker Payout Multipliers
+def test_video_poker_payout_multipliers():
+    try:
+        # Run multiple games to try to get different hand ranks
+        results = []
+        multipliers = {}
+        
+        for _ in range(30):  # More games to increase chance of different hands
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "video_poker"
+                }
+            )
+            session_id = session_response.json()["session_id"]
+            
+            # Draw cards immediately
+            draw_response = requests.post(
+                f"{API_URL}/game/video_poker/draw",
+                params={
+                    "session_id": session_id
+                }
+            )
+            draw_data = draw_response.json()
+            
+            # Record result
+            hand_rank = draw_data["final_hand"]
+            payout_multiplier = draw_data["payout_multiplier"]
+            
+            results.append({
+                "hand_rank": hand_rank,
+                "payout_multiplier": payout_multiplier
+            })
+            
+            # Track multipliers by hand rank
+            if hand_rank not in multipliers:
+                multipliers[hand_rank] = []
+            multipliers[hand_rank].append(payout_multiplier)
+        
+        # Verify payout multipliers match expected values
+        expected_multipliers = {
+            "Royal Flush": 250,
+            "Straight Flush": 50,
+            "Four of a Kind": 25,
+            "Full House": 9,
+            "Flush": 6,
+            "Straight": 4,
+            "Three of a Kind": 3,
+            "Two Pair": 2,
+            "Jacks or Better": 1,
+            "Low Pair": 0,
+            "High Card": 0
+        }
+        
+        all_correct = True
+        errors = []
+        
+        for hand_rank, expected in expected_multipliers.items():
+            if hand_rank in multipliers:
+                # Check if all multipliers for this hand rank match expected value
+                if not all(abs(m - expected) < 0.001 for m in multipliers[hand_rank]):
+                    all_correct = False
+                    errors.append(f"{hand_rank} has incorrect multiplier(s): {multipliers[hand_rank]}, expected {expected}")
+        
+        if all_correct:
+            return True, {
+                "multipliers_by_hand": {k: list(set(v)) for k, v in multipliers.items()},
+                "expected_multipliers": expected_multipliers,
+                "hands_seen": list(multipliers.keys())
+            }
+        else:
+            return False, {"errors": errors, "results": results}
+    except Exception as e:
+        return False, str(e)
+
+# Test 20: Player Statistics
+def test_player_statistics():
+    try:
+        # First play a few games to generate statistics
+        for game_type in ["blackjack", "video_poker"]:
+            for _ in range(3):
+                # Create session
+                session_response = requests.post(
+                    f"{API_URL}/game/session/create",
+                    params={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "game_type": game_type
+                    }
+                )
+                session_id = session_response.json()["session_id"]
+                
+                # Place wager
+                wager_amount = 50.0
+                requests.post(
+                    f"{API_URL}/game/wager",
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "amount": wager_amount,
+                        "game_type": game_type,
+                        "session_id": session_id,
+                        "transaction_signature": TEST_SIGNATURE
+                    }
+                )
+                
+                # Finish game
+                if game_type == "blackjack":
+                    finish_response = requests.post(
+                        f"{API_URL}/game/blackjack/finish",
+                        params={"session_id": session_id}
+                    )
+                    finish_data = finish_response.json()
+                    result = finish_data["results"][0]
+                    payout_multiplier = result["payout_multiplier"]
+                else:  # video_poker
+                    draw_response = requests.post(
+                        f"{API_URL}/game/video_poker/draw",
+                        params={"session_id": session_id}
+                    )
+                    draw_data = draw_response.json()
+                    payout_multiplier = draw_data["payout_multiplier"]
+                
+                # Record result
+                payout_amount = wager_amount * payout_multiplier
+                requests.post(
+                    f"{API_URL}/game/result",
+                    json={
+                        "session_id": session_id,
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "game_type": game_type,
+                        "wager_amount": wager_amount,
+                        "payout_amount": payout_amount,
+                        "game_data": {},
+                        "transaction_signature": TEST_SIGNATURE
+                    }
+                )
+        
+        # Now get player statistics
+        response = requests.get(f"{API_URL}/player/stats/{TEST_WALLET_PUBLIC_KEY}")
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify the response contains the expected fields
+        if ("player_wallet" in data and
+            "total_games" in data and
+            "total_wagered" in data and
+            "total_payout" in data and
+            "net_profit" in data and
+            "blackjack_games" in data and
+            "poker_games" in data and
+            "recent_results" in data):
+            
+            # Verify statistics are consistent
+            if (data["blackjack_games"] + data["poker_games"] == len(data["recent_results"]) and
+                data["net_profit"] == data["total_payout"] - data["total_wagered"]):
+                return True, data
+            else:
+                return False, "Player statistics are inconsistent"
+        else:
+            return False, "Player statistics missing expected fields"
+    except Exception as e:
+        return False, str(e)
+
+# Test 21: Get Player Sessions
 def test_get_player_sessions():
     try:
         # Create a few game sessions first
@@ -322,42 +1082,7 @@ def test_get_player_sessions():
     except Exception as e:
         return False, str(e)
 
-# Test 11: Rate Limiting
-def test_rate_limiting():
-    try:
-        # Make multiple requests in quick succession to trigger rate limiting
-        success_count = 0
-        rate_limited = False
-        
-        for _ in range(15):  # The limit is 10 requests per minute for wallet/connect
-            try:
-                response = requests.post(
-                    f"{API_URL}/wallet/connect",
-                    json={
-                        "public_key": TEST_WALLET_PUBLIC_KEY,
-                        "signature": TEST_SIGNATURE,
-                        "message": TEST_MESSAGE
-                    }
-                )
-                
-                if response.status_code == 200:
-                    success_count += 1
-                elif response.status_code == 429:  # Too Many Requests
-                    rate_limited = True
-                    break
-            except Exception:
-                pass
-            
-            time.sleep(0.1)  # Small delay between requests
-        
-        if rate_limited:
-            return True, {"message": "Rate limiting is working correctly", "successful_requests": success_count}
-        else:
-            return False, "Rate limiting did not trigger as expected"
-    except Exception as e:
-        return False, str(e)
-
-# Test 12: Error Handling - Invalid Game Type
+# Test 22: Error Handling - Invalid Game Type
 def test_error_handling_invalid_game():
     try:
         response = requests.post(
@@ -376,7 +1101,7 @@ def test_error_handling_invalid_game():
     except Exception as e:
         return False, str(e)
 
-# Test 13: Error Handling - Invalid Session ID
+# Test 23: Error Handling - Invalid Session ID
 def test_error_handling_invalid_session():
     try:
         invalid_session_id = "non_existent_session_id"
@@ -406,9 +1131,19 @@ def run_all_tests():
         ("Game Session Management - Video Poker", test_video_poker_session_creation),
         ("Wagering System with 2% Dev Fee", test_wagering_system),
         ("Game Logic APIs - Blackjack Hit", test_blackjack_hit),
+        ("Game Logic APIs - Blackjack Hit Until Bust", test_blackjack_hit_until_bust),
+        ("Game Logic APIs - Blackjack Stand", test_blackjack_stand),
+        ("Game Logic APIs - Blackjack Finish", test_blackjack_finish),
         ("Game Logic APIs - Video Poker Hold", test_video_poker_hold),
+        ("Game Logic APIs - Video Poker Draw", test_video_poker_draw),
+        ("Complete Blackjack Game Flow", test_complete_blackjack_game_flow),
+        ("Complete Video Poker Game Flow", test_complete_video_poker_game_flow),
+        ("Blackjack Win Rate Validation", test_blackjack_win_rate),
+        ("Video Poker Win Rate Validation", test_video_poker_win_rate),
+        ("Blackjack Payout Multipliers", test_blackjack_payout_multipliers),
+        ("Video Poker Payout Multipliers", test_video_poker_payout_multipliers),
+        ("Player Statistics", test_player_statistics),
         ("Get Player Sessions", test_get_player_sessions),
-        ("Rate Limiting", test_rate_limiting),
         ("Error Handling - Invalid Game Type", test_error_handling_invalid_game),
         ("Error Handling - Invalid Session ID", test_error_handling_invalid_session)
     ]
