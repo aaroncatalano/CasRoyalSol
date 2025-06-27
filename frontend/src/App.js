@@ -629,8 +629,10 @@ const VideoPokerGame = () => {
       
       // Record game result and handle payouts
       if (payout > 0) {
-        console.log(`Player would receive payout of ${payout} SOL`);
-        // In a real implementation, the house wallet would send the payout
+        console.log(`Player won! Payout: ${payout} SOL`);
+        alert(`🎉 YOU WON!\nHand: ${response.data.final_hand}\nPayout: ${payout} SOL\n(In production, this would be sent from house wallet)`);
+      } else {
+        alert(`😞 You Lost!\nHand: ${response.data.final_hand}\nLost: ${wagerAmount} SOL`);
       }
       
       await axios.post(`${API}/game/result`, {
