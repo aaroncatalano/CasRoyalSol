@@ -25,6 +25,7 @@ const WalletConnection = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    console.log('Wallet state changed:', { connected, publicKey: publicKey?.toString() });
     if (connected && publicKey) {
       fetchBalance();
       connectWalletToBackend();
