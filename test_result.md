@@ -164,12 +164,15 @@ backend:
       - working: true
         agent: "testing"
         comment: "Successfully tested blackjack game logic. Hit endpoint works correctly, returning appropriate card data."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing of blackjack game logic completed. Hit, stand, and finish endpoints all work correctly. The game correctly handles multi-hand play, busting, and dealer play according to rules. Payout multipliers are correct (2.5x for blackjack, 2.0x for win, 1.0x for push, 0x for lose). Win rate bias is implemented but actual win rate in testing was around 40% rather than the expected 69%."
 
   - task: "Video Poker Game Logic"
     implemented: true
-    working: true
+    working: false
     file: "/app/backend/server.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "medium"
     needs_retesting: false
     status_history:
@@ -179,6 +182,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "Successfully tested video poker game logic. Hold endpoint works correctly, allowing players to select which cards to hold."
+      - working: false
+        agent: "testing"
+        comment: "Video poker hold endpoint works correctly, but the draw endpoint fails with a 500 Internal Server Error. The error message is 'list assignment index out of range', suggesting an issue with the card drawing logic. The issue occurs when trying to draw new cards after holding some positions."
 
   - task: "Wagering System with 2% Dev Fee"
     implemented: true
@@ -283,15 +289,15 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Phantom Wallet Integration"
-    - "Blackjack Game UI"
-    - "Video Poker Game UI"
-  stuck_tasks: []
+    - "Video Poker Game Logic"
+    - "Blackjack Game Logic"
+  stuck_tasks:
+    - "Video Poker Game Logic"
   test_all: false
   test_priority: "high_first"
 
@@ -304,3 +310,5 @@ agent_communication:
     message: "Completed frontend testing. Found issues with the game buttons not being properly disabled when wallet is not connected. The Start Game buttons for both Blackjack and Video Poker should be disabled when no wallet is connected (as per the code: disabled={loading || !publicKey}), but they're currently enabled. This could lead to errors if users try to start a game without connecting a wallet. The UI/UX design is well-implemented and responsive across different screen sizes. The wallet connection UI shows the correct modal with Phantom as an option, but full wallet functionality couldn't be tested as it requires the Phantom wallet browser extension."
   - agent: "testing"
     message: "After further testing, all frontend components are working correctly. The Start Game buttons for both Blackjack and Video Poker are properly disabled when no wallet is connected, with the disabled attribute present in the DOM. There might be a minor styling issue where the buttons don't visually appear disabled (the disabled:bg-gray-500 class doesn't seem to be applying correctly), but functionally they are working as expected. The wallet connection UI, game selection interface, and responsive design are all implemented correctly."
+  - agent: "testing"
+    message: "Comprehensive testing of all gameplay buttons and endpoints completed. Blackjack game logic is working correctly with all endpoints (hit, stand, finish) functioning as expected. However, there are issues with the Video Poker game logic. The video_poker/draw endpoint is failing with a 500 Internal Server Error and the error message 'list assignment index out of range'. This suggests a bug in the card drawing logic when replacing non-held cards. The blackjack win rate was measured at around 40% in testing, which is lower than the expected 69%. The video poker win rate could not be tested due to the draw endpoint failure."
