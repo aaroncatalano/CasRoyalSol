@@ -617,7 +617,7 @@ async def video_poker_hold(session_id: str, positions: List[int]):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/game/wager")
-async def place_wager(wager: WagerRequest, ratelimit: int = Depends(RateLimiter(times=20, seconds=60))):
+async def place_wager(wager: WagerRequest):
     """Process game wager with 2% dev fee"""
     try:
         # Calculate dev fee
