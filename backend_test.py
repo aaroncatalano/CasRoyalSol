@@ -656,6 +656,7 @@ def test_complete_video_poker_game_flow():
         session_response.raise_for_status()
         session_data = session_response.json()
         session_id = session_data["session_id"]
+        initial_hand = session_data["game_data"]["hand"]
         
         # 2. Place wager
         wager_amount = 50.0
@@ -670,6 +671,7 @@ def test_complete_video_poker_game_flow():
             }
         )
         wager_response.raise_for_status()
+        wager_data = wager_response.json()
         
         # 3. Hold some cards
         positions = [0, 2, 4]  # Hold cards at positions 0, 2, and 4
@@ -681,6 +683,7 @@ def test_complete_video_poker_game_flow():
             json=positions
         )
         hold_response.raise_for_status()
+        hold_data = hold_response.json()
         
         # 4. Draw new cards
         draw_response = requests.post(
@@ -712,12 +715,28 @@ def test_complete_video_poker_game_flow():
         result_response.raise_for_status()
         result_data = result_response.json()
         
+        # Verify the dev fee calculation
+        dev_fee = wager_amount * TRANSACTION_FEE_PERCENTAGE
+        
+        # Verify held cards remained the same
+        final_hand = draw_data["game_state"]["hand"]
+        held_cards_unchanged = True
+        for pos in positions:
+            if final_hand[pos]["card"] != initial_hand[pos]["card"]:
+                held_cards_unchanged = False
+                break
+        
         return True, {
             "session_id": session_id,
             "wager_amount": wager_amount,
-            "final_hand": hand_rank,
+            "initial_hand": [card["card"] for card in initial_hand],
+            "held_positions": positions,
+            "final_hand": [card["card"] for card in final_hand],
+            "hand_rank": hand_rank,
             "payout_multiplier": payout_multiplier,
             "payout_amount": payout_amount,
+            "dev_fee": dev_fee,
+            "held_cards_unchanged": held_cards_unchanged,
             "result_recorded": result_data.get("success", False)
         }
     except Exception as e:
