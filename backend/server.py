@@ -684,27 +684,164 @@ async def video_poker_draw(session_id: str):
         if not session:
             raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
         
-        # Recreate game from session data
+        # Get current game state from session
+        current_game_data = session.get("session_data", {})
+        
+        if "hand" not in current_game_data:
+            raise HTTPException(status_code=400, detail="Invalid game state: no hand found")
+        
+        # Get held cards and current hand
+        current_hand = current_game_data.get("hand", [])
+        
+        # Extract held positions from the hand data
+        held_positions = []
+        for i, card_data in enumerate(current_hand):
+            if card_data.get("held", False):
+                held_positions.append(i)
+        
+        # Create new deck for drawing replacement cards
         game = VideoPokerGame()
-        game_state = game.draw_cards()
+        
+        # Replace non-held cards
+        new_hand = []
+        for i, card_data in enumerate(current_hand):
+            if i in held_positions:
+                # Keep the held card
+                new_hand.append({
+                    "card": card_data["card"],
+                    "held": True
+                })
+            else:
+                # Draw a new card
+                new_card = game.deal_card()
+                new_hand.append({
+                    "card": str(new_card),
+                    "held": False
+                })
+        
+        # Evaluate final hand
+        hand_rank = evaluate_poker_hand([card_data["card"] for card_data in new_hand])
+        payout_multiplier = get_video_poker_payout(hand_rank)
+        
+        # Apply 65% win bias
+        should_player_win = random.random() < 0.65
+        if should_player_win and payout_multiplier == 0:
+            # Try to improve to at least Jacks or Better
+            # Simple bias: if no winning hand, try to create a pair of face cards
+            face_cards = ['J', 'Q', 'K', 'A']
+            suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+            
+            # Find non-held positions
+            non_held = [i for i in range(5) if i not in held_positions]
+            if len(non_held) >= 2:
+                # Create a pair of Jacks
+                new_hand[non_held[0]] = {"card": "J of Hearts", "held": False}
+                new_hand[non_held[1]] = {"card": "J of Diamonds", "held": False}
+                hand_rank = "Jacks or Better"
+                payout_multiplier = 1.0
+        
+        # Update game state
+        final_game_state = {
+            "hand": new_hand,
+            "hand_rank": hand_rank,
+            "initial_deal": False,
+            "game_complete": True,
+            "payout_multiplier": payout_multiplier
+        }
         
         # Update session
         await db.game_sessions.update_one(
             {"id": session_id},
-            {"$set": {"session_data": game_state, "is_active": False}}
+            {"$set": {"session_data": final_game_state, "is_active": False}}
         )
         
         return {
             "success": True,
-            "game_state": game_state,
-            "final_hand": game_state.get("hand_rank", ""),
-            "payout_multiplier": game_state.get("payout_multiplier", 0),
-            "message": f"Final hand: {game_state.get('hand_rank', '')}"
+            "game_state": final_game_state,
+            "final_hand": hand_rank,
+            "payout_multiplier": payout_multiplier,
+            "message": f"Final hand: {hand_rank}"
         }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+def evaluate_poker_hand(cards):
+    """Evaluate poker hand from list of card strings"""
+    ranks = []
+    suits = []
+    
+    for card_str in cards:
+        parts = card_str.split(" of ")
+        if len(parts) == 2:
+            rank, suit = parts
+            ranks.append(rank)
+            suits.append(suit)
+    
+    # Count ranks
+    rank_counts = {}
+    for rank in ranks:
+        rank_counts[rank] = rank_counts.get(rank, 0) + 1
+    
+    # Check for flush
+    is_flush = len(set(suits)) == 1
+    
+    # Check for straight
+    rank_values = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
+    try:
+        sorted_values = sorted([rank_values[rank] for rank in ranks if rank in rank_values])
+        is_straight = len(sorted_values) == 5 and all(sorted_values[i] == sorted_values[i-1] + 1 for i in range(1, 5))
+        
+        # Special case for A-2-3-4-5 straight (wheel)
+        if sorted_values == [2, 3, 4, 5, 14]:
+            is_straight = True
+    except:
+        is_straight = False
+    
+    # Evaluate hand
+    if is_straight and is_flush:
+        if sorted_values == [10, 11, 12, 13, 14]:
+            return "Royal Flush"
+        else:
+            return "Straight Flush"
+    elif 4 in rank_counts.values():
+        return "Four of a Kind"
+    elif 3 in rank_counts.values() and 2 in rank_counts.values():
+        return "Full House"
+    elif is_flush:
+        return "Flush"
+    elif is_straight:
+        return "Straight"
+    elif 3 in rank_counts.values():
+        return "Three of a Kind"
+    elif list(rank_counts.values()).count(2) == 2:
+        return "Two Pair"
+    elif 2 in rank_counts.values():
+        jacks = ['J', 'Q', 'K', 'A']
+        for rank, count in rank_counts.items():
+            if count == 2 and rank in jacks:
+                return "Jacks or Better"
+        return "Low Pair"
+    else:
+        return "High Card"
+
+def get_video_poker_payout(hand_rank):
+    """Get payout multiplier based on hand rank"""
+    payout_table = {
+        "Royal Flush": 250,
+        "Straight Flush": 50,
+        "Four of a Kind": 25,
+        "Full House": 9,
+        "Flush": 6,
+        "Straight": 4,
+        "Three of a Kind": 3,
+        "Two Pair": 2,
+        "Jacks or Better": 1,
+        "Low Pair": 0,
+        "High Card": 0
+    }
+    return payout_table.get(hand_rank, 0)
 
 @api_router.post("/game/video_poker/hold")
 async def video_poker_hold(session_id: str, positions: List[int]):
