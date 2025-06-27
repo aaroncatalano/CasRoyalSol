@@ -24,14 +24,6 @@ const WalletConnection = () => {
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    console.log('Wallet state changed:', { connected, publicKey: publicKey?.toString() });
-    if (connected && publicKey) {
-      fetchBalance();
-      connectWalletToBackend();
-    }
-  }, [connected, publicKey]);
-
   const fetchBalance = async () => {
     if (!publicKey) return;
     
@@ -41,6 +33,26 @@ const WalletConnection = () => {
     } catch (error) {
       console.error('Error fetching balance:', error);
     }
+  };
+
+  useEffect(() => {
+    console.log('Wallet state changed:', { connected, publicKey: publicKey?.toString() });
+    if (connected && publicKey) {
+      fetchBalance();
+      connectWalletToBackend();
+      
+      // Set up periodic balance refresh every 10 seconds
+      const balanceInterval = setInterval(fetchBalance, 10000);
+      
+      return () => clearInterval(balanceInterval);
+    }
+  }, [connected, publicKey]);
+
+  // Manual refresh function
+  const refreshBalance = async () => {
+    setLoading(true);
+    await fetchBalance();
+    setLoading(false);
   };
 
   const connectWalletToBackend = async () => {
