@@ -280,16 +280,34 @@ const BlackjackGame = () => {
       }, 0);
       setTotalPayout(payout);
       
-      // Record game result
+      // Record game result and handle payouts
       if (response.data.results.length > 0) {
-        await axios.post(`${API}/game/result`, {
-          session_id: gameSession,
-          player_wallet: publicKey.toString(),
-          game_type: 'blackjack',
-          wager_amount: wagerAmount,
-          payout_amount: payout,
-          game_data: response.data.game_state
-        });
+        const totalPayout = response.data.results.reduce((total, result) => {
+          return total + (result.payout_multiplier * wagerAmount);
+        }, 0);
+        
+        setTotalPayout(totalPayout);
+        
+        // If player won, send payout (this would come from house wallet in production)
+        if (totalPayout > 0) {
+          try {
+            // For demo: simulate payout by showing the amount they would receive
+            console.log(`Player would receive payout of ${totalPayout} SOL`);
+            
+            // In a real implementation, the house wallet would send the payout
+            // For now, we just record the result
+            await axios.post(`${API}/game/result`, {
+              session_id: gameSession,
+              player_wallet: publicKey.toString(),
+              game_type: 'blackjack',
+              wager_amount: wagerAmount,
+              payout_amount: totalPayout,
+              game_data: response.data.game_state
+            });
+          } catch (payoutError) {
+            console.error('Error processing payout:', payoutError);
+          }
+        }
       }
       
     } catch (error) {
