@@ -577,7 +577,12 @@ const VideoPokerGame = () => {
         payout_amount: payout
       });
       
-      // Record game result
+      // Record game result and handle payouts
+      if (payout > 0) {
+        console.log(`Player would receive payout of ${payout} SOL`);
+        // In a real implementation, the house wallet would send the payout
+      }
+      
       await axios.post(`${API}/game/result`, {
         session_id: gameSession,
         player_wallet: publicKey.toString(),
