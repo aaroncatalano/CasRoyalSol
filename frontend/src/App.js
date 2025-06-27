@@ -198,6 +198,7 @@ const BlackjackGame = () => {
     if (!gameSession || gameComplete) return;
     
     try {
+      console.log('Hitting on hand index:', handIndex);
       const response = await axios.post(`${API}/game/blackjack/hit`, null, {
         params: {
           session_id: gameSession,
@@ -205,15 +206,24 @@ const BlackjackGame = () => {
         }
       });
       
-      setGameState(response.data.game_state);
+      console.log('Hit response:', response.data);
       
-      // Check if player busted
-      const playerHand = response.data.game_state.player_hands[handIndex];
-      if (playerHand.busted) {
-        finishGame();
+      if (response.data.success && response.data.game_state) {
+        setGameState(response.data.game_state);
+        
+        // Check if player busted
+        const playerHand = response.data.game_state.player_hands?.[handIndex];
+        if (playerHand?.busted) {
+          console.log('Player busted, finishing game');
+          finishGame();
+        }
+      } else {
+        console.error('Invalid response from hit endpoint:', response.data);
+        alert('Error: Invalid response from server');
       }
     } catch (error) {
       console.error('Error hitting:', error);
+      alert(`Error hitting: ${error.message}`);
     }
   };
 
