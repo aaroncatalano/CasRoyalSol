@@ -552,19 +552,15 @@ async def blackjack_stand(session_id: str, hand_index: int = 0):
         if not session:
             raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
         
-        # Recreate game from session data
-        game = BlackjackGame()
-        game_state = game.stand(hand_index)
+        # Get current game state from session
+        current_game_data = session.get("session_data", {})
         
-        # Update session
-        await db.game_sessions.update_one(
-            {"id": session_id},
-            {"$set": {"session_data": game_state}}
-        )
+        # Standing doesn't change the hand, just return current state
+        # The finish endpoint will handle dealer play
         
         return {
             "success": True,
-            "game_state": game_state,
+            "game_state": current_game_data,
             "message": f"Stand on hand {hand_index}"
         }
     except HTTPException:
