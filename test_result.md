@@ -167,6 +167,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "Comprehensive testing of blackjack game logic completed. Hit, stand, and finish endpoints all work correctly. The game correctly handles multi-hand play, busting, and dealer play according to rules. Payout multipliers are correct (2.5x for blackjack, 2.0x for win, 1.0x for push, 0x for lose). Win rate bias is implemented but actual win rate in testing was around 40% rather than the expected 69%."
+      - working: true
+        agent: "testing"
+        comment: "Further testing of blackjack game logic with different scenarios (hit until bust, stand immediately, hit once then stand) confirms all gameplay flows work correctly. The win rate remains around 40% after testing with 50 games, which is lower than the expected 69%. This suggests the win rate bias implementation may need adjustment, but the core gameplay functionality is working correctly."
 
   - task: "Video Poker Game Logic"
     implemented: true
