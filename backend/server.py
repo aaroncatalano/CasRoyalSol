@@ -576,20 +576,99 @@ async def blackjack_finish(session_id: str):
         if not session:
             raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
         
-        # Recreate game and finish it
+        # Get current game state from session
+        current_game_data = session.get("session_data", {})
+        
+        # Simulate dealer play with winning bias
         game = BlackjackGame()
-        game_state = game.finish_game()
+        should_player_win = random.random() < 0.69  # 69% win rate
+        
+        # Start with current dealer hand
+        dealer_value = current_game_data.get("dealer_hand", {}).get("value", 13)
+        dealer_cards = current_game_data.get("dealer_hand", {}).get("cards", ["A of Diamonds", "2 of Spades"])
+        
+        # Dealer plays according to rules with bias
+        while dealer_value < 17:
+            card = game.deal_card()
+            dealer_cards.append(str(card))
+            
+            # Calculate new value
+            rank = card.rank
+            if rank in ['J', 'Q', 'K']:
+                dealer_value += 10
+            elif rank == 'A':
+                dealer_value += 11
+            else:
+                dealer_value += int(rank)
+            
+            # Adjust for aces if busted
+            aces = len([c for c in dealer_cards if 'A of' in c])
+            while dealer_value > 21 and aces > 0:
+                dealer_value -= 10
+                aces -= 1
+            
+            # If we want player to win, bias dealer towards busting
+            if should_player_win and dealer_value >= 16 and random.random() < 0.4:
+                break
+        
+        # Update dealer hand
+        current_game_data["dealer_hand"] = {
+            "cards": dealer_cards,
+            "value": dealer_value,
+            "busted": dealer_value > 21
+        }
+        
+        # Calculate results for each player hand
+        results = []
+        dealer_busted = dealer_value > 21
+        
+        for i, player_hand in enumerate(current_game_data.get("player_hands", [])):
+            player_value = player_hand.get("value", 0)
+            player_busted = player_hand.get("busted", False)
+            
+            if player_busted:
+                result = "lose"
+                payout_multiplier = 0
+            elif dealer_busted:
+                result = "win"
+                payout_multiplier = 2.0
+            elif player_value > dealer_value:
+                result = "win"
+                payout_multiplier = 2.0
+            elif player_value == dealer_value:
+                result = "push"
+                payout_multiplier = 1.0
+            else:
+                result = "lose"
+                payout_multiplier = 0
+            
+            # Check for blackjack (21 with 2 cards)
+            if len(player_hand.get("cards", [])) == 2 and player_value == 21:
+                result = "blackjack"
+                payout_multiplier = 2.5
+            
+            results.append({
+                "hand_index": i,
+                "result": result,
+                "payout_multiplier": payout_multiplier,
+                "player_value": player_value,
+                "dealer_value": dealer_value
+            })
+        
+        # Mark game as complete
+        current_game_data["game_over"] = True
+        current_game_data["results"] = results
         
         # Update session
         await db.game_sessions.update_one(
             {"id": session_id},
-            {"$set": {"session_data": game_state, "is_active": False}}
+            {"$set": {"session_data": current_game_data, "is_active": False}}
         )
         
         return {
             "success": True,
-            "game_state": game_state,
-            "results": game_state.get("results", []),
+            "game_state": current_game_data,
+            "results": results,
             "message": "Game completed"
         }
     except HTTPException:
