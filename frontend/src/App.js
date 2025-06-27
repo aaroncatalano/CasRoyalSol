@@ -171,7 +171,7 @@ const BlackjackGame = () => {
       
       console.log(`Wager breakdown: Total: ${totalWager} SOL, Dev Fee: ${devFee} SOL, House: ${houseAmount} SOL`);
       
-      // Create transaction with multiple transfers
+      // Create transaction with dev fee transfer
       const transaction = new Transaction();
       
       // Transfer dev fee (2%) to developer wallet
@@ -201,9 +201,6 @@ const BlackjackGame = () => {
         session_id: gameSession,
         transaction_signature: signature
       });
-
-      // Refresh wallet balance
-      await fetchBalance();
       
       alert(`Wager placed successfully!\nTotal: ${totalWager} SOL\nDev Fee: ${devFee.toFixed(6)} SOL\nTransaction: ${signature}`);
       console.log('Wager response:', response.data);
