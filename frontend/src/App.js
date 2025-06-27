@@ -127,7 +127,11 @@ const BlackjackGame = () => {
   const [totalPayout, setTotalPayout] = useState(0);
 
   const startGame = async () => {
-    if (!publicKey) return;
+    console.log('startGame called, publicKey:', publicKey);
+    if (!publicKey) {
+      alert('Please connect your wallet first!');
+      return;
+    }
     
     setLoading(true);
     setGameComplete(false);
@@ -135,6 +139,7 @@ const BlackjackGame = () => {
     setTotalPayout(0);
     
     try {
+      console.log('Creating game session...');
       const response = await axios.post(`${API}/game/session/create`, null, {
         params: {
           player_wallet: publicKey.toString(),
@@ -143,11 +148,12 @@ const BlackjackGame = () => {
         }
       });
       
+      console.log('Game session created:', response.data);
       setGameSession(response.data.session_id);
       setGameState(response.data.game_data);
     } catch (error) {
       console.error('Error starting game:', error);
-      alert('Failed to start game');
+      alert(`Failed to start game: ${error.message}`);
     }
     setLoading(false);
   };
