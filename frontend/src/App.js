@@ -306,23 +306,26 @@ const BlackjackGame = () => {
             <p className="text-gray-300">Wager: {wagerAmount} SOL</p>
           </div>
           
-          {gameState && (
+          {gameState && gameState.player_hands && gameState.dealer_hand && (
             <div className="mb-4">
               <div className="mb-4">
                 <h3 className="text-white font-semibold">Your Hand:</h3>
                 <div className="text-gray-300">
-                  <p>Cards: {gameState.player_hands[0].cards.join(', ')}</p>
-                  <p>Value: {gameState.player_hands[0].value}</p>
-                  {gameState.player_hands[0].busted && <p className="text-red-400">BUSTED!</p>}
+                  <p>Cards: {gameState.player_hands[0]?.cards?.join(', ') || 'No cards'}</p>
+                  <p>Value: {gameState.player_hands[0]?.value || 0}</p>
+                  {gameState.player_hands[0]?.busted && <p className="text-red-400">BUSTED!</p>}
                 </div>
               </div>
               
               <div className="mb-4">
                 <h3 className="text-white font-semibold">Dealer Hand:</h3>
                 <div className="text-gray-300">
-                  <p>Cards: {gameComplete ? gameState.dealer_hand.cards.join(', ') : gameState.dealer_hand.cards[0] + ', [Hidden]'}</p>
-                  <p>Value: {gameComplete ? gameState.dealer_hand.value : '?'}</p>
-                  {gameComplete && gameState.dealer_hand.busted && <p className="text-red-400">DEALER BUSTED!</p>}
+                  <p>Cards: {gameComplete ? 
+                    (gameState.dealer_hand?.cards?.join(', ') || 'No cards') : 
+                    ((gameState.dealer_hand?.cards?.[0] || 'No card') + ', [Hidden]')
+                  }</p>
+                  <p>Value: {gameComplete ? (gameState.dealer_hand?.value || 0) : '?'}</p>
+                  {gameComplete && gameState.dealer_hand?.busted && <p className="text-red-400">DEALER BUSTED!</p>}
                 </div>
               </div>
 
