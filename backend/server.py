@@ -420,8 +420,15 @@ async def get_status_checks():
     status_checks = await db.status_checks.find().to_list(1000)
     return [StatusCheck(**status_check) for status_check in status_checks]
 
+def optional_rate_limiter():
+    """Optional rate limiter that doesn't fail if Redis is unavailable"""
+    try:
+        return RateLimiter(times=10, seconds=60)
+    except:
+        return None
+
 @api_router.post("/wallet/connect")
-async def connect_wallet(request: WalletConnectionRequest, ratelimit: int = Depends(RateLimiter(times=10, seconds=60))):
+async def connect_wallet(request: WalletConnectionRequest):
     """Connect and verify wallet signature"""
     try:
         # Verify the wallet exists on Solana
