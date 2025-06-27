@@ -114,14 +114,24 @@ const WalletConnection = () => {
       <div className="flex justify-between items-center">
         <div>
           <p className="text-gray-300">Balance: <span className="font-bold text-white">{balance.toFixed(4)} SOL</span></p>
+          <p className="text-xs text-gray-400">Updates every 10 seconds</p>
         </div>
-        <button 
-          onClick={requestAirdrop}
-          disabled={loading}
-          className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg"
-        >
-          {loading ? 'Requesting...' : 'Get Testnet SOL'}
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={refreshBalance}
+            disabled={loading}
+            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-3 py-1 rounded text-sm"
+          >
+            {loading ? '↻' : '🔄'} Refresh
+          </button>
+          <button 
+            onClick={requestAirdrop}
+            disabled={loading}
+            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg"
+          >
+            {loading ? 'Requesting...' : 'Get Testnet SOL'}
+          </button>
+        </div>
       </div>
     </div>
   );
