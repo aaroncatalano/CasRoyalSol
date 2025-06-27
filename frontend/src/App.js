@@ -473,30 +473,45 @@ const VideoPokerGame = () => {
     
     setLoading(true);
     try {
-      const transaction = new Transaction().add(
+      // Calculate amounts
+      const totalWager = wagerAmount;
+      const devFee = totalWager * 0.02; // 2% dev fee
+      const houseAmount = totalWager - devFee;
+      
+      console.log(`Wager breakdown: Total: ${totalWager} SOL, Dev Fee: ${devFee} SOL, House: ${houseAmount} SOL`);
+      
+      // Create transaction with dev fee transfer
+      const transaction = new Transaction();
+      
+      // Transfer dev fee (2%) to developer wallet
+      transaction.add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
-          lamports: wagerAmount * LAMPORTS_PER_SOL
+          lamports: Math.floor(devFee * LAMPORTS_PER_SOL)
         })
       );
-
+      
       const signature = await sendTransaction(transaction, connection);
-      await connection.confirmTransaction(signature);
+      console.log('Transaction signature:', signature);
+      
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      console.log('Transaction confirmed:', confirmation);
 
       const response = await axios.post(`${API}/game/wager`, {
         player_wallet: publicKey.toString(),
-        amount: wagerAmount,
+        amount: totalWager,
         game_type: 'video_poker',
         session_id: gameSession,
         transaction_signature: signature
       });
 
-      alert(`Wager placed! Transaction: ${signature}`);
+      alert(`Wager placed successfully!\nTotal: ${totalWager} SOL\nDev Fee: ${devFee.toFixed(6)} SOL\nTransaction: ${signature}`);
       console.log('Wager response:', response.data);
     } catch (error) {
       console.error('Error placing wager:', error);
-      alert('Failed to place wager');
+      alert(`Failed to place wager: ${error.message}`);
     }
     setLoading(false);
   };
