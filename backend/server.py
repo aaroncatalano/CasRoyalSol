@@ -716,7 +716,10 @@ async def video_poker_draw(session_id: str):
                 held_positions.append(i)
         
         # Create new deck for drawing replacement cards
-        game = VideoPokerGame()
+        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+        ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        deck = [Card(suit, rank) for suit in suits for rank in ranks]
+        random.shuffle(deck)
         
         # Replace non-held cards
         new_hand = []
@@ -729,7 +732,7 @@ async def video_poker_draw(session_id: str):
                 })
             else:
                 # Draw a new card
-                new_card = game.deal_card()
+                new_card = deck.pop()
                 new_hand.append({
                     "card": str(new_card),
                     "held": False
