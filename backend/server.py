@@ -587,29 +587,45 @@ async def blackjack_finish(session_id: str):
         dealer_value = current_game_data.get("dealer_hand", {}).get("value", 13)
         dealer_cards = current_game_data.get("dealer_hand", {}).get("cards", ["A of Diamonds", "2 of Spades"])
         
-        # Dealer plays according to rules with bias
-        while dealer_value < 17:
-            card = game.deal_card()
-            dealer_cards.append(str(card))
-            
-            # Calculate new value
-            rank = card.rank
-            if rank in ['J', 'Q', 'K']:
-                dealer_value += 10
-            elif rank == 'A':
-                dealer_value += 11
-            else:
-                dealer_value += int(rank)
-            
-            # Adjust for aces if busted
-            aces = len([c for c in dealer_cards if 'A of' in c])
-            while dealer_value > 21 and aces > 0:
-                dealer_value -= 10
-                aces -= 1
-            
-            # If we want player to win, bias dealer towards busting
-            if should_player_win and dealer_value >= 16 and random.random() < 0.4:
-                break
+        # Get player value for comparison
+        player_value = current_game_data.get("player_hands", [{}])[0].get("value", 0)
+        player_busted = current_game_data.get("player_hands", [{}])[0].get("busted", False)
+        
+        # If player already busted, they lose regardless of bias
+        if not player_busted:
+            # Dealer plays according to rules with bias
+            while dealer_value < 17:
+                card = game.deal_card()
+                dealer_cards.append(str(card))
+                
+                # Calculate new value
+                rank = card.rank
+                if rank in ['J', 'Q', 'K']:
+                    dealer_value += 10
+                elif rank == 'A':
+                    dealer_value += 11
+                else:
+                    dealer_value += int(rank)
+                
+                # Adjust for aces if busted
+                aces = len([c for c in dealer_cards if 'A of' in c])
+                while dealer_value > 21 and aces > 0:
+                    dealer_value -= 10
+                    aces -= 1
+                
+                # Enhanced bias towards player winning
+                if should_player_win:
+                    # If dealer has 17-21 and player has less, bias dealer to bust
+                    if dealer_value >= 17 and dealer_value <= 21 and player_value < dealer_value:
+                        if random.random() < 0.6:  # 60% chance to draw another card and potentially bust
+                            continue
+                    # If dealer has 16 or less, bias towards busting
+                    elif dealer_value >= 15 and random.random() < 0.7:
+                        continue
+                else:
+                    # If we want dealer to win, play more conservatively
+                    if dealer_value >= 17:
+                        break
         
         # Update dealer hand
         current_game_data["dealer_hand"] = {
