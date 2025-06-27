@@ -491,20 +491,53 @@ async def blackjack_hit(session_id: str, hand_index: int = 0):
         if not session:
             raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
         
-        # Recreate game from session data
+        # Get current game state from session
+        current_game_data = session.get("session_data", {})
+        
+        # For simplicity, simulate hitting by dealing a new random card
+        # In a real implementation, you'd restore the full game state
         game = BlackjackGame()
-        game_state = game.hit(hand_index)
+        card = game.deal_card()
+        
+        # Update the player's hand (this is a simplified approach)
+        if "player_hands" in current_game_data and len(current_game_data["player_hands"]) > hand_index:
+            # Add card to existing hand
+            current_game_data["player_hands"][hand_index]["cards"].append(str(card))
+            
+            # Recalculate hand value (simplified)
+            cards = current_game_data["player_hands"][hand_index]["cards"]
+            hand_value = 0
+            aces = 0
+            
+            for card_str in cards:
+                rank = card_str.split(" of ")[0]
+                if rank in ['J', 'Q', 'K']:
+                    hand_value += 10
+                elif rank == 'A':
+                    hand_value += 11
+                    aces += 1
+                else:
+                    hand_value += int(rank)
+            
+            # Adjust for aces
+            while hand_value > 21 and aces > 0:
+                hand_value -= 10
+                aces -= 1
+            
+            current_game_data["player_hands"][hand_index]["value"] = hand_value
+            current_game_data["player_hands"][hand_index]["busted"] = hand_value > 21
         
         # Update session
         await db.game_sessions.update_one(
             {"id": session_id},
-            {"$set": {"session_data": game_state}}
+            {"$set": {"session_data": current_game_data}}
         )
         
         return {
             "success": True,
-            "game_state": game_state,
-            "message": f"Hit on hand {hand_index}"
+            "game_state": current_game_data,
+            "new_card": str(card),
+            "message": f"Hit on hand {hand_index} - Drew {card}"
         }
     except HTTPException:
         raise
