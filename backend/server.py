@@ -851,8 +851,36 @@ async def video_poker_hold(session_id: str, positions: List[int]):
         if not session:
             raise HTTPException(status_code=404, detail=f"Session not found with ID: {session_id}")
         
+        # Get current game state from session
+        current_game_data = session.get("session_data", {})
+        
+        if "hand" not in current_game_data:
+            raise HTTPException(status_code=400, detail="Invalid game state: no hand found")
+        
+        # Update held cards
+        hand = current_game_data["hand"]
+        
+        # Reset all held flags first
+        for card_data in hand:
+            card_data["held"] = False
+        
+        # Set held flags for specified positions
+        for pos in positions:
+            if 0 <= pos < len(hand):
+                hand[pos]["held"] = True
+        
+        # Update the game state
+        current_game_data["hand"] = hand
+        
+        # Update session
+        await db.game_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"session_data": current_game_data}}
+        )
+        
         return {
             "success": True,
+            "game_state": current_game_data,
             "held_positions": positions,
             "message": f"Held cards at positions: {positions}"
         }
