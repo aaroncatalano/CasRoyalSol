@@ -580,6 +580,7 @@ def test_complete_blackjack_game_flow():
             }
         )
         hit_response.raise_for_status()
+        hit_data = hit_response.json()
         
         # 4. Stand
         stand_response = requests.post(
@@ -590,6 +591,7 @@ def test_complete_blackjack_game_flow():
             }
         )
         stand_response.raise_for_status()
+        stand_data = stand_response.json()
         
         # 5. Finish game
         finish_response = requests.post(
@@ -621,12 +623,20 @@ def test_complete_blackjack_game_flow():
         result_response.raise_for_status()
         result_data = result_response.json()
         
+        # Verify the dev fee calculation
+        dev_fee = wager_amount * TRANSACTION_FEE_PERCENTAGE
+        
         return True, {
             "session_id": session_id,
             "wager_amount": wager_amount,
             "game_result": result["result"],
             "payout_multiplier": payout_multiplier,
             "payout_amount": payout_amount,
+            "dev_fee": dev_fee,
+            "initial_cards": session_data["game_data"]["player_hands"][0]["cards"],
+            "hit_card": hit_data.get("new_card"),
+            "final_player_value": result["player_value"],
+            "dealer_value": result["dealer_value"],
             "result_recorded": result_data.get("success", False)
         }
     except Exception as e:
