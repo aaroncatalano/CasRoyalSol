@@ -167,24 +167,21 @@ const BlackjackGame = () => {
       // Calculate amounts
       const totalWager = wagerAmount;
       const devFee = totalWager * 0.02; // 2% dev fee
-      const houseAmount = totalWager - devFee;
       
-      console.log(`Wager breakdown: Total: ${totalWager} SOL, Dev Fee: ${devFee} SOL, House: ${houseAmount} SOL`);
+      console.log(`Full wager transaction: Total: ${totalWager} SOL, Dev Fee: ${devFee} SOL`);
       
-      // Create transaction with dev fee transfer
+      // Create transaction for FULL wager amount
       const transaction = new Transaction();
       
-      // Transfer dev fee (2%) to developer wallet
+      // Transfer ENTIRE wager amount to dev wallet (simulating house + dev fee)
+      // In production, this would be split between house wallet and dev wallet
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
-          lamports: Math.floor(devFee * LAMPORTS_PER_SOL)
+          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL) // Full amount
         })
       );
-      
-      // For now, the house amount stays with player (in real casino, would go to house wallet)
-      // This simulates the game wager without taking the house portion
       
       const signature = await sendTransaction(transaction, connection);
       console.log('Transaction signature:', signature);
@@ -202,7 +199,7 @@ const BlackjackGame = () => {
         transaction_signature: signature
       });
       
-      alert(`Wager placed successfully!\nTotal: ${totalWager} SOL\nDev Fee: ${devFee.toFixed(6)} SOL\nTransaction: ${signature}`);
+      alert(`Wager placed successfully!\nTotal Deducted: ${totalWager} SOL\nDev Fee: ${devFee.toFixed(6)} SOL\nHouse Amount: ${(totalWager - devFee).toFixed(6)} SOL\nTransaction: ${signature}`);
       console.log('Wager response:', response.data);
     } catch (error) {
       console.error('Error placing wager:', error);
