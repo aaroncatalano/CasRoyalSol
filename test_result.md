@@ -170,9 +170,9 @@ backend:
 
   - task: "Video Poker Game Logic"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/server.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
@@ -185,6 +185,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "Video poker hold endpoint works correctly, but the draw endpoint fails with a 500 Internal Server Error. The error message is 'list assignment index out of range', suggesting an issue with the card drawing logic. The issue occurs when trying to draw new cards after holding some positions."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing of video poker game logic completed. The draw endpoint is now working correctly. Tested with different hold combinations (holding no cards, holding all cards, holding specific positions) and all tests passed. The game correctly maintains held cards and replaces non-held cards. Win rate is approximately 70%, which is close to the expected 65% target."
 
   - task: "Wagering System with 2% Dev Fee"
     implemented: true
