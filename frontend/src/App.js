@@ -289,8 +289,11 @@ const BlackjackGame = () => {
             />
           </div>
           <button
-            onClick={startGame}
-            disabled={loading || !publicKey}
+            onClick={() => {
+              console.log('Start Game button clicked');
+              startGame();
+            }}
+            disabled={loading}
             className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold"
           >
             {loading ? 'Starting...' : 'Start Game'}
