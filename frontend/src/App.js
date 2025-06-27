@@ -307,14 +307,27 @@ const BlackjackGame = () => {
         
         setTotalPayout(totalPayout);
         
-        // If player won, send payout (this would come from house wallet in production)
+        // If player won, they should receive payout
         if (totalPayout > 0) {
           try {
-            // For demo: simulate payout by showing the amount they would receive
-            console.log(`Player would receive payout of ${totalPayout} SOL`);
+            console.log(`Player won! Payout: ${totalPayout} SOL`);
             
-            // In a real implementation, the house wallet would send the payout
-            // For now, we just record the result
+            // In production, this would come from house wallet
+            // For demo: send payout from dev wallet back to player
+            const payoutTransaction = new Transaction();
+            payoutTransaction.add(
+              SystemProgram.transfer({
+                fromPubkey: new PublicKey(DEV_WALLET_ADDRESS), // This would fail as we don't have private key
+                toPubkey: publicKey,
+                lamports: Math.floor(totalPayout * LAMPORTS_PER_SOL)
+              })
+            );
+            
+            // Note: This transaction would fail in practice since we don't control the dev wallet's private key
+            // In production, you'd have a house wallet that sends payouts
+            console.log(`Payout transaction created for ${totalPayout} SOL (would be sent from house wallet)`);
+            
+            // Record the result
             await axios.post(`${API}/game/result`, {
               session_id: gameSession,
               player_wallet: publicKey.toString(),
@@ -323,9 +336,23 @@ const BlackjackGame = () => {
               payout_amount: totalPayout,
               game_data: response.data.game_state
             });
+            
+            alert(`🎉 YOU WON!\nPayout: ${totalPayout} SOL\n(In production, this would be sent from house wallet)`);
           } catch (payoutError) {
             console.error('Error processing payout:', payoutError);
           }
+        } else {
+          // Player lost - no payout, just record result
+          await axios.post(`${API}/game/result`, {
+            session_id: gameSession,
+            player_wallet: publicKey.toString(),
+            game_type: 'blackjack',
+            wager_amount: wagerAmount,
+            payout_amount: 0,
+            game_data: response.data.game_state
+          });
+          
+          alert(`😞 You Lost!\nLost: ${wagerAmount} SOL\nBetter luck next time!`);
         }
       }
       
