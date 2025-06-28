@@ -156,13 +156,35 @@ const BlackjackGame = () => {
       return;
     }
     
+    // Place wager first, then start game
     setLoading(true);
-    setGameComplete(false);
-    setResults([]);
-    setTotalPayout(0);
     
     try {
-      console.log('Creating game session...');
+      // 1. Place wager first
+      const totalWager = wagerAmount;
+      const devFee = totalWager * 0.02;
+      
+      const transaction = new Transaction();
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
+          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL)
+        })
+      );
+      
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      await axios.post(`${API}/game/wager`, {
+        player_wallet: publicKey.toString(),
+        amount: totalWager,
+        game_type: 'blackjack',
+        session_id: 'temp',
+        transaction_signature: signature
+      });
+      
+      // 2. Then create game session and deal cards
       const response = await axios.post(`${API}/game/session/create`, null, {
         params: {
           player_wallet: publicKey.toString(),
@@ -171,9 +193,12 @@ const BlackjackGame = () => {
         }
       });
       
-      console.log('Game session created:', response.data);
       setGameSession(response.data.session_id);
       setGameState(response.data.game_data);
+      setGameComplete(false);
+      setResults([]);
+      setTotalPayout(0);
+      
     } catch (error) {
       console.error('Error starting game:', error);
       alert(`Failed to start game: ${error.message}`);
