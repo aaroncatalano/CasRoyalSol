@@ -815,13 +815,6 @@ const VideoPokerGame = () => {
             {!gameComplete ? (
               <>
                 <button
-                  onClick={placeWager}
-                  disabled={loading}
-                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg"
-                >
-                  {loading ? 'Processing...' : 'Place Wager'}
-                </button>
-                <button
                   onClick={holdCards}
                   className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
                 >
