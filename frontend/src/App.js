@@ -907,10 +907,75 @@ const PlayerStats = () => {
   );
 };
 
-// Main App Component
-const AppContent = () => {
-  const [activeGame, setActiveGame] = useState('blackjack');
-  const [showStats, setShowStats] = useState(false);
+// Enhanced Leaderboard Component
+const Leaderboard = () => {
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchLeaderboard = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/leaderboard`);
+      setLeaderboard(response.data.leaderboard || []);
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 text-center">
+        <p className="text-white">Loading leaderboard...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6">
+      <h3 className="text-xl font-bold text-white mb-4">🏆 Leaderboard</h3>
+      
+      {leaderboard.length === 0 ? (
+        <p className="text-gray-400 text-center">No players yet. Be the first!</p>
+      ) : (
+        <div className="space-y-3">
+          {leaderboard.map((player, index) => (
+            <div key={index} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">
+                  {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                </span>
+                <div>
+                  <p className="text-white font-semibold">{player.display_wallet}</p>
+                  <p className="text-gray-300 text-sm">{player.total_games} games</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`font-bold ${player.net_profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {player.net_profit >= 0 ? '+' : ''}{player.net_profit.toFixed(4)} SOL
+                </p>
+                <p className="text-gray-300 text-sm">
+                  {player.total_payout.toFixed(2)} SOL won
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <button
+        onClick={fetchLeaderboard}
+        className="mt-4 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg w-full"
+      >
+        🔄 Refresh Leaderboard
+      </button>
+    </div>
+  );
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
