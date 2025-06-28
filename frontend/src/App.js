@@ -547,13 +547,33 @@ const VideoPokerGame = () => {
       return;
     }
     
+    // Place wager first, then start game
     setLoading(true);
-    setGameComplete(false);
-    setFinalResult(null);
-    setHeldCards([]);
     
     try {
-      console.log('Creating video poker session...');
+      // 1. Place wager first
+      const totalWager = wagerAmount;
+      const transaction = new Transaction();
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
+          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL)
+        })
+      );
+      
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      await axios.post(`${API}/game/wager`, {
+        player_wallet: publicKey.toString(),
+        amount: totalWager,
+        game_type: 'video_poker',
+        session_id: 'temp',
+        transaction_signature: signature
+      });
+      
+      // 2. Then create game session and deal cards
       const response = await axios.post(`${API}/game/session/create`, null, {
         params: {
           player_wallet: publicKey.toString(),
@@ -561,9 +581,12 @@ const VideoPokerGame = () => {
         }
       });
       
-      console.log('Video poker session created:', response.data);
       setGameSession(response.data.session_id);
       setGameState(response.data.game_data);
+      setGameComplete(false);
+      setFinalResult(null);
+      setHeldCards([]);
+      
     } catch (error) {
       console.error('Error starting game:', error);
       alert(`Failed to start game: ${error.message}`);
