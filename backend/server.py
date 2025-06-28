@@ -453,17 +453,29 @@ async def connect_wallet(request: WalletConnectionRequest):
 
 @api_router.post("/game/session/create")
 async def create_game_session(player_wallet: str, game_type: str, num_hands: int = 1):
-    """Create a new game session"""
+    """Create a new game session with validation"""
     try:
+        # Validate inputs
         if game_type not in ["blackjack", "video_poker"]:
-            raise HTTPException(status_code=400, detail=f"Invalid game type: {game_type}. Must be 'blackjack' or 'video_poker'")
-            
+            raise HTTPException(status_code=400, detail="Invalid game type. Must be 'blackjack' or 'video_poker'")
+        
+        if num_hands < 1 or num_hands > 5:
+            raise HTTPException(status_code=400, detail="Number of hands must be between 1 and 5")
+        
+        # Validate wallet address format
+        try:
+            PublicKey.from_string(player_wallet)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid Solana wallet address format")
+        
         if game_type == "blackjack":
             game = BlackjackGame()
             game_data = game.start_game(num_hands)
         elif game_type == "video_poker":
             game = VideoPokerGame()
             game_data = game.deal_initial_hand()
+        else:
+            raise HTTPException(status_code=400, detail="Invalid game type")
         
         session = GameSession(
             player_wallet=player_wallet,
@@ -476,12 +488,14 @@ async def create_game_session(player_wallet: str, game_type: str, num_hands: int
         return {
             "success": True,
             "session_id": session.id,
-            "game_data": game_data
+            "game_data": game_data,
+            "message": f"{game_type.title()} session created successfully"
         }
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error creating game session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create game session: {str(e)}")
 
 @api_router.post("/game/blackjack/hit")
 async def blackjack_hit(session_id: str, hand_index: int = 0):
