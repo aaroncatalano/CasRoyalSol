@@ -1082,6 +1082,10 @@ const Leaderboard = () => {
           <p>🔗 Running on Solana Testnet</p>
           <p className="text-sm">Dev Fee: 2% | Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
           <p className="text-xs mt-2">🍀 Blackjack: 69% win rate | Video Poker: 65% win rate</p>
+          <div className="mt-4 text-xs">
+            <p className="text-green-400">✅ BETA v1.0 - Ready for Testing</p>
+            <p className="text-gray-500">Built with React + FastAPI + Solana Web3</p>
+          </div>
         </div>
       </div>
     </div>
