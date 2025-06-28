@@ -1043,21 +1043,33 @@ const Leaderboard = () => {
               🎰 Video Poker
             </button>
             <button
-              onClick={() => setShowStats(!showStats)}
+              onClick={() => {setShowStats('stats'); setActiveGame('');}}
               className={`px-6 py-3 rounded-lg font-semibold ${
-                showStats
+                showStats === 'stats'
                   ? 'bg-purple-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
               📊 Statistics
             </button>
+            <button
+              onClick={() => {setShowStats('leaderboard'); setActiveGame('');}}
+              className={`px-6 py-3 rounded-lg font-semibold ${
+                showStats === 'leaderboard'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🏆 Leaderboard
+            </button>
           </div>
         </div>
 
         {/* Game Components */}
-        {showStats ? (
+        {showStats === 'stats' ? (
           <PlayerStats />
+        ) : showStats === 'leaderboard' ? (
+          <Leaderboard />
         ) : (
           <>
             {activeGame === 'blackjack' && <BlackjackGame />}
