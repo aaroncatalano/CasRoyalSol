@@ -924,15 +924,33 @@ async def video_poker_hold(session_id: str, positions: List[int]):
 
 @api_router.post("/game/wager")
 async def place_wager(wager: WagerRequest):
-    """Process game wager with 2% dev fee"""
+    """Process game wager with 2% dev fee and validation"""
     try:
+        # Validate wager amount
+        if wager.amount < 0.01:
+            raise HTTPException(status_code=400, detail="Minimum wager is 0.01 SOL")
+        
+        if wager.amount > 10.0:
+            raise HTTPException(status_code=400, detail="Maximum wager is 10 SOL")
+        
+        # Validate wallet address
+        try:
+            PublicKey.from_string(wager.player_wallet)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid Solana wallet address format")
+        
+        # Validate game type
+        if wager.game_type not in ["blackjack", "video_poker"]:
+            raise HTTPException(status_code=400, detail="Invalid game type")
+        
         # Calculate dev fee
         total_amount = wager.amount
         dev_fee = total_amount * TRANSACTION_FEE_PERCENTAGE
         game_amount = total_amount - dev_fee
         
-        # In a real implementation, verify the transaction signature
-        # For now, simulate the transaction
+        # Validate transaction signature if provided
+        if wager.transaction_signature and len(wager.transaction_signature) < 80:
+            raise HTTPException(status_code=400, detail="Invalid transaction signature format")
         
         # Store wager record
         wager_record = {
@@ -949,6 +967,8 @@ async def place_wager(wager: WagerRequest):
         
         await db.wagers.insert_one(wager_record)
         
+        logger.info(f"Wager placed: {wager.player_wallet} - {total_amount} SOL - {wager.game_type}")
+        
         return {
             "success": True,
             "wager_id": wager_record["id"],
@@ -956,10 +976,13 @@ async def place_wager(wager: WagerRequest):
             "game_amount": game_amount,
             "dev_fee": dev_fee,
             "dev_wallet": DEV_WALLET_ADDRESS,
-            "message": "Wager placed successfully"
+            "message": f"Wager of {total_amount} SOL placed successfully (Dev fee: {dev_fee:.6f} SOL)"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error placing wager: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to place wager: {str(e)}")
 
 @api_router.get("/game/sessions/{player_wallet}")
 async def get_player_sessions(player_wallet: str):
