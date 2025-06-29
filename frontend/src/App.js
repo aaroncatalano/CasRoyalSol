@@ -169,6 +169,15 @@ const BlackjackGame = () => {
     try {
       // 1. Place wager first - Send full amount to dev wallet (temporary house wallet)
       const totalWager = wagerAmount;
+      
+      console.log(`WAGER DEBUG: wagerAmount=${wagerAmount}, totalWager=${totalWager}`);
+      console.log(`WAGER DEBUG: typeof wagerAmount=${typeof wagerAmount}`);
+      
+      if (!totalWager || totalWager <= 0) {
+        alert('Invalid wager amount');
+        setLoading(false);
+        return;
+      }
       const devFee = totalWager * 0.02;
       const houseAmount = totalWager - devFee;
       
