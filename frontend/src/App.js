@@ -569,52 +569,8 @@ const VideoPokerGame = () => {
     setLoading(false);
   };
 
-  const placeWager = async () => {
-    if (!publicKey || !gameSession) return;
-    
-    setLoading(true);
-    try {
-      // Calculate amounts
-      const totalWager = wagerAmount;
-      const devFee = totalWager * 0.02; // 2% dev fee
-      
-      console.log(`Full wager transaction: Total: ${totalWager} SOL, Dev Fee: ${devFee} SOL`);
-      
-      // Create transaction for FULL wager amount
-      const transaction = new Transaction();
-      
-      // Transfer ENTIRE wager amount to dev wallet (simulating house + dev fee)
-      transaction.add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
-          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL) // Full amount
-        })
-      );
-      
-      const signature = await sendTransaction(transaction, connection);
-      console.log('Transaction signature:', signature);
-      
-      // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-      console.log('Transaction confirmed:', confirmation);
-
-      const response = await axios.post(`${API}/game/wager`, {
-        player_wallet: publicKey.toString(),
-        amount: totalWager,
-        game_type: 'video_poker',
-        session_id: gameSession,
-        transaction_signature: signature
-      });
-
-      alert(`Wager placed successfully!\nTotal Deducted: ${totalWager} SOL\nDev Fee: ${devFee.toFixed(6)} SOL\nHouse Amount: ${(totalWager - devFee).toFixed(6)} SOL\nTransaction: ${signature}`);
-      console.log('Wager response:', response.data);
-    } catch (error) {
-      console.error('Error placing wager:', error);
-      alert(`Failed to place wager: ${error.message}`);
-    }
-    setLoading(false);
-  };
+  // Remove old placeWager function - now handled in startGame
+  // const placeWager = async () => { ... }
 
   const toggleHold = (index) => {
     if (gameComplete) return;
