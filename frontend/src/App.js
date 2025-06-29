@@ -187,11 +187,16 @@ const BlackjackGame = () => {
       
       // For now, send full amount to dev wallet (acts as house wallet)
       // In production, would split between dev wallet (2%) and house wallet (98%)
+      const lamportsToSend = Math.floor(totalWager * LAMPORTS_PER_SOL);
+      
+      console.log(`LAMPORTS DEBUG: totalWager=${totalWager}, LAMPORTS_PER_SOL=${LAMPORTS_PER_SOL}`);
+      console.log(`LAMPORTS DEBUG: calculated=${totalWager * LAMPORTS_PER_SOL}, floored=${lamportsToSend}`);
+      
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
-          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL) // Full wager amount
+          lamports: lamportsToSend // Full wager amount
         })
       );
       
