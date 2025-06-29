@@ -557,14 +557,22 @@ const VideoPokerGame = () => {
     setLoading(true);
     
     try {
-      // 1. Place wager first
+      // 1. Place wager first - Send full amount to dev wallet (temporary house wallet)
       const totalWager = wagerAmount;
+      const devFee = totalWager * 0.02;
+      const houseAmount = totalWager - devFee;
+      
+      console.log(`Transaction: Total=${totalWager}, DevFee=${devFee}, House=${houseAmount}`);
+      
       const transaction = new Transaction();
+      
+      // For now, send full amount to dev wallet (acts as house wallet)
+      // In production, would split between dev wallet (2%) and house wallet (98%)
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
-          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL)
+          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL) // Full wager amount
         })
       );
       
