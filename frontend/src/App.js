@@ -249,6 +249,12 @@ const BlackjackGame = () => {
       const confirmation = await connection.confirmTransaction(signature, 'confirmed');
       console.log('Transaction confirmed:', confirmation);
       
+      // Force balance refresh after transaction
+      setTimeout(async () => {
+        const newBalance = await connection.getBalance(publicKey);
+        setBalance(newBalance / LAMPORTS_PER_SOL);
+      }, 2000);
+      
       // Submit wager to backend
       const response = await axios.post(`${API}/game/wager`, {
         player_wallet: publicKey.toString(),
