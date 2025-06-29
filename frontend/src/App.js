@@ -271,7 +271,7 @@ const BlackjackGame = () => {
         transaction_signature: signature
       });
       
-      alert(`Wager placed successfully!\nTotal Deducted: ${totalWager} SOL\nDev Fee: ${devFee.toFixed(6)} SOL\nHouse Amount: ${(totalWager - devFee).toFixed(6)} SOL\nTransaction: ${signature}`);
+      alert(`Wager placed! Full amount deducted: ${totalWager} SOL\nPlease use the refresh button to update your balance.\nTransaction: ${signature}`);
       console.log('Wager response:', response.data);
     } catch (error) {
       console.error('Error placing wager:', error);
