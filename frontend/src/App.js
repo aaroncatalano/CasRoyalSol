@@ -78,6 +78,13 @@ const WalletConnection = () => {
     try {
       const signature = await connection.requestAirdrop(publicKey, LAMPORTS_PER_SOL);
       await connection.confirmTransaction(signature);
+      
+      // Force balance refresh after transaction
+      setTimeout(async () => {
+        const newBalance = await connection.getBalance(publicKey);
+        setBalance(newBalance / LAMPORTS_PER_SOL);
+      }, 2000);
+      
       await fetchBalance();
       alert('Airdrop successful! You received 1 SOL.');
     } catch (error) {
