@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import random
 import string
 import statistics
+import uuid
 
 # Load environment variables from frontend/.env to get the backend URL
 load_dotenv("frontend/.env")
