@@ -1281,9 +1281,9 @@ const AppContent = () => {
         <div className="text-center mt-8 text-gray-400">
           <p>🔗 Running on Solana Testnet</p>
           <p className="text-sm">Dev Fee: 4% | Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
-          <p className="text-xs mt-2">🍀 Blackjack: 69% win rate | Video Poker: 65% win rate</p>
+          <p className="text-xs mt-2">🍀 Blackjack: 69% win rate | Video Poker: 65% win rate | 🚀 SolanaBust: Real-time crash game</p>
           <div className="mt-4 text-xs">
-            <p className="text-green-400">✅ BETA v1.0 - Ready for Testing</p>
+            <p className="text-green-400">✅ PRODUCTION v2.0 - Phase 5 SolanaBust Live!</p>
             <p className="text-gray-500">Built with React + FastAPI + Solana Web3</p>
           </div>
         </div>
