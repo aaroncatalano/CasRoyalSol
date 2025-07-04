@@ -1034,6 +1034,7 @@ const CrashGame = () => {
         <p>🎯 <strong>How to Play:</strong> Place bet → Watch multiplier rise → Cash out before crash!</p>
         <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out</p>
         <p>⚡ <strong>Rounds:</strong> 30s betting → Multiplier rises → Random crash → 8s pause</p>
+        <p>🏦 <strong>House Wallet:</strong> {HOUSE_WALLET_ADDRESS.slice(0, 8)}...{HOUSE_WALLET_ADDRESS.slice(-8)} (USDC Payouts)</p>
       </div>
     </div>
   );
