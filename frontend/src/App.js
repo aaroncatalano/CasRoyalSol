@@ -1249,14 +1249,14 @@ const AppContent = () => {
               📊 Statistics
             </button>
             <button
-              onClick={() => {setShowStats('leaderboard'); setActiveGame('');}}
+              onClick={() => {setActiveGame('crash'); setShowStats(false);}}
               className={`px-6 py-3 rounded-lg font-semibold ${
-                showStats === 'leaderboard'
+                activeGame === 'crash' && !showStats
                   ? 'bg-purple-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              🏆 Leaderboard
+              🚀 SolanaBust
             </button>
           </div>
         </div>
