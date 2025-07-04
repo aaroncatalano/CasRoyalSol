@@ -660,7 +660,7 @@ def test_complete_video_poker_game_flow():
         initial_hand = session_data["game_data"]["hand"]
         
         # 2. Place wager
-        wager_amount = 50.0
+        wager_amount = 1.0
         wager_response = requests.post(
             f"{API_URL}/game/wager",
             json={
