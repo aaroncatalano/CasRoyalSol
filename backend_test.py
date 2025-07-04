@@ -206,7 +206,7 @@ def test_wagering_system():
         session_id = session_data["session_id"]
         
         # Now place a wager
-        wager_amount = 100.0  # 100 SOL for testing
+        wager_amount = 1.0  # 1 SOL for testing
         response = requests.post(
             f"{API_URL}/game/wager",
             json={
