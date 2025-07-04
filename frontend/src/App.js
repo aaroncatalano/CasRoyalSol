@@ -178,7 +178,7 @@ const BlackjackGame = () => {
         setLoading(false);
         return;
       }
-      const devFee = totalWager * 0.02;
+      const devFee = totalWager * 0.04; // 4% dev fee
       const houseAmount = totalWager - devFee;
       
       console.log(`Transaction: Total=${totalWager}, DevFee=${devFee}, House=${houseAmount}`);
