@@ -1024,6 +1024,25 @@ const CrashGame = () => {
     setLoading(false);
   };
 
+// PlayerStats Component
+const PlayerStats = () => {
+  const { publicKey } = useWallet();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchStats = async () => {
+    if (!publicKey) return;
+    
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/player/stats/${publicKey.toString()}`);
+      setStats(response.data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (publicKey) {
       fetchStats();
