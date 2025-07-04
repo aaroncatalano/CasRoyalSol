@@ -914,7 +914,7 @@ const CrashGame = () => {
       
       {/* Multiplier Display */}
       <div className="text-center mb-6">
-        <div className={`text-8xl font-bold mb-2 ${
+        <div className={`text-6xl md:text-8xl font-bold mb-2 ${
           gameState === 'crashed' ? 'text-red-500' : 
           gameState === 'flying' ? 'text-green-400' : 'text-white'
         }`}>
@@ -922,13 +922,13 @@ const CrashGame = () => {
         </div>
         
         {gameState === 'betting' && (
-          <div className="text-yellow-400 text-2xl">
+          <div className="text-yellow-400 text-xl md:text-2xl">
             Starting in {timeLeft}s...
           </div>
         )}
         
         {gameState === 'crashed' && (
-          <div className="text-red-400 text-xl">
+          <div className="text-red-400 text-lg md:text-xl">
             CRASHED at {crashPoint.toFixed(2)}x
           </div>
         )}
