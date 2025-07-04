@@ -1045,7 +1045,6 @@ const CrashGame = () => {
                   }
                 }}
                 className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
-                placeholder="0.01 - 10"
               />
               <div className="flex gap-1">
                 <button onClick={() => setWagerAmount(0.1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.1</button>
@@ -1055,12 +1054,39 @@ const CrashGame = () => {
             </div>
           </div>
 
+          {/* Auto Cash-Out Feature */}
+          <div className="mb-4">
+            <label className="block text-white mb-2">Auto Cash-Out (Optional):</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                step="0.1"
+                min="1.1"
+                max="100"
+                value={autoCashOut || ''}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  setAutoCashOut(value >= 1.1 ? value : null);
+                }}
+                placeholder="2.0x"
+                className="bg-gray-700 text-white px-3 py-2 rounded-lg w-24"
+              />
+              <span className="text-gray-400">x</span>
+              <div className="flex gap-1">
+                <button onClick={() => setAutoCashOut(2.0)} className="bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded text-sm">2x</button>
+                <button onClick={() => setAutoCashOut(5.0)} className="bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded text-sm">5x</button>
+                <button onClick={() => setAutoCashOut(null)} className="bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded text-sm">Off</button>
+              </div>
+            </div>
+            <p className="text-gray-400 text-xs mt-1">Auto cash-out at target multiplier</p>
+          </div>
+
           <button
             onClick={placeBet}
             disabled={loading || !publicKey}
             className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-8 py-4 rounded-lg font-bold text-xl w-full"
           >
-            {loading ? 'Placing Bet...' : `BET ${wagerAmount} SOL`}
+            {loading ? 'Placing Bet...' : `BET ${wagerAmount} SOL ${autoCashOut ? `(Auto @ ${autoCashOut}x)` : ''}`}
           </button>
         </div>
       )}
