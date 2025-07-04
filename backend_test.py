@@ -559,7 +559,7 @@ def test_complete_blackjack_game_flow():
         session_id = session_data["session_id"]
         
         # 2. Place wager
-        wager_amount = 50.0
+        wager_amount = 1.0
         wager_response = requests.post(
             f"{API_URL}/game/wager",
             json={
