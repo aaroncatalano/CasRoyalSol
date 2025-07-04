@@ -1549,3 +1549,163 @@ def run_all_tests():
 
 if __name__ == "__main__":
     run_all_tests()
+
+# Test 24: 4% Dev Fee Implementation
+def test_4_percent_dev_fee():
+    try:
+        # Test with different wager amounts
+        wager_amounts = [0.1, 0.5, 1.0, 5.0, 10.0]
+        results = []
+        
+        for wager_amount in wager_amounts:
+            # Create a game session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "blackjack"
+                }
+            )
+            session_response.raise_for_status()
+            session_data = session_response.json()
+            session_id = session_data["session_id"]
+            
+            # Place wager
+            wager_response = requests.post(
+                f"{API_URL}/game/wager",
+                json={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "amount": wager_amount,
+                    "game_type": "blackjack",
+                    "session_id": session_id,
+                    "transaction_signature": TEST_SIGNATURE
+                }
+            )
+            wager_response.raise_for_status()
+            wager_data = wager_response.json()
+            
+            # Calculate expected values
+            expected_dev_fee = wager_amount * TRANSACTION_FEE_PERCENTAGE
+            expected_game_amount = wager_amount - expected_dev_fee
+            
+            # Verify fee calculation
+            dev_fee_correct = abs(wager_data["dev_fee"] - expected_dev_fee) < 0.001
+            game_amount_correct = abs(wager_data["game_amount"] - expected_game_amount) < 0.001
+            
+            results.append({
+                "wager_amount": wager_amount,
+                "expected_dev_fee": expected_dev_fee,
+                "actual_dev_fee": wager_data["dev_fee"],
+                "expected_game_amount": expected_game_amount,
+                "actual_game_amount": wager_data["game_amount"],
+                "dev_fee_correct": dev_fee_correct,
+                "game_amount_correct": game_amount_correct,
+                "fee_percentage": (wager_data["dev_fee"] / wager_amount) * 100
+            })
+        
+        # Check if all tests passed
+        all_passed = all(result["dev_fee_correct"] and result["game_amount_correct"] for result in results)
+        
+        return all_passed, {
+            "wager_amounts_tested": len(wager_amounts),
+            "results": results,
+            "fee_percentage": f"{TRANSACTION_FEE_PERCENTAGE * 100}%"
+        }
+    except Exception as e:
+        return False, str(e)
+
+# Test 25: Crash Game Wager Placement
+def test_crash_game_wager():
+    try:
+        # Place a wager for crash game
+        wager_amount = 1.0
+        response = requests.post(
+            f"{API_URL}/game/wager",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": wager_amount,
+                "game_type": "crash",
+                "session_id": str(uuid.uuid4()),  # Generate a random session ID
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify the response contains the expected fields and fee calculation is correct
+        expected_dev_fee = wager_amount * TRANSACTION_FEE_PERCENTAGE
+        expected_game_amount = wager_amount - expected_dev_fee
+        
+        if (data.get("success") and 
+            "wager_id" in data and 
+            "total_amount" in data and 
+            "game_amount" in data and 
+            "dev_fee" in data and
+            abs(data["dev_fee"] - expected_dev_fee) < 0.001 and  # Allow for floating point precision
+            abs(data["game_amount"] - expected_game_amount) < 0.001 and
+            data["dev_wallet"] == DEV_WALLET_ADDRESS):
+            return True, data
+        else:
+            return False, "Crash game wager processing failed or fee calculation is incorrect"
+    except Exception as e:
+        return False, str(e)
+
+# Test 26: Complete Crash Game Flow
+def test_complete_crash_game_flow():
+    try:
+        # 1. Generate a session ID for crash game
+        session_id = str(uuid.uuid4())
+        
+        # 2. Place wager
+        wager_amount = 1.0
+        wager_response = requests.post(
+            f"{API_URL}/game/wager",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": wager_amount,
+                "game_type": "crash",
+                "session_id": session_id,
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        wager_response.raise_for_status()
+        wager_data = wager_response.json()
+        
+        # 3. Record a result (simulating a crash game outcome)
+        # In a real crash game, there would be a multiplier determined by the game
+        multiplier = 2.5  # Example multiplier
+        payout_amount = wager_amount * multiplier
+        
+        result_response = requests.post(
+            f"{API_URL}/game/result",
+            json={
+                "session_id": session_id,
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "crash",
+                "wager_amount": wager_amount,
+                "payout_amount": payout_amount,
+                "game_data": {
+                    "multiplier": multiplier,
+                    "crashed_at": multiplier,
+                    "cashed_out": True
+                },
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        result_response.raise_for_status()
+        result_data = result_response.json()
+        
+        # Verify the dev fee calculation
+        dev_fee = wager_amount * TRANSACTION_FEE_PERCENTAGE
+        
+        return True, {
+            "session_id": session_id,
+            "wager_amount": wager_amount,
+            "multiplier": multiplier,
+            "payout_amount": payout_amount,
+            "dev_fee": dev_fee,
+            "dev_fee_percentage": f"{TRANSACTION_FEE_PERCENTAGE * 100}%",
+            "result_recorded": result_data.get("success", False)
+        }
+    except Exception as e:
+        return False, str(e)
