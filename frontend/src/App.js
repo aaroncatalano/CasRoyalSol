@@ -1270,6 +1270,7 @@ const AppContent = () => {
           <>
             {activeGame === 'blackjack' && <BlackjackGame />}
             {activeGame === 'video_poker' && <VideoPokerGame />}
+            {activeGame === 'crash' && <CrashGame />}
           </>
         )}
 
