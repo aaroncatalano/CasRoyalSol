@@ -16,6 +16,7 @@ const API = `${BACKEND_URL}/api`;
 // Constants
 const TESTNET_TOKEN_ADDRESS = "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr";
 const DEV_WALLET_ADDRESS = "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ";
+const HOUSE_WALLET_ADDRESS = "9cnKf5DiYYKGa3ApFWpMBfXRS1Qmwus66EabLkgVTfuh"; // USDC Payouts
 
 // Wallet connection component
 const WalletConnection = () => {
