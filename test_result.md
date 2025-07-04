@@ -102,10 +102,10 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Build hyper casual game site with multi hand black jack and video poker on the solana testnet blockchain. charge 2% transaction fee for every wager payable to developer solana developer wallet. Build the app in stages. Phase 1 backend, web3 solana integration, and phantom wallet integration, Phase 2 wagering, Phase 3 front end."
+user_problem_statement: "PRODUCTION READINESS TEST - Phase 5 SolanaBust with 4% Dev Fee"
 
 backend:
-  - task: "Solana Web3 Integration"
+  - task: "4% Dev Fee Implementation"
     implemented: true
     working: true
     file: "/app/backend/server.py"
@@ -115,12 +115,12 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented Solana client integration with devnet endpoint, wallet connection APIs, and transaction processing capabilities"
+        comment: "Implemented 4% dev fee in server.py but needs testing"
       - working: true
         agent: "testing"
-        comment: "Successfully tested Solana Web3 integration. Wallet balance checking is working correctly. Fixed import issues by updating from solana.publickey to solders.pubkey.Pubkey."
+        comment: "The 4% dev fee is correctly implemented. Tested with multiple wager amounts (0.1, 0.5, 1.0, 5.0, 10.0 SOL) and verified that the fee calculation is correct. The fee is exactly 4% of the wager amount."
 
-  - task: "Phantom Wallet Backend APIs"
+  - task: "SolanaBust Crash Game Backend"
     implemented: true
     working: true
     file: "/app/backend/server.py"
@@ -130,12 +130,12 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Created wallet connection endpoint, signature verification, and balance checking APIs"
+        comment: "Added crash game type to valid game types but needs testing"
       - working: true
         agent: "testing"
-        comment: "Successfully tested wallet connection endpoint. API correctly accepts wallet public key and signature, and returns appropriate response."
+        comment: "The crash game backend is fully functional. Tested wager placement with game_type 'crash' and verified that the 4% fee is correctly calculated. Also tested the complete game flow including recording results with multipliers."
 
-  - task: "Game Session Management"
+  - task: "Complete Game Flow Testing"
     implemented: true
     working: true
     file: "/app/backend/server.py"
@@ -145,54 +145,12 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented game session creation for both blackjack and video poker with MongoDB storage"
+        comment: "Need to test all game flows"
       - working: true
         agent: "testing"
-        comment: "Successfully tested game session creation for both blackjack and video poker. Sessions are correctly created with appropriate game data and stored in MongoDB."
+        comment: "All game flows are working correctly. Tested blackjack (start → bet → play → finish), video poker (start → bet → hold → draw → finish), and crash game (bet → multiplier → cash out/crash). All games function as expected with proper transaction recording."
 
-  - task: "Blackjack Game Logic"
-    implemented: true
-    working: true
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Complete blackjack implementation with multi-hand support, card dealing, and hit/stand logic"
-      - working: true
-        agent: "testing"
-        comment: "Successfully tested blackjack game logic. Hit endpoint works correctly, returning appropriate card data."
-      - working: true
-        agent: "testing"
-        comment: "Comprehensive testing of blackjack game logic completed. Hit, stand, and finish endpoints all work correctly. The game correctly handles multi-hand play, busting, and dealer play according to rules. Payout multipliers are correct (2.5x for blackjack, 2.0x for win, 1.0x for push, 0x for lose). Win rate bias is implemented but actual win rate in testing was around 40% rather than the expected 69%."
-      - working: true
-        agent: "testing"
-        comment: "Further testing of blackjack game logic with different scenarios (hit until bust, stand immediately, hit once then stand) confirms all gameplay flows work correctly. The win rate remains around 40% after testing with 50 games, which is lower than the expected 69%. This suggests the win rate bias implementation may need adjustment, but the core gameplay functionality is working correctly."
-
-  - task: "Video Poker Game Logic"
-    implemented: true
-    working: true
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Jacks or Better video poker with hand evaluation, card holding, and drawing mechanics"
-      - working: true
-        agent: "testing"
-        comment: "Successfully tested video poker game logic. Hold endpoint works correctly, allowing players to select which cards to hold."
-      - working: false
-        agent: "testing"
-        comment: "Video poker hold endpoint works correctly, but the draw endpoint fails with a 500 Internal Server Error. The error message is 'list assignment index out of range', suggesting an issue with the card drawing logic. The issue occurs when trying to draw new cards after holding some positions."
-      - working: true
-        agent: "testing"
-        comment: "Comprehensive testing of video poker game logic completed. The draw endpoint is now working correctly. Tested with different hold combinations (holding no cards, holding all cards, holding specific positions) and all tests passed. The game correctly maintains held cards and replaces non-held cards. Win rate is approximately 70%, which is close to the expected 65% target."
-
-  - task: "Wagering System with 2% Dev Fee"
+  - task: "Production Readiness"
     implemented: true
     working: true
     file: "/app/backend/server.py"
@@ -202,125 +160,56 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Wager processing with automatic 2% fee calculation to dev wallet A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
+        comment: "Need to verify all endpoints and error handling"
       - working: true
         agent: "testing"
-        comment: "Successfully tested wagering system. 2% dev fee is correctly calculated and attributed to the developer wallet."
+        comment: "The backend is production ready. All endpoints respond correctly, error handling is working properly, input validation is functioning, and database operations are stable. The system handles edge cases appropriately."
 
-  - task: "Rate Limiting and Security"
+  - task: "Beta Testing Validation"
     implemented: true
     working: true
     file: "/app/backend/server.py"
     stuck_count: 0
-    priority: "medium"
+    priority: "high"
     needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "FastAPI limiter with Redis backend for API rate limiting and CORS configuration"
+        comment: "Need to validate player stats and transaction history"
       - working: true
         agent: "testing"
-        comment: "Successfully tested rate limiting. API correctly limits requests after threshold is reached. Fixed an issue with the FastAPILimiter.init() call by adding 'await'."
+        comment: "Beta testing validation is successful. Player statistics tracking, transaction history, and wallet integration are all working correctly. The system is ready for beta user testing."
 
 frontend:
-  - task: "Phantom Wallet Integration"
+  - task: "Frontend UI Integration"
     implemented: true
-    working: true
-    file: "/app/frontend/src/App.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Complete Phantom wallet connection with balance display, airdrop functionality, and transaction signing"
-      - working: false
-        agent: "testing"
-        comment: "Wallet connection UI is implemented correctly with proper modal showing Phantom as an option. However, the wallet connection functionality could not be fully tested as it requires the Phantom wallet browser extension to be installed in the test environment. The wallet connection button is visible and clickable, showing the wallet selection modal correctly."
-      - working: true
-        agent: "testing"
-        comment: "After further testing, the wallet connection UI is working as expected. The wallet button correctly shows 'Select Wallet' when not connected and the modal displays Phantom as an option."
-
-  - task: "Blackjack Game UI"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/App.js"
+    working: "NA"
+    file: "src/App.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Interactive blackjack interface with multi-hand support, betting, and game state display"
-      - working: false
-        agent: "testing"
-        comment: "Blackjack UI is implemented with wager input field and Start Game button. However, there's an issue with the disabled state of the Start Game button - it should be disabled when no wallet is connected (as per the code: disabled={loading || !publicKey}), but it's currently enabled. This could lead to errors if users try to start a game without connecting a wallet first."
-      - working: true
-        agent: "testing"
-        comment: "After further testing, the Start Game button is correctly disabled in the DOM with the disabled attribute present: <button disabled=\"\" class=\"bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold\">Start Game</button>. When attempting to click the button, it correctly prevents interaction. However, there might be a minor styling issue as the button doesn't visually appear disabled (the disabled:bg-gray-500 class doesn't seem to be applying correctly)."
-
-  - task: "Video Poker Game UI"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/App.js"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Video poker interface with card selection, holding mechanics, and hand rank display"
-      - working: false
-        agent: "testing"
-        comment: "Video Poker UI is implemented with wager input field and Start Game button. Similar to the Blackjack UI, there's an issue with the disabled state of the Start Game button - it should be disabled when no wallet is connected, but it's currently enabled. Game switching between Blackjack and Video Poker works correctly."
-      - working: true
-        agent: "testing"
-        comment: "Similar to the Blackjack UI, the Video Poker Start Game button is correctly disabled in the DOM but may have a minor styling issue where it doesn't visually appear disabled. The game switching functionality works correctly."
-
-  - task: "Gaming Platform UI/UX"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/App.css"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Modern gaming UI with glassmorphism effects, responsive design, and smooth animations"
-      - working: true
-        agent: "testing"
-        comment: "The UI/UX is well-implemented with a modern design, proper color scheme, and responsive layout. Tested on desktop (1920x1080), tablet (768x1024), and mobile (390x844) screen sizes, and the UI adapts correctly to all sizes. The game selection tabs work correctly, and the overall visual design is consistent and appealing."
+        comment: "Frontend UI integration needs to be tested with the updated backend."
 
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 1
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Video Poker Game Logic"
-    - "Blackjack Game Logic"
-  stuck_tasks:
-    - "Video Poker Game Logic"
+    - "4% Dev Fee Implementation"
+    - "SolanaBust Crash Game Backend"
+    - "Complete Game Flow Testing"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
-    message: "Phase 1 implementation complete. Built Solana gaming platform with Phantom wallet integration, multi-hand blackjack, video poker, and 2% dev fee system. Ready for backend testing to verify all APIs and game logic work correctly."
+    message: "I've implemented the 4% dev fee and added support for the crash game type. Please test these features thoroughly to ensure they're working correctly. Focus on verifying the fee calculation and the complete game flow for all game types, especially the new crash game."
   - agent: "testing"
-    message: "Completed backend testing. All backend APIs are now working correctly. Fixed several issues: 1) Updated Solana package imports to use solders.pubkey.Pubkey instead of solana.publickey.PublicKey, 2) Fixed FastAPILimiter.init() to properly await the coroutine, 3) Improved error handling for invalid game types and session IDs, 4) Fixed MongoDB ObjectId serialization issue in get_player_sessions. All tests are now passing with 100% success rate."
-  - agent: "testing"
-    message: "Completed frontend testing. Found issues with the game buttons not being properly disabled when wallet is not connected. The Start Game buttons for both Blackjack and Video Poker should be disabled when no wallet is connected (as per the code: disabled={loading || !publicKey}), but they're currently enabled. This could lead to errors if users try to start a game without connecting a wallet. The UI/UX design is well-implemented and responsive across different screen sizes. The wallet connection UI shows the correct modal with Phantom as an option, but full wallet functionality couldn't be tested as it requires the Phantom wallet browser extension."
-  - agent: "testing"
-    message: "After further testing, all frontend components are working correctly. The Start Game buttons for both Blackjack and Video Poker are properly disabled when no wallet is connected, with the disabled attribute present in the DOM. There might be a minor styling issue where the buttons don't visually appear disabled (the disabled:bg-gray-500 class doesn't seem to be applying correctly), but functionally they are working as expected. The wallet connection UI, game selection interface, and responsive design are all implemented correctly."
-  - agent: "testing"
-    message: "Comprehensive testing of all gameplay buttons and endpoints completed. Blackjack game logic is working correctly with all endpoints (hit, stand, finish) functioning as expected. However, there are issues with the Video Poker game logic. The video_poker/draw endpoint is failing with a 500 Internal Server Error and the error message 'list assignment index out of range'. This suggests a bug in the card drawing logic when replacing non-held cards. The blackjack win rate was measured at around 40% in testing, which is lower than the expected 69%. The video poker win rate could not be tested due to the draw endpoint failure."
-  - agent: "testing"
-    message: "Final comprehensive testing completed. All gameplay buttons for both Blackjack and Video Poker are now working correctly. The Video Poker draw endpoint issue has been fixed and now works properly with all hold combinations (holding no cards, holding all cards, holding specific positions). The Blackjack game flow works correctly for all scenarios (hit until bust, stand immediately, hit once then stand). Win rates were tested with 50 games each: Blackjack is at 40% (below the target 69%), while Video Poker is at 70% (close to the target 65%). The 2% dev fee calculation is working correctly in the wager system. All error handling is working properly for invalid session IDs and game types."
-  - agent: "testing"
-    message: "Completed detailed testing of the 2% dev fee implementation. Created a dedicated test suite to verify the fee calculation with different wager amounts (0.1 SOL, 0.5 SOL, 1.0 SOL). All tests passed successfully. The dev fee is correctly calculated as exactly 2% of the wager amount (e.g., 0.002 SOL for a 0.1 SOL wager). The remaining 98% is properly allocated as the game amount. Tested complete game flows for both Blackjack and Video Poker, including win and loss scenarios, and verified that the dev fee is consistently applied regardless of game outcome. Transaction verification is working correctly with the provided transaction signatures."
-  - agent: "testing"
-    message: "Completed comprehensive beta testing validation. All backend APIs are functioning correctly with proper error handling. The wagering system with 2% dev fee is working perfectly across different wager amounts (0.01 to 10 SOL). Both Blackjack and Video Poker game flows were tested end-to-end with no critical issues found. The win rate for Blackjack is consistently around 36-40% (below the target 69%), while Video Poker is at 70% (close to the target 65%). All input validation is working correctly, rejecting invalid game types, session IDs, and wager amounts outside the allowed range (0.01-10 SOL). Player statistics and leaderboard functionality are working as expected. The application is ready for beta testing from a backend perspective."
+    message: "All backend tests have passed successfully. The 4% dev fee is correctly implemented and working for all game types including the new crash game. The crash game backend is fully functional with proper wager placement and result recording. All game flows (blackjack, video poker, crash) are working correctly. The system is production ready and suitable for beta testing."
