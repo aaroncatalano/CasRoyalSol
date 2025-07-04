@@ -805,13 +805,74 @@ const CrashGame = () => {
   const { connection } = useConnection();
   const [wagerAmount, setWagerAmount] = useState(0.1);
   const [loading, setLoading] = useState(false);
-  const [gameState, setGameState] = useState('waiting'); // waiting, betting, flying, crashed
+  const [gameState, setGameState] = useState('waiting');
   const [multiplier, setMultiplier] = useState(1.00);
   const [crashPoint, setCrashPoint] = useState(0);
   const [playerBet, setPlayerBet] = useState(null);
   const [cashedOut, setCashedOut] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(15);
-  const [players, setPlayers] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(30);
+  
+  // Phase 2 Features
+  const [autoCashOut, setAutoCashOut] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [activePlayers, setActivePlayers] = useState([]);
+  const [showChat, setShowChat] = useState(false);
+
+  // Auto cash-out logic
+  useEffect(() => {
+    if (autoCashOut && multiplier >= autoCashOut && playerBet && !cashedOut && gameState === 'flying') {
+      cashOut();
+    }
+  }, [multiplier, autoCashOut, playerBet, cashedOut, gameState]);
+
+  // Simulate WebSocket for chat and players (in production, use real WebSocket)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Simulate new chat messages
+      if (Math.random() < 0.1) {
+        const sampleMessages = [
+          "🚀 Going to the moon!",
+          "💎 Diamond hands!",
+          "Cash out now!",
+          "HODL!",
+          "🔥 This is crazy!"
+        ];
+        const newMessage = {
+          id: Date.now(),
+          user: `${Math.random().toString(36).substr(2, 6)}`,
+          message: sampleMessages[Math.floor(Math.random() * sampleMessages.length)],
+          timestamp: new Date().toLocaleTimeString()
+        };
+        setChatMessages(prev => [...prev.slice(-9), newMessage]);
+      }
+
+      // Simulate active players
+      const playerCount = Math.floor(Math.random() * 8) + 3;
+      const players = Array.from({length: playerCount}, (_, i) => ({
+        id: i,
+        wallet: `${Math.random().toString(36).substr(2, 6)}`,
+        bet: (Math.random() * 2 + 0.1).toFixed(2),
+        status: Math.random() > 0.7 ? 'cashed_out' : 'flying'
+      }));
+      setActivePlayers(players);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const sendChatMessage = () => {
+    if (!chatInput.trim() || !publicKey) return;
+    
+    const newMessage = {
+      id: Date.now(),
+      user: publicKey.toString().slice(0, 6),
+      message: chatInput,
+      timestamp: new Date().toLocaleTimeString()
+    };
+    setChatMessages(prev => [...prev.slice(-9), newMessage]);
+    setChatInput('');
+  };
 
   // Simulate crash point using simple algorithm
   const generateCrashPoint = () => {
