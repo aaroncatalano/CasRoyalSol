@@ -873,7 +873,7 @@ const CrashGame = () => {
   useEffect(() => {
     const gameLoop = setInterval(() => {
       if (gameState === 'waiting') {
-        setTimeLeft(15);
+        setTimeLeft(30); // Increased betting time to 30 seconds
         setGameState('betting');
         setMultiplier(1.00);
         setCrashPoint(generateCrashPoint());
@@ -889,20 +889,20 @@ const CrashGame = () => {
         });
       } else if (gameState === 'flying') {
         setMultiplier(prev => {
-          const next = prev + 0.01;
+          const next = prev + 0.02; // Slower multiplier increase
           if (next >= crashPoint) {
             setGameState('crashed');
             // Handle crash
             if (playerBet && !cashedOut) {
               alert(`💥 CRASHED at ${next.toFixed(2)}x!\nYou lost ${playerBet.amount} SOL`);
             }
-            setTimeout(() => setGameState('waiting'), 3000);
+            setTimeout(() => setGameState('waiting'), 8000); // 8 second pause after crash
             return crashPoint;
           }
           return next;
         });
       }
-    }, 100);
+    }, gameState === 'flying' ? 150 : 1000); // Slower flying updates
 
     return () => clearInterval(gameLoop);
   }, [gameState, timeLeft, crashPoint, playerBet, cashedOut]);
