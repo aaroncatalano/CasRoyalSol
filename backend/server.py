@@ -940,7 +940,7 @@ async def place_wager(wager: WagerRequest):
             raise HTTPException(status_code=400, detail="Invalid Solana wallet address format")
         
         # Validate game type
-        if wager.game_type not in ["blackjack", "video_poker"]:
+        if wager.game_type not in ["blackjack", "video_poker", "crash"]:
             raise HTTPException(status_code=400, detail="Invalid game type")
         
         # Calculate dev fee
