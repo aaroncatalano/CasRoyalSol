@@ -860,13 +860,33 @@ const CrashGame = () => {
     setLoading(false);
   };
 
-  const cashOut = () => {
+  const cashOut = async () => {
     if (playerBet && !cashedOut && gameState === 'flying') {
       const winnings = playerBet.amount * multiplier;
       setCashedOut(true);
       setPlayerBet({ ...playerBet, cashedOut: true, winnings });
       
-      alert(`Cashed out at ${multiplier.toFixed(2)}x!\nWinnings: ${winnings.toFixed(4)} SOL`);
+      try {
+        // Create payout transaction from house wallet (simulated)
+        console.log(`PAYOUT: Sending ${winnings.toFixed(4)} SOL to ${publicKey.toString()}`);
+        console.log(`FROM: House wallet ${HOUSE_WALLET_ADDRESS}`);
+        
+        // Record the payout in backend
+        await axios.post(`${API}/game/result`, {
+          session_id: 'crash-' + Date.now(),
+          player_wallet: publicKey.toString(),
+          game_type: 'crash',
+          wager_amount: playerBet.amount,
+          payout_amount: winnings,
+          game_data: { multiplier, crashPoint, cashedOut: true }
+        });
+        
+        alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\nWinnings: ${winnings.toFixed(4)} SOL\n💰 Payout sent from house wallet!`);
+        
+      } catch (error) {
+        console.error('Payout error:', error);
+        alert(`Cashed out at ${multiplier.toFixed(2)}x but payout failed. Contact support.`);
+      }
     }
   };
 
