@@ -913,11 +913,21 @@ const CrashGame = () => {
           const next = prev + 0.02; // Slower multiplier increase
           if (next >= crashPoint) {
             setGameState('crashed');
-            // Handle crash
+            // Handle crash - record loss
             if (playerBet && !cashedOut) {
+              // Record loss in backend
+              axios.post(`${API}/game/result`, {
+                session_id: 'crash-' + Date.now(),
+                player_wallet: publicKey.toString(),
+                game_type: 'crash',
+                wager_amount: playerBet.amount,
+                payout_amount: 0,
+                game_data: { multiplier: next, crashPoint, cashedOut: false }
+              }).catch(console.error);
+              
               alert(`💥 CRASHED at ${next.toFixed(2)}x!\nYou lost ${playerBet.amount} SOL`);
             }
-            setTimeout(() => setGameState('waiting'), 8000); // 8 second pause after crash
+            setTimeout(() => setGameState('waiting'), 8000);
             return crashPoint;
           }
           return next;
