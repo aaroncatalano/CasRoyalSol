@@ -1002,7 +1002,7 @@ const CrashGame = () => {
       <div className="mt-6 text-gray-400 text-xs">
         <p>🎯 <strong>How to Play:</strong> Place bet → Watch multiplier rise → Cash out before crash!</p>
         <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out</p>
-        <p>⚡ <strong>Rounds:</strong> 15s betting → Multiplier rises → Random crash</p>
+        <p>⚡ <strong>Rounds:</strong> 30s betting → Multiplier rises → Random crash → 8s pause</p>
       </div>
     </div>
   );
