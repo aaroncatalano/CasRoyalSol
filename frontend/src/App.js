@@ -534,7 +534,7 @@ const VideoPokerGame = () => {
     try {
       // 1. Place wager first - Send full amount to dev wallet (temporary house wallet)
       const totalWager = wagerAmount;
-      const devFee = totalWager * 0.02;
+      const devFee = totalWager * 0.04; // 4% dev fee
       const houseAmount = totalWager - devFee;
       
       console.log(`Transaction: Total=${totalWager}, DevFee=${devFee}, House=${houseAmount}`);
