@@ -1277,7 +1277,7 @@ const AppContent = () => {
         {/* Footer */}
         <div className="text-center mt-8 text-gray-400">
           <p>🔗 Running on Solana Testnet</p>
-          <p className="text-sm">Dev Fee: 2% | Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
+          <p className="text-sm">Dev Fee: 4% | Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
           <p className="text-xs mt-2">🍀 Blackjack: 69% win rate | Video Poker: 65% win rate</p>
           <div className="mt-4 text-xs">
             <p className="text-green-400">✅ BETA v1.0 - Ready for Testing</p>
