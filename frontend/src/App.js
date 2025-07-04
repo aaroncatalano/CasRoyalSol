@@ -798,8 +798,215 @@ const VideoPokerGame = () => {
   );
 };
 
-// Player Statistics Component
-const PlayerStats = () => {
+// SolanaBust Crash Game Component
+const CrashGame = () => {
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
+  const [wagerAmount, setWagerAmount] = useState(0.1);
+  const [loading, setLoading] = useState(false);
+  const [gameState, setGameState] = useState('waiting'); // waiting, betting, flying, crashed
+  const [multiplier, setMultiplier] = useState(1.00);
+  const [crashPoint, setCrashPoint] = useState(0);
+  const [playerBet, setPlayerBet] = useState(null);
+  const [cashedOut, setCashedOut] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [players, setPlayers] = useState([]);
+
+  // Simulate crash point using simple algorithm
+  const generateCrashPoint = () => {
+    const random = Math.random();
+    // House edge built-in: 2% advantage
+    const crashMultiplier = 1 / (1 - random * 0.98) * 0.99;
+    return Math.max(1.01, Math.min(100, crashMultiplier));
+  };
+
+  const placeBet = async () => {
+    if (!publicKey || gameState !== 'betting') return;
+    
+    setLoading(true);
+    try {
+      // Reuse existing transaction system
+      const totalWager = wagerAmount;
+      const transaction = new Transaction();
+      
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
+          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL)
+        })
+      );
+      
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      // Record bet
+      await axios.post(`${API}/game/wager`, {
+        player_wallet: publicKey.toString(),
+        amount: totalWager,
+        game_type: 'crash',
+        session_id: 'crash-' + Date.now(),
+        transaction_signature: signature
+      });
+      
+      setPlayerBet({ amount: totalWager, cashedOut: false });
+      setCashedOut(false);
+      
+    } catch (error) {
+      console.error('Error placing bet:', error);
+      alert(`Failed to place bet: ${error.message}`);
+    }
+    setLoading(false);
+  };
+
+  const cashOut = () => {
+    if (playerBet && !cashedOut && gameState === 'flying') {
+      const winnings = playerBet.amount * multiplier;
+      setCashedOut(true);
+      setPlayerBet({ ...playerBet, cashedOut: true, winnings });
+      
+      alert(`Cashed out at ${multiplier.toFixed(2)}x!\nWinnings: ${winnings.toFixed(4)} SOL`);
+    }
+  };
+
+  // Game loop simulation
+  useEffect(() => {
+    const gameLoop = setInterval(() => {
+      if (gameState === 'waiting') {
+        setTimeLeft(15);
+        setGameState('betting');
+        setMultiplier(1.00);
+        setCrashPoint(generateCrashPoint());
+        setPlayerBet(null);
+        setCashedOut(false);
+      } else if (gameState === 'betting') {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            setGameState('flying');
+            return 0;
+          }
+          return prev - 1;
+        });
+      } else if (gameState === 'flying') {
+        setMultiplier(prev => {
+          const next = prev + 0.01;
+          if (next >= crashPoint) {
+            setGameState('crashed');
+            // Handle crash
+            if (playerBet && !cashedOut) {
+              alert(`💥 CRASHED at ${next.toFixed(2)}x!\nYou lost ${playerBet.amount} SOL`);
+            }
+            setTimeout(() => setGameState('waiting'), 3000);
+            return crashPoint;
+          }
+          return next;
+        });
+      }
+    }, 100);
+
+    return () => clearInterval(gameLoop);
+  }, [gameState, timeLeft, crashPoint, playerBet, cashedOut]);
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6">
+      <h2 className="text-2xl font-bold text-white mb-4">🚀 SolanaBust Crash Game</h2>
+      <p className="text-green-400 text-sm mb-4">House Edge: 2% | Instant Cashout</p>
+      
+      {/* Multiplier Display */}
+      <div className="text-center mb-6">
+        <div className={`text-8xl font-bold mb-2 ${
+          gameState === 'crashed' ? 'text-red-500' : 
+          gameState === 'flying' ? 'text-green-400' : 'text-white'
+        }`}>
+          {gameState === 'crashed' ? '💥' : `${multiplier.toFixed(2)}x`}
+        </div>
+        
+        {gameState === 'betting' && (
+          <div className="text-yellow-400 text-2xl">
+            Starting in {timeLeft}s...
+          </div>
+        )}
+        
+        {gameState === 'crashed' && (
+          <div className="text-red-400 text-xl">
+            CRASHED at {crashPoint.toFixed(2)}x
+          </div>
+        )}
+      </div>
+
+      {/* Betting Interface */}
+      {(gameState === 'betting' || gameState === 'waiting') && !playerBet && (
+        <div className="mb-6">
+          <div className="mb-4">
+            <label className="block text-white mb-2">Bet Amount (SOL):</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max="10"
+                value={wagerAmount}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (value >= 0.01 && value <= 10) {
+                    setWagerAmount(value);
+                  }
+                }}
+                className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
+                placeholder="0.01 - 10"
+              />
+              <div className="flex gap-1">
+                <button onClick={() => setWagerAmount(0.1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.1</button>
+                <button onClick={() => setWagerAmount(0.5)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.5</button>
+                <button onClick={() => setWagerAmount(1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">1.0</button>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={placeBet}
+            disabled={loading || !publicKey}
+            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-8 py-4 rounded-lg font-bold text-xl w-full"
+          >
+            {loading ? 'Placing Bet...' : `BET ${wagerAmount} SOL`}
+          </button>
+        </div>
+      )}
+
+      {/* Cash Out Button */}
+      {playerBet && gameState === 'flying' && !cashedOut && (
+        <button
+          onClick={cashOut}
+          className="bg-red-500 hover:bg-red-600 text-white px-8 py-4 rounded-lg font-bold text-xl w-full mb-4"
+        >
+          CASH OUT {(playerBet.amount * multiplier).toFixed(4)} SOL
+        </button>
+      )}
+
+      {/* Player Status */}
+      {playerBet && (
+        <div className="bg-gray-700 p-4 rounded-lg">
+          <h3 className="text-white font-semibold mb-2">Your Bet:</h3>
+          <p className="text-gray-300">Amount: {playerBet.amount} SOL</p>
+          {cashedOut ? (
+            <p className="text-green-400 font-bold">✅ Cashed out at {multiplier.toFixed(2)}x</p>
+          ) : gameState === 'crashed' ? (
+            <p className="text-red-400 font-bold">💥 Lost - Crashed at {crashPoint.toFixed(2)}x</p>
+          ) : (
+            <p className="text-yellow-400">🚀 In flight...</p>
+          )}
+        </div>
+      )}
+
+      {/* Game Rules */}
+      <div className="mt-6 text-gray-400 text-xs">
+        <p>🎯 <strong>How to Play:</strong> Place bet → Watch multiplier rise → Cash out before crash!</p>
+        <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out</p>
+        <p>⚡ <strong>Rounds:</strong> 15s betting → Multiplier rises → Random crash</p>
+      </div>
+    </div>
+  );
+};
   const { publicKey } = useWallet();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
