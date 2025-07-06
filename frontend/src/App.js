@@ -1104,6 +1104,15 @@ const CrashGame = () => {
       )}
 
       {/* Cash Out Button */}
+      {playerBet && !cashedOut && gameState === 'flying' && (
+        <button
+          onClick={cashOut}
+          className="bg-red-500 hover:bg-red-600 text-white px-8 py-4 rounded-lg font-bold text-xl w-full mb-4"
+        >
+          CASH OUT {(playerBet.amount * multiplier).toFixed(4)} SOL
+        </button>
+      )}
+
       {/* Live Player List & Chat System */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         
@@ -1191,13 +1200,6 @@ const CrashGame = () => {
           )}
         </div>
       </div>
-        <button
-          onClick={cashOut}
-          className="bg-red-500 hover:bg-red-600 text-white px-8 py-4 rounded-lg font-bold text-xl w-full mb-4"
-        >
-          CASH OUT {(playerBet.amount * multiplier).toFixed(4)} SOL
-        </button>
-      )}
 
       {/* Player Status */}
       {playerBet && (
