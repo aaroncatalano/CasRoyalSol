@@ -216,9 +216,9 @@ metadata:
 
 test_plan:
   current_focus:
+    - "SolanaBust Runtime Error Fixes"
     - "4% Dev Fee Implementation"
     - "SolanaBust Crash Game Backend"
-    - "Complete Game Flow Testing"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
