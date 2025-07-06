@@ -861,6 +861,18 @@ const CrashGame = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const sendQuickMessage = (message) => {
+    if (!publicKey) return;
+    
+    const newMessage = {
+      id: Date.now(),
+      user: publicKey.toString().slice(0, 6),
+      message: message,
+      timestamp: new Date().toLocaleTimeString()
+    };
+    setChatMessages(prev => [...prev.slice(-9), newMessage]);
+  };
+
   const sendChatMessage = () => {
     if (!chatInput.trim() || !publicKey) return;
     
