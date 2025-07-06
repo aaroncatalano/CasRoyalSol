@@ -192,6 +192,21 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Frontend UI integration needs to be tested with the updated backend."
+  
+  - task: "SolanaBust Runtime Error Fixes"
+    implemented: true
+    working: "NA"
+    file: "src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "SolanaBust had critical runtime errors: 'Cannot read properties of null (reading 'amount')' caused by missing conditional brackets and null reference errors"
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed critical SolanaBust bugs: 1) Added proper conditional wrapping for cash out button 2) Enhanced null checks in auto cash-out logic 3) Improved playerBet state management 4) Fixed game loop crash handling 5) Strengthened cashOut function with comprehensive validation. All null reference errors should be resolved."
 
 metadata:
   created_by: "main_agent"
