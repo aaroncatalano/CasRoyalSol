@@ -995,11 +995,11 @@ const CrashGame = () => {
           if (next >= crashPoint) {
             setGameState('crashed');
             // Handle crash - record loss
-            if (playerBet && !cashedOut) {
+            if (playerBet && playerBet.amount && !cashedOut) {
               // Record loss in backend
               axios.post(`${API}/game/result`, {
                 session_id: 'crash-' + Date.now(),
-                player_wallet: publicKey.toString(),
+                player_wallet: publicKey?.toString() || 'unknown',
                 game_type: 'crash',
                 wager_amount: playerBet.amount,
                 payout_amount: 0,
@@ -1017,7 +1017,7 @@ const CrashGame = () => {
     }, gameState === 'flying' ? 150 : 1000); // Slower flying updates
 
     return () => clearInterval(gameLoop);
-  }, [gameState, timeLeft, crashPoint, playerBet, cashedOut]);
+  }, [gameState, timeLeft, crashPoint, playerBet, cashedOut, publicKey]);
 
   return (
     <div className="bg-gray-800 rounded-lg p-6">
