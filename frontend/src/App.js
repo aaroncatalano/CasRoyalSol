@@ -901,7 +901,10 @@ const CrashGame = () => {
   };
 
   const placeBet = async () => {
-    if (!publicKey || gameState !== 'betting') return;
+    if (!publicKey || gameState !== 'betting') {
+      console.log('Place bet conditions not met:', { publicKey, gameState });
+      return;
+    }
     
     setLoading(true);
     try {
@@ -929,8 +932,15 @@ const CrashGame = () => {
         transaction_signature: signature
       });
       
-      setPlayerBet({ amount: totalWager, cashedOut: false });
+      setPlayerBet({ 
+        amount: totalWager, 
+        cashedOut: false, 
+        winnings: 0,
+        timestamp: Date.now()
+      });
       setCashedOut(false);
+      
+      console.log('Bet placed successfully:', { amount: totalWager, gameState });
       
     } catch (error) {
       console.error('Error placing bet:', error);
