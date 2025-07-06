@@ -821,7 +821,13 @@ const CrashGame = () => {
 
   // Auto cash-out logic
   useEffect(() => {
-    if (autoCashOut && multiplier >= autoCashOut && playerBet && !cashedOut && gameState === 'flying') {
+    if (autoCashOut && 
+        multiplier >= autoCashOut && 
+        playerBet && 
+        playerBet.amount && 
+        !cashedOut && 
+        gameState === 'flying') {
+      console.log(`Auto cash-out triggered at ${multiplier.toFixed(2)}x`);
       cashOut();
     }
   }, [multiplier, autoCashOut, playerBet, cashedOut, gameState]);
