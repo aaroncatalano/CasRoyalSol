@@ -1092,7 +1092,93 @@ const CrashGame = () => {
       )}
 
       {/* Cash Out Button */}
-      {playerBet && gameState === 'flying' && !cashedOut && (
+      {/* Live Player List & Chat System */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        
+        {/* Active Players Panel */}
+        <div className="bg-gray-700 rounded-lg p-4">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-white font-semibold">Live Players ({activePlayers.length})</h3>
+            <span className="text-green-400 text-sm">🟢 {activePlayers.length} online</span>
+          </div>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {activePlayers.map((player) => (
+              <div key={player.id} className="flex justify-between items-center text-sm">
+                <span className="text-gray-300">
+                  {player.wallet}...
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-400">{player.bet} SOL</span>
+                  <span className={`w-2 h-2 rounded-full ${
+                    player.status === 'cashed_out' ? 'bg-green-400' : 'bg-blue-400'
+                  }`}></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Live Chat */}
+        <div className="lg:col-span-2 bg-gray-700 rounded-lg p-4">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-white font-semibold">Live Chat</h3>
+            <button
+              onClick={() => setShowChat(!showChat)}
+              className="text-purple-400 text-sm hover:text-purple-300"
+            >
+              {showChat ? 'Hide Chat' : 'Show Chat'}
+            </button>
+          </div>
+          
+          {showChat && (
+            <>
+              {/* Chat Messages */}
+              <div className="bg-gray-800 rounded p-3 h-32 overflow-y-auto mb-3 space-y-1">
+                {chatMessages.map((msg) => (
+                  <div key={msg.id} className="text-sm">
+                    <span className="text-purple-400">{msg.user}:</span>
+                    <span className="text-gray-300 ml-2">{msg.message}</span>
+                    <span className="text-gray-500 text-xs ml-2">{msg.timestamp}</span>
+                  </div>
+                ))}
+                {chatMessages.length === 0 && (
+                  <div className="text-gray-500 text-center">No messages yet. Be the first to chat!</div>
+                )}
+              </div>
+
+              {/* Quick Emoji Reactions */}
+              <div className="flex gap-2 mb-3">
+                <button onClick={() => sendQuickMessage('🚀 To the moon!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">🚀</button>
+                <button onClick={() => sendQuickMessage('💎 Diamond hands!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">💎</button>
+                <button onClick={() => sendQuickMessage('🔥 This is fire!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">🔥</button>
+                <button onClick={() => sendQuickMessage('💸 Cash out now!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">💸</button>
+                <button onClick={() => sendQuickMessage('😱 OMG!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">😱</button>
+              </div>
+
+              {/* Chat Input */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
+                  placeholder={publicKey ? "Type a message..." : "Connect wallet to chat"}
+                  disabled={!publicKey}
+                  className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm"
+                  maxLength={100}
+                />
+                <button
+                  onClick={sendChatMessage}
+                  disabled={!publicKey || !chatInput.trim()}
+                  className="bg-purple-600 hover:bg-purple-500 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg text-sm"
+                >
+                  Send
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
         <button
           onClick={cashOut}
           className="bg-red-500 hover:bg-red-600 text-white px-8 py-4 rounded-lg font-bold text-xl w-full mb-4"
