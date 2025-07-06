@@ -1210,7 +1210,7 @@ const CrashGame = () => {
       </div>
 
       {/* Player Status */}
-      {playerBet && (
+      {playerBet && playerBet.amount && (
         <div className="bg-gray-700 p-4 rounded-lg">
           <h3 className="text-white font-semibold mb-2">Your Bet:</h3>
           <p className="text-gray-300">Amount: {playerBet.amount} SOL</p>
