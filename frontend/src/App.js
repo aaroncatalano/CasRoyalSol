@@ -380,13 +380,13 @@ const BlackjackGame = () => {
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                step="0.01"
-                min="0.01"
-                max="10"
+                step="0.001"
+                min="0.005"
+                max="0.05"
                 value={wagerAmount}
                 onChange={(e) => {
                   const value = parseFloat(e.target.value);
-                  if (value >= 0.01 && value <= 10) {
+                  if (value >= 0.005 && value <= 0.05) {
                     setWagerAmount(value);
                   }
                 }}
@@ -394,12 +394,12 @@ const BlackjackGame = () => {
                 placeholder="0.01 - 10"
               />
               <div className="flex gap-1">
-                <button onClick={() => setWagerAmount(0.1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.1</button>
-                <button onClick={() => setWagerAmount(0.5)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.5</button>
-                <button onClick={() => setWagerAmount(1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">1.0</button>
+                <button onClick={() => setWagerAmount(0.01)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.01</button>
+                <button onClick={() => setWagerAmount(0.007)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.007</button>
+                <button onClick={() => setWagerAmount(0.005)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.005</button>
               </div>
             </div>
-            <p className="text-gray-400 text-xs mt-1">Min: 0.01 SOL | Max: 10 SOL</p>
+            <p className="text-gray-400 text-xs mt-1">Min: 0.005 SOL | Max: 0.05 SOL</p>
           </div>
           <button
             onClick={() => {
