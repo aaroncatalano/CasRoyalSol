@@ -1239,7 +1239,9 @@ const CrashGame = () => {
         <p>🎯 <strong>How to Play:</strong> Place bet → Watch multiplier rise → Cash out before crash!</p>
         <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out</p>
         <p>⚡ <strong>Rounds:</strong> 30s betting → Multiplier rises → Random crash → 8s pause</p>
+        <p>💸 <strong>Bet Sizes:</strong> 0.005 - 0.05 SOL | Quick bets: 0.01, 0.007, 0.005 SOL</p>
         <p>🏦 <strong>House Wallet:</strong> {HOUSE_WALLET_ADDRESS.slice(0, 8)}...{HOUSE_WALLET_ADDRESS.slice(-8)} (USDC Payouts)</p>
+        <p>🔥 <strong>Dev Fee:</strong> 4% per wager → Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
       </div>
     </div>
   );
