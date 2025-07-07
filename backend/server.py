@@ -924,14 +924,21 @@ async def video_poker_hold(session_id: str, positions: List[int]):
 
 @api_router.post("/game/wager")
 async def place_wager(wager: WagerRequest):
-    """Process game wager with 2% dev fee and validation"""
+    """Process game wager with 4% dev fee and validation"""
     try:
-        # Validate wager amount
-        if wager.amount < 0.01:
-            raise HTTPException(status_code=400, detail="Minimum wager is 0.01 SOL")
-        
-        if wager.amount > 10.0:
-            raise HTTPException(status_code=400, detail="Maximum wager is 10 SOL")
+        # Game-specific wager validation
+        if wager.game_type == "crash":
+            # SolanaBust specific limits
+            if wager.amount < 0.005:
+                raise HTTPException(status_code=400, detail="Minimum wager for SolanaBust is 0.005 SOL")
+            if wager.amount > 0.05:
+                raise HTTPException(status_code=400, detail="Maximum wager for SolanaBust is 0.05 SOL")
+        else:
+            # Blackjack and Video Poker limits  
+            if wager.amount < 0.01:
+                raise HTTPException(status_code=400, detail="Minimum wager is 0.01 SOL")
+            if wager.amount > 10.0:
+                raise HTTPException(status_code=400, detail="Maximum wager is 10 SOL")
         
         # Validate wallet address
         try:
