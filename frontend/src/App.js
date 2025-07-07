@@ -1116,7 +1116,7 @@ const CrashGame = () => {
             disabled={loading || !publicKey}
             className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-8 py-4 rounded-lg font-bold text-xl w-full"
           >
-            {loading ? 'Placing Bet...' : `BET ${wagerAmount} SOL ${autoCashOut ? `(Auto @ ${autoCashOut}x)` : ''}`}
+            {loading ? 'Placing Bet...' : `BET ${wagerAmount.toFixed(3)} SOL ${autoCashOut ? `(Auto @ ${autoCashOut}x)` : ''}`}
           </button>
         </div>
       )}
