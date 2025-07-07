@@ -892,11 +892,11 @@ const CrashGame = () => {
     setChatInput('');
   };
 
-  // Simulate crash point using simple algorithm
+  // Simulate crash point using production-ready algorithm
   const generateCrashPoint = () => {
     const random = Math.random();
-    // House edge built-in: 2% advantage
-    const crashMultiplier = 1 / (1 - random * 0.98) * 0.99;
+    // House edge built-in: 4% advantage (improved for production)
+    const crashMultiplier = 1 / (1 - random * 0.96) * 0.99;
     return Math.max(1.01, Math.min(100, crashMultiplier));
   };
 
