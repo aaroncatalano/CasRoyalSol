@@ -195,6 +195,24 @@ backend:
         agent: "testing"
         comment: "Confirmed that the system remains ready for beta testing after the SolanaBust fixes. Transaction history correctly records all game types including crash game results. The backend API is stable and performs well even with concurrent game sessions."
 
+  - task: "SolanaBust Wager Validation"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented game-specific wager validation with new limits for SolanaBust (0.005-0.05 SOL) while maintaining original limits (0.01-10 SOL) for other games"
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing confirms the SolanaBust wager validation is working correctly. The system properly enforces the minimum (0.005 SOL) and maximum (0.05 SOL) limits for SolanaBust crash game, while maintaining the original limits (0.01-10 SOL) for blackjack and video poker games."
+      - working: true
+        agent: "testing"
+        comment: "Edge case testing confirms precise validation at boundary values. Wagers of exactly 0.005 SOL and 0.05 SOL are accepted for SolanaBust, while values just below or above these limits are correctly rejected with appropriate error messages. The 4% dev fee calculation works correctly for all amounts, including the smaller SolanaBust wagers."
+
 frontend:
   - task: "Frontend UI Integration"
     implemented: true
