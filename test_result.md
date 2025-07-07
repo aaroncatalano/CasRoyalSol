@@ -255,6 +255,7 @@ test_plan:
     - "SolanaBust Runtime Error Fixes"
     - "4% Dev Fee Implementation"
     - "SolanaBust Crash Game Backend"
+    - "SolanaBust Wager Validation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
