@@ -1127,7 +1127,7 @@ const CrashGame = () => {
           onClick={cashOut}
           className="bg-red-500 hover:bg-red-600 text-white px-8 py-4 rounded-lg font-bold text-xl w-full mb-4"
         >
-          CASH OUT {(playerBet.amount * multiplier).toFixed(4)} SOL
+          CASH OUT {(playerBet.amount * multiplier).toFixed(6)} SOL
         </button>
       )}
 
