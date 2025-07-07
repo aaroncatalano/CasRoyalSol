@@ -803,7 +803,7 @@ const VideoPokerGame = () => {
 const CrashGame = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
-  const [wagerAmount, setWagerAmount] = useState(0.1);
+  const [wagerAmount, setWagerAmount] = useState(0.01); // Updated default to 0.01
   const [loading, setLoading] = useState(false);
   const [gameState, setGameState] = useState('waiting');
   const [multiplier, setMultiplier] = useState(1.00);
