@@ -853,12 +853,12 @@ const CrashGame = () => {
         setChatMessages(prev => [...prev.slice(-9), newMessage]);
       }
 
-      // Simulate active players
+      // Simulate active players with updated bet ranges
       const playerCount = Math.floor(Math.random() * 8) + 3;
       const players = Array.from({length: playerCount}, (_, i) => ({
         id: i,
         wallet: `${Math.random().toString(36).substr(2, 6)}`,
-        bet: (Math.random() * 2 + 0.1).toFixed(2),
+        bet: (Math.random() * 0.02 + 0.005).toFixed(3), // Updated to match new bet ranges
         status: Math.random() > 0.7 ? 'cashed_out' : 'flying'
       }));
       setActivePlayers(players);
