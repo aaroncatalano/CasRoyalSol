@@ -963,8 +963,8 @@ const CrashGame = () => {
       console.log(`PAYOUT: Sending ${winnings.toFixed(4)} SOL to ${publicKey.toString()}`);
       console.log(`FROM: House wallet ${HOUSE_WALLET_ADDRESS}`);
       
-      // Record the payout in backend
-      await axios.post(`${API}/game/result`, {
+      // Record the payout in backend (this will automatically trigger real SOL transfer)
+      const response = await axios.post(`${API}/game/result`, {
         session_id: 'crash-' + Date.now(),
         player_wallet: publicKey.toString(),
         game_type: 'crash',
@@ -973,7 +973,23 @@ const CrashGame = () => {
         game_data: { multiplier, crashPoint, cashedOut: true }
       });
       
-      alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\nWinnings: ${winnings.toFixed(4)} SOL\n💰 Payout sent from house wallet!`);
+      // Check if real payout was sent
+      if (response.data.payout_sent && response.data.payout_signature) {
+        alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\n` +
+              `Winnings: ${winnings.toFixed(6)} SOL\n` +
+              `✅ Real SOL transfer sent!\n` +
+              `Transaction: ${response.data.payout_signature}\n` +
+              `View on Explorer: ${response.data.explorer_url || 'Solana Explorer'}`);
+      } else if (response.data.payout_error) {
+        alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\n` +
+              `Winnings: ${winnings.toFixed(6)} SOL\n` +
+              `⚠️ Payout failed: ${response.data.payout_error}\n` +
+              `Please contact support with session ID: crash-${Date.now()}`);
+      } else {
+        alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\n` +
+              `Winnings: ${winnings.toFixed(6)} SOL\n` +
+              `💰 Payout processing...`);
+      }
       
     } catch (error) {
       console.error('Payout error:', error);
