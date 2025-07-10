@@ -639,20 +639,56 @@ const VideoPokerGame = () => {
       
       // Record game result and handle payouts
       if (payout > 0) {
-        console.log(`Player won! Payout: ${payout} SOL`);
-        alert(`🎉 YOU WON!\nHand: ${response.data.final_hand}\nPayout: ${payout} SOL\n(In production, this would be sent from house wallet)`);
+        try {
+          console.log(`Player won! Payout: ${payout} SOL`);
+          
+          // Record the result (this will automatically trigger real SOL transfer)
+          const resultResponse = await axios.post(`${API}/game/result`, {
+            session_id: gameSession,
+            player_wallet: publicKey.toString(),
+            game_type: 'video_poker',
+            wager_amount: wagerAmount,
+            payout_amount: payout,
+            game_data: response.data.game_state
+          });
+          
+          // Check if real payout was sent
+          if (resultResponse.data.payout_sent && resultResponse.data.payout_signature) {
+            alert(`🎉 YOU WON!\n` +
+                  `Hand: ${response.data.final_hand}\n` +
+                  `Payout: ${payout.toFixed(6)} SOL\n` +
+                  `✅ Real SOL transfer sent!\n` +
+                  `Transaction: ${resultResponse.data.payout_signature}\n` +
+                  `View on Explorer: ${resultResponse.data.explorer_url || 'Solana Explorer'}`);
+          } else if (resultResponse.data.payout_error) {
+            alert(`🎉 YOU WON!\n` +
+                  `Hand: ${response.data.final_hand}\n` +
+                  `Payout: ${payout.toFixed(6)} SOL\n` +
+                  `⚠️ Payout failed: ${resultResponse.data.payout_error}\n` +
+                  `Please contact support with session ID: ${gameSession}`);
+          } else {
+            alert(`🎉 YOU WON!\n` +
+                  `Hand: ${response.data.final_hand}\n` +
+                  `Payout: ${payout.toFixed(6)} SOL\n` +
+                  `💰 Payout processing...`);
+          }
+        } catch (payoutError) {
+          console.error('Error processing payout:', payoutError);
+          alert(`🎉 YOU WON!\nHand: ${response.data.final_hand}\nPayout: ${payout} SOL\n⚠️ Error processing payout. Contact support.`);
+        }
       } else {
+        // Player lost
         alert(`😞 You Lost!\nHand: ${response.data.final_hand}\nLost: ${wagerAmount} SOL`);
+        
+        await axios.post(`${API}/game/result`, {
+          session_id: gameSession,
+          player_wallet: publicKey.toString(),
+          game_type: 'video_poker',
+          wager_amount: wagerAmount,
+          payout_amount: 0,
+          game_data: response.data.game_state
+        });
       }
-      
-      await axios.post(`${API}/game/result`, {
-        session_id: gameSession,
-        player_wallet: publicKey.toString(),
-        game_type: 'video_poker',
-        wager_amount: wagerAmount,
-        payout_amount: payout,
-        game_data: response.data.game_state
-      });
       
     } catch (error) {
       console.error('Error drawing cards:', error);
