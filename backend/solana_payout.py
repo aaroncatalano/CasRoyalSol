@@ -150,7 +150,7 @@ class SolanaPayoutService:
             else:
                 recent_blockhash = recent_blockhash_response["result"]["value"]["blockhash"]
             
-            # Create transaction with proper parameters for solders library
+            # Create message with the transfer instruction
             from solders.message import Message
             
             message = Message.new_with_blockhash(
@@ -159,8 +159,8 @@ class SolanaPayoutService:
                 recent_blockhash
             )
             
-            transaction = self.Transaction.new_unsigned(message)
-            transaction.sign([self.house_keypair], recent_blockhash)
+            # Create transaction from message and sign it
+            transaction = self.Transaction([self.house_keypair], message, recent_blockhash)
             
             # Update attempts
             await self.payouts_collection.update_one(
