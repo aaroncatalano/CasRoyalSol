@@ -320,7 +320,7 @@ const BlackjackGame = () => {
             console.log(`Player won! Payout: ${totalPayout} SOL`);
             
             // Record the result (this will automatically trigger real SOL transfer)
-            const response = await axios.post(`${API}/game/result`, {
+            const resultResponse = await axios.post(`${API}/game/result`, {
               session_id: gameSession,
               player_wallet: publicKey.toString(),
               game_type: 'blackjack',
@@ -330,16 +330,16 @@ const BlackjackGame = () => {
             });
             
             // Check if real payout was sent
-            if (response.data.payout_sent && response.data.payout_signature) {
+            if (resultResponse.data.payout_sent && resultResponse.data.payout_signature) {
               alert(`🎉 YOU WON!\n` +
                     `Payout: ${totalPayout.toFixed(6)} SOL\n` +
                     `✅ Real SOL transfer sent!\n` +
-                    `Transaction: ${response.data.payout_signature}\n` +
-                    `View on Explorer: ${response.data.explorer_url || 'Solana Explorer'}`);
-            } else if (response.data.payout_error) {
+                    `Transaction: ${resultResponse.data.payout_signature}\n` +
+                    `View on Explorer: ${resultResponse.data.explorer_url || 'Solana Explorer'}`);
+            } else if (resultResponse.data.payout_error) {
               alert(`🎉 YOU WON!\n` +
                     `Payout: ${totalPayout.toFixed(6)} SOL\n` +
-                    `⚠️ Payout failed: ${response.data.payout_error}\n` +
+                    `⚠️ Payout failed: ${resultResponse.data.payout_error}\n` +
                     `Please contact support with session ID: ${gameSession}`);
             } else {
               alert(`🎉 YOU WON!\n` +
