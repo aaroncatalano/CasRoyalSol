@@ -1547,8 +1547,322 @@ def run_all_tests():
     
     return results
 
+# Test 27: House Wallet Balance
+def test_house_wallet_balance():
+    try:
+        response = requests.get(f"{API_URL}/payouts/house-balance")
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify the response contains the expected fields
+        if ("balance_sol" in data and 
+            "balance_lamports" in data and 
+            "wallet_address" in data and
+            isinstance(data["balance_sol"], (int, float)) and
+            data["balance_sol"] >= 0):
+            return True, data
+        else:
+            return False, "House balance response missing expected fields or invalid data"
+    except Exception as e:
+        return False, str(e)
+
+# Test 28: Send Winner Payout
+def test_send_winner_payout():
+    try:
+        # Test with a small amount (0.001 SOL)
+        payout_amount = 0.001
+        response = requests.post(
+            f"{API_URL}/payouts/send",
+            json={
+                "winner_address": TEST_WALLET_PUBLIC_KEY,
+                "amount_sol": payout_amount,
+                "game_id": "test_game_001",
+                "session_id": str(uuid.uuid4())
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify the response contains the expected fields
+        if (data.get("success") and 
+            "signature" in data and 
+            "explorer_url" in data and
+            "amount_sol" in data and
+            data["amount_sol"] == payout_amount):
+            return True, data
+        else:
+            return False, "Payout send failed or missing expected fields"
+    except Exception as e:
+        return False, str(e)
+
+# Test 29: Payout Status Check
+def test_payout_status():
+    try:
+        # First send a payout to get a payout ID
+        payout_amount = 0.001
+        send_response = requests.post(
+            f"{API_URL}/payouts/send",
+            json={
+                "winner_address": TEST_WALLET_PUBLIC_KEY,
+                "amount_sol": payout_amount,
+                "game_id": "test_game_002",
+                "session_id": str(uuid.uuid4())
+            }
+        )
+        send_response.raise_for_status()
+        send_data = send_response.json()
+        
+        if not send_data.get("success"):
+            return False, "Failed to send payout for status test"
+        
+        # Extract payout ID from the response (assuming it's in the signature or a separate field)
+        payout_id = send_data.get("payout_id") or send_data.get("signature")
+        
+        if not payout_id:
+            return False, "No payout ID found in send response"
+        
+        # Now check the status
+        status_response = requests.get(f"{API_URL}/payouts/status/{payout_id}")
+        status_response.raise_for_status()
+        status_data = status_response.json()
+        
+        # Verify the response contains status information
+        if ("status" in status_data or "signature" in status_data):
+            return True, status_data
+        else:
+            return False, "Payout status response missing expected fields"
+    except Exception as e:
+        return False, str(e)
+
+# Test 30: Payout History
+def test_payout_history():
+    try:
+        response = requests.get(f"{API_URL}/payouts/history?limit=10")
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify the response contains history data
+        if ("payouts" in data and isinstance(data["payouts"], list)):
+            return True, {
+                "payout_count": len(data["payouts"]),
+                "sample_payout": data["payouts"][0] if data["payouts"] else None
+            }
+        else:
+            return False, "Payout history response missing expected fields or invalid format"
+    except Exception as e:
+        return False, str(e)
+
+# Test 31: Game Result with Automatic Payout
+def test_game_result_with_automatic_payout():
+    try:
+        # Create a game session first
+        session_response = requests.post(
+            f"{API_URL}/game/session/create",
+            params={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "blackjack"
+            }
+        )
+        session_response.raise_for_status()
+        session_data = session_response.json()
+        session_id = session_data["session_id"]
+        
+        # Record a winning game result with payout
+        payout_amount = 0.002  # Small test amount
+        result_response = requests.post(
+            f"{API_URL}/game/result",
+            json={
+                "session_id": session_id,
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "blackjack",
+                "wager_amount": 0.001,
+                "payout_amount": payout_amount,
+                "game_data": {
+                    "result": "win",
+                    "player_value": 21,
+                    "dealer_value": 20
+                },
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        result_response.raise_for_status()
+        result_data = result_response.json()
+        
+        # Verify the response includes payout information
+        if (result_data.get("success") and 
+            "payout_amount" in result_data and
+            result_data["payout_amount"] == payout_amount):
+            
+            # Check if automatic payout was triggered
+            payout_sent = result_data.get("payout_sent", False)
+            
+            return True, {
+                "result_recorded": True,
+                "payout_amount": result_data["payout_amount"],
+                "payout_sent": payout_sent,
+                "payout_signature": result_data.get("payout_signature"),
+                "explorer_url": result_data.get("explorer_url"),
+                "payout_error": result_data.get("payout_error")
+            }
+        else:
+            return False, "Game result recording failed or missing payout information"
+    except Exception as e:
+        return False, str(e)
+
+# Test 32: Error Handling - Invalid Payout Amount
+def test_error_handling_invalid_payout_amount():
+    try:
+        # Test with amount exceeding maximum limit
+        response = requests.post(
+            f"{API_URL}/payouts/send",
+            json={
+                "winner_address": TEST_WALLET_PUBLIC_KEY,
+                "amount_sol": 15.0,  # Exceeds 10 SOL limit
+                "game_id": "test_game_003",
+                "session_id": str(uuid.uuid4())
+            }
+        )
+        
+        # We expect a 400 Bad Request
+        if response.status_code == 400:
+            return True, {"status_code": response.status_code, "error": response.json()}
+        else:
+            return False, f"Expected 400 status code for excessive amount, got {response.status_code}"
+    except Exception as e:
+        return False, str(e)
+
+# Test 33: Error Handling - Invalid Wallet Address
+def test_error_handling_invalid_wallet_address():
+    try:
+        # Test with invalid wallet address
+        response = requests.post(
+            f"{API_URL}/payouts/send",
+            json={
+                "winner_address": "invalid_wallet_address",
+                "amount_sol": 0.001,
+                "game_id": "test_game_004",
+                "session_id": str(uuid.uuid4())
+            }
+        )
+        
+        # We expect a 400 or 500 error
+        if response.status_code in [400, 500]:
+            return True, {"status_code": response.status_code, "error": response.json()}
+        else:
+            return False, f"Expected 400 or 500 status code for invalid wallet, got {response.status_code}"
+    except Exception as e:
+        return False, str(e)
+
+# Test 34: SolanaBust Wager Validation
+def test_solana_bust_wager_validation():
+    try:
+        results = []
+        
+        # Test valid amounts for SolanaBust
+        valid_amounts = [0.005, 0.01, 0.025, 0.05]
+        for amount in valid_amounts:
+            response = requests.post(
+                f"{API_URL}/game/wager",
+                json={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "amount": amount,
+                    "game_type": "crash",
+                    "session_id": str(uuid.uuid4()),
+                    "transaction_signature": TEST_SIGNATURE
+                }
+            )
+            
+            success = response.status_code == 200
+            results.append({
+                "amount": amount,
+                "valid": True,
+                "success": success,
+                "response": response.json() if success else response.text
+            })
+        
+        # Test invalid amounts for SolanaBust
+        invalid_amounts = [0.004, 0.051]  # Below min and above max
+        for amount in invalid_amounts:
+            response = requests.post(
+                f"{API_URL}/game/wager",
+                json={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "amount": amount,
+                    "game_type": "crash",
+                    "session_id": str(uuid.uuid4()),
+                    "transaction_signature": TEST_SIGNATURE
+                }
+            )
+            
+            success = response.status_code == 400  # Should be rejected
+            results.append({
+                "amount": amount,
+                "valid": False,
+                "success": success,
+                "response": response.json() if response.status_code == 400 else response.text
+            })
+        
+        # Check if all tests passed
+        all_passed = all(result["success"] for result in results)
+        
+        return all_passed, {
+            "tests_run": len(results),
+            "results": results
+        }
+    except Exception as e:
+        return False, str(e)
+
+def run_payout_tests():
+    """Run only the payout system tests"""
+    payout_tests = [
+        ("House Wallet Balance", test_house_wallet_balance),
+        ("Send Winner Payout", test_send_winner_payout),
+        ("Payout Status Check", test_payout_status),
+        ("Payout History", test_payout_history),
+        ("Game Result with Automatic Payout", test_game_result_with_automatic_payout),
+        ("Error Handling - Invalid Payout Amount", test_error_handling_invalid_payout_amount),
+        ("Error Handling - Invalid Wallet Address", test_error_handling_invalid_wallet_address),
+        ("SolanaBust Wager Validation", test_solana_bust_wager_validation)
+    ]
+    
+    results = {}
+    
+    print("\n" + "=" * 80)
+    print("SOLANA PAYOUT SYSTEM TESTS")
+    print("=" * 80)
+    
+    for test_name, test_func in payout_tests:
+        print(f"\nRunning test: {test_name}")
+        success, data = test_func()
+        print_test_result(test_name, success, data if success else None, data if not success else None)
+        results[test_name] = success
+    
+    print("\n" + "=" * 80)
+    print("PAYOUT TESTS SUMMARY")
+    print("=" * 80)
+    
+    passed = sum(1 for success in results.values() if success)
+    total = len(results)
+    
+    for test_name, success in results.items():
+        status = "✅ PASSED" if success else "❌ FAILED"
+        print(f"{status} - {test_name}")
+    
+    print("-" * 80)
+    print(f"Total Tests: {total}")
+    print(f"Passed: {passed}")
+    print(f"Failed: {total - passed}")
+    print(f"Success Rate: {passed/total*100:.2f}%")
+    print("=" * 80)
+    
+    return results
+
 if __name__ == "__main__":
-    run_all_tests()
+    # Check if we should run payout tests specifically
+    if len(sys.argv) > 1 and sys.argv[1] == "payout":
+        run_payout_tests()
+    else:
+        run_all_tests()
 
 # Test 24: 4% Dev Fee Implementation
 def test_4_percent_dev_fee():
