@@ -319,23 +319,8 @@ const BlackjackGame = () => {
           try {
             console.log(`Player won! Payout: ${totalPayout} SOL`);
             
-            // In production, this would come from house wallet
-            // For demo: send payout from dev wallet back to player
-            const payoutTransaction = new Transaction();
-            payoutTransaction.add(
-              SystemProgram.transfer({
-                fromPubkey: new PublicKey(DEV_WALLET_ADDRESS), // This would fail as we don't have private key
-                toPubkey: publicKey,
-                lamports: Math.floor(totalPayout * LAMPORTS_PER_SOL)
-              })
-            );
-            
-            // Note: This transaction would fail in practice since we don't control the dev wallet's private key
-            // In production, you'd have a house wallet that sends payouts
-            console.log(`Payout transaction created for ${totalPayout} SOL (would be sent from house wallet)`);
-            
-            // Record the result
-            await axios.post(`${API}/game/result`, {
+            // Record the result (this will automatically trigger real SOL transfer)
+            const response = await axios.post(`${API}/game/result`, {
               session_id: gameSession,
               player_wallet: publicKey.toString(),
               game_type: 'blackjack',
@@ -344,9 +329,26 @@ const BlackjackGame = () => {
               game_data: response.data.game_state
             });
             
-            alert(`🎉 YOU WON!\nPayout: ${totalPayout} SOL\n(In production, this would be sent from house wallet)`);
+            // Check if real payout was sent
+            if (response.data.payout_sent && response.data.payout_signature) {
+              alert(`🎉 YOU WON!\n` +
+                    `Payout: ${totalPayout.toFixed(6)} SOL\n` +
+                    `✅ Real SOL transfer sent!\n` +
+                    `Transaction: ${response.data.payout_signature}\n` +
+                    `View on Explorer: ${response.data.explorer_url || 'Solana Explorer'}`);
+            } else if (response.data.payout_error) {
+              alert(`🎉 YOU WON!\n` +
+                    `Payout: ${totalPayout.toFixed(6)} SOL\n` +
+                    `⚠️ Payout failed: ${response.data.payout_error}\n` +
+                    `Please contact support with session ID: ${gameSession}`);
+            } else {
+              alert(`🎉 YOU WON!\n` +
+                    `Payout: ${totalPayout.toFixed(6)} SOL\n` +
+                    `💰 Payout processing...`);
+            }
           } catch (payoutError) {
             console.error('Error processing payout:', payoutError);
+            alert(`🎉 YOU WON!\nPayout: ${totalPayout} SOL\n⚠️ Error processing payout. Contact support.`);
           }
         } else {
           // Player lost - no payout, just record result
