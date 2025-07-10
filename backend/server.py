@@ -1190,17 +1190,6 @@ async def get_wallet_balance(public_key: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Include the router in the main app
-app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Payout Endpoints
 @api_router.post("/payouts/send")
 async def send_winner_payout(request: PayoutRequest):
@@ -1257,6 +1246,17 @@ async def get_payout_history(limit: int = 50):
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
     return result
+
+# Include the router in the main app
+app.include_router(api_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Configure logging
 logging.basicConfig(
