@@ -34,6 +34,24 @@ class SolanaPayoutService:
         
         # Import the right classes based on available library
         try:
+            # Try newer library imports first
+            from solders.keypair import Keypair
+            from solders.pubkey import Pubkey as PublicKey
+            from solders.system_program import TransferParams, transfer
+            
+            private_key_bytes = base58.b58decode(self.house_private_key)
+            self.house_keypair = Keypair.from_bytes(private_key_bytes)
+            
+            self.PublicKey = PublicKey
+            self.TransferParams = TransferParams
+            self.transfer = transfer
+            
+            # Use legacy transaction for compatibility with solana-py client
+            from solana.transaction import Transaction
+            self.Transaction = Transaction
+            
+        except ImportError:
+            # Fallback to older library imports
             from solana.keypair import Keypair
             from solana.publickey import PublicKey
             from solana.system_program import TransferParams, transfer
@@ -42,21 +60,6 @@ class SolanaPayoutService:
             # Try to decode the private key (it's in base58 format)
             private_key_bytes = base58.b58decode(self.house_private_key)
             self.house_keypair = Keypair.from_secret_key(private_key_bytes)
-            
-            self.PublicKey = PublicKey
-            self.TransferParams = TransferParams
-            self.transfer = transfer
-            self.Transaction = Transaction
-            
-        except ImportError:
-            # Try newer library imports
-            from solders.keypair import Keypair
-            from solders.pubkey import Pubkey as PublicKey
-            from solders.system_program import TransferParams, transfer
-            from solders.transaction import Transaction
-            
-            private_key_bytes = base58.b58decode(self.house_private_key)
-            self.house_keypair = Keypair.from_bytes(private_key_bytes)
             
             self.PublicKey = PublicKey
             self.TransferParams = TransferParams
