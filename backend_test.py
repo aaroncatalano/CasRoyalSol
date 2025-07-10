@@ -1557,7 +1557,7 @@ def test_house_wallet_balance():
         # Verify the response contains the expected fields
         if ("balance_sol" in data and 
             "balance_lamports" in data and 
-            "wallet_address" in data and
+            "address" in data and  # Changed from "wallet_address" to "address"
             isinstance(data["balance_sol"], (int, float)) and
             data["balance_sol"] >= 0):
             return True, data
