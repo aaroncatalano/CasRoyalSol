@@ -49,12 +49,16 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Initialize Solana payout service
-try:
-    solana_payout_service = SolanaPayoutService()
-    logger.info("Solana payout service initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize Solana payout service: {e}")
+if SOLANA_PAYOUT_AVAILABLE:
+    try:
+        solana_payout_service = SolanaPayoutService()
+        logger.info("Solana payout service initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Solana payout service: {e}")
+        solana_payout_service = None
+else:
     solana_payout_service = None
+    logger.warning("Solana payout service not available - payouts will be simulated only")
 
 # Solana Configuration
 SOLANA_RPC_URL = "https://api.devnet.solana.com"
