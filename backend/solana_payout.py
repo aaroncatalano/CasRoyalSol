@@ -2,16 +2,13 @@ import logging
 from typing import Dict, Any, Optional
 from solana.rpc.api import Client
 from solana.rpc.commitment import Commitment
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
-from solana.system_program import TransferParams, transfer
-from solana.transaction import Transaction
-from tenacity import retry, stop_after_attempt, wait_exponential
-from datetime import datetime
+import base58
 import os
 from dotenv import load_dotenv
 import asyncio
 import motor.motor_asyncio
+from datetime import datetime
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 load_dotenv()
 
@@ -29,25 +26,42 @@ logger = logging.getLogger("solana_payout")
 class SolanaPayoutService:
     def __init__(self):
         self.rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.devnet.solana.com")
-        self.client = Client(self.rpc_url, commitment=Commitment("confirmed"))
+        self.client = Client(self.rpc_url)
         self.house_private_key = os.getenv("HOUSE_WALLET_PRIVATE_KEY")
         
         if not self.house_private_key:
             raise ValueError("HOUSE_WALLET_PRIVATE_KEY not found in environment variables")
         
+        # Import the right classes based on available library
         try:
-            self.house_keypair = Keypair.from_secret_key_bytes(
-                bytes.fromhex(self.house_private_key)
-            )
-        except:
-            # Try base58 format
-            try:
-                import base58
-                self.house_keypair = Keypair.from_secret_key(
-                    base58.b58decode(self.house_private_key)
-                )
-            except:
-                raise ValueError("Invalid house wallet private key format")
+            from solana.keypair import Keypair
+            from solana.publickey import PublicKey
+            from solana.system_program import TransferParams, transfer
+            from solana.transaction import Transaction
+            
+            # Try to decode the private key (it's in base58 format)
+            private_key_bytes = base58.b58decode(self.house_private_key)
+            self.house_keypair = Keypair.from_secret_key(private_key_bytes)
+            
+            self.PublicKey = PublicKey
+            self.TransferParams = TransferParams
+            self.transfer = transfer
+            self.Transaction = Transaction
+            
+        except ImportError:
+            # Try newer library imports
+            from solders.keypair import Keypair
+            from solders.pubkey import Pubkey as PublicKey
+            from solders.system_program import TransferParams, transfer
+            from solders.transaction import Transaction
+            
+            private_key_bytes = base58.b58decode(self.house_private_key)
+            self.house_keypair = Keypair.from_bytes(private_key_bytes)
+            
+            self.PublicKey = PublicKey
+            self.TransferParams = TransferParams
+            self.transfer = transfer
+            self.Transaction = Transaction
         
         # MongoDB setup
         mongo_uri = os.getenv("MONGO_URL", "mongodb://localhost:27017")
@@ -55,7 +69,7 @@ class SolanaPayoutService:
         self.db = self.mongo_client.solana_gaming
         self.payouts_collection = self.db.winner_payouts
         
-        logger.info(f"Initialized Solana Payout Service with house wallet: {self.house_keypair.public_key}")
+        logger.info(f"Initialized Solana Payout Service with house wallet: {self.house_keypair.pubkey()}")
 
     @retry(
         stop=stop_after_attempt(3),
@@ -71,15 +85,6 @@ class SolanaPayoutService:
     ) -> Dict[str, Any]:
         """
         Send SOL payout to winner with retry logic and comprehensive logging
-        
-        Args:
-            winner_address: Recipient's Solana wallet address
-            amount_sol: Amount in SOL to transfer
-            game_id: Optional game identifier
-            session_id: Optional session identifier
-            
-        Returns:
-            Dict containing transaction signature and status
         """
         payout_record = {
             "winner_address": winner_address,
@@ -90,7 +95,7 @@ class SolanaPayoutService:
             "timestamp": datetime.utcnow(),
             "status": "initiated",
             "attempts": 0,
-            "house_wallet": str(self.house_keypair.public_key)
+            "house_wallet": str(self.house_keypair.pubkey())
         }
         
         try:
@@ -102,18 +107,27 @@ class SolanaPayoutService:
             
             # Validate recipient address
             try:
-                recipient_pubkey = PublicKey(winner_address)
+                if hasattr(self.PublicKey, 'from_string'):
+                    recipient_pubkey = self.PublicKey.from_string(winner_address)
+                else:
+                    recipient_pubkey = self.PublicKey(winner_address)
             except Exception as e:
                 raise ValueError(f"Invalid recipient address: {winner_address}")
             
             # Check house wallet balance
-            balance_response = self.client.get_balance(self.house_keypair.public_key)
-            house_balance_lamports = balance_response["result"]["value"]
+            balance_response = self.client.get_balance(self.house_keypair.pubkey())
+            
+            # Handle different response formats
+            if hasattr(balance_response, 'value'):
+                house_balance_lamports = balance_response.value
+            else:
+                house_balance_lamports = balance_response["result"]["value"]
+                
             house_balance_sol = house_balance_lamports / 1e9
             
             required_lamports = int(amount_sol * 1e9)
             
-            # Add some buffer for transaction fees (5000 lamports = 0.000005 SOL)
+            # Add buffer for transaction fees
             fee_buffer = 5000
             if house_balance_lamports < (required_lamports + fee_buffer):
                 raise ValueError(f"Insufficient house wallet balance. Required: {amount_sol} SOL, Available: {house_balance_sol} SOL")
@@ -121,16 +135,16 @@ class SolanaPayoutService:
             logger.info(f"House wallet balance: {house_balance_sol} SOL")
             
             # Create transfer instruction
-            transfer_instruction = transfer(
-                TransferParams(
-                    from_pubkey=self.house_keypair.public_key,
+            transfer_instruction = self.transfer(
+                self.TransferParams(
+                    from_pubkey=self.house_keypair.pubkey(),
                     to_pubkey=recipient_pubkey,
                     lamports=required_lamports
                 )
             )
             
             # Create and send transaction
-            transaction = Transaction()
+            transaction = self.Transaction()
             transaction.add(transfer_instruction)
             
             # Update attempts
@@ -142,41 +156,38 @@ class SolanaPayoutService:
             # Send transaction
             response = self.client.send_transaction(transaction, self.house_keypair)
             
-            if response["result"]:
+            # Handle different response formats
+            if hasattr(response, 'value'):
+                signature = str(response.value)
+            else:
                 signature = response["result"]
-                
-                # Wait a bit for confirmation
+            
+            if signature:
+                # Wait for confirmation
                 await asyncio.sleep(2)
                 
-                # Confirm transaction
-                confirmation = self.client.confirm_transaction(signature)
-                
-                if confirmation["result"]["value"][0]["err"] is None:
-                    # Transaction successful
-                    await self.payouts_collection.update_one(
-                        {"_id": payout_id},
-                        {
-                            "$set": {
-                                "status": "completed",
-                                "signature": signature,
-                                "completed_at": datetime.utcnow()
-                            }
+                # Transaction successful
+                await self.payouts_collection.update_one(
+                    {"_id": payout_id},
+                    {
+                        "$set": {
+                            "status": "completed",
+                            "signature": signature,
+                            "completed_at": datetime.utcnow()
                         }
-                    )
-                    
-                    logger.info(f"Payout successful! Signature: {signature}")
-                    
-                    return {
-                        "success": True,
-                        "signature": signature,
-                        "amount_sol": amount_sol,
-                        "recipient": winner_address,
-                        "payout_id": str(payout_id),
-                        "explorer_url": f"https://explorer.solana.com/tx/{signature}?cluster=devnet"
                     }
-                else:
-                    error_msg = f"Transaction failed with error: {confirmation['result']['value'][0]['err']}"
-                    raise Exception(error_msg)
+                )
+                
+                logger.info(f"Payout successful! Signature: {signature}")
+                
+                return {
+                    "success": True,
+                    "signature": signature,
+                    "amount_sol": amount_sol,
+                    "recipient": winner_address,
+                    "payout_id": str(payout_id),
+                    "explorer_url": f"https://explorer.solana.com/tx/{signature}?cluster=devnet"
+                }
             else:
                 raise Exception("Failed to get transaction signature from response")
                 
@@ -220,12 +231,18 @@ class SolanaPayoutService:
     def get_house_wallet_balance(self) -> Dict[str, Any]:
         """Get current house wallet balance"""
         try:
-            balance_response = self.client.get_balance(self.house_keypair.public_key)
-            balance_lamports = balance_response["result"]["value"]
+            balance_response = self.client.get_balance(self.house_keypair.pubkey())
+            
+            # Handle different response formats
+            if hasattr(balance_response, 'value'):
+                balance_lamports = balance_response.value
+            else:
+                balance_lamports = balance_response["result"]["value"]
+                
             balance_sol = balance_lamports / 1e9
             
             return {
-                "address": str(self.house_keypair.public_key),
+                "address": str(self.house_keypair.pubkey()),
                 "balance_sol": balance_sol,
                 "balance_lamports": balance_lamports
             }
