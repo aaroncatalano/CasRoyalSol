@@ -1022,7 +1022,7 @@ const CrashGame = () => {
             setGameState('crashed');
             // Handle crash - record loss
             if (playerBet && playerBet.amount && !cashedOut) {
-              // Record loss in backend
+              // Record loss in backend (no payout)
               axios.post(`${API}/game/result`, {
                 session_id: 'crash-' + Date.now(),
                 player_wallet: publicKey?.toString() || 'unknown',
@@ -1030,9 +1030,11 @@ const CrashGame = () => {
                 wager_amount: playerBet.amount,
                 payout_amount: 0,
                 game_data: { multiplier: next, crashPoint, cashedOut: false }
+              }).then(response => {
+                console.log('Loss recorded successfully');
               }).catch(console.error);
               
-              alert(`💥 CRASHED at ${next.toFixed(2)}x!\nYou lost ${playerBet.amount} SOL`);
+              alert(`💥 CRASHED at ${next.toFixed(2)}x!\nYou lost ${playerBet.amount} SOL\n💸 No payout - better luck next time!`);
             }
             setTimeout(() => setGameState('waiting'), 8000);
             return crashPoint;
