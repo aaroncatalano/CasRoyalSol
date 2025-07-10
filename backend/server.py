@@ -1154,6 +1154,63 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Payout Endpoints
+@api_router.post("/payouts/send")
+async def send_winner_payout(request: PayoutRequest):
+    """Send SOL payout to winner"""
+    try:
+        if not solana_payout_service:
+            raise HTTPException(status_code=503, detail="Solana payout service not available")
+        
+        if request.amount_sol <= 0:
+            raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+        
+        if request.amount_sol > 10:  # Safety limit for testnet
+            raise HTTPException(status_code=400, detail="Amount exceeds maximum limit")
+        
+        result = await solana_payout_service.send_winner_payout(
+            winner_address=request.winner_address,
+            amount_sol=request.amount_sol,
+            game_id=request.game_id,
+            session_id=request.session_id
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Payout error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/payouts/status/{payout_id}")
+async def get_payout_status(payout_id: str):
+    """Get status of a specific payout"""
+    if not solana_payout_service:
+        raise HTTPException(status_code=503, detail="Solana payout service not available")
+    
+    result = await solana_payout_service.get_payout_status(payout_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+@api_router.get("/payouts/house-balance")
+async def get_house_balance():
+    """Get house wallet balance"""
+    if not solana_payout_service:
+        raise HTTPException(status_code=503, detail="Solana payout service not available")
+    
+    return solana_payout_service.get_house_wallet_balance()
+
+@api_router.get("/payouts/history")
+async def get_payout_history(limit: int = 50):
+    """Get recent payout history"""
+    if not solana_payout_service:
+        raise HTTPException(status_code=503, detail="Solana payout service not available")
+    
+    result = await solana_payout_service.get_payout_history(limit)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
