@@ -1,10 +1,11 @@
+import sys
+from pathlib import Path
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
@@ -20,7 +21,17 @@ import random
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 import redis.asyncio as redis
-from solana_payout import SolanaPayoutService
+
+# Add the current directory to Python path to import our module
+sys.path.append(str(Path(__file__).parent))
+
+try:
+    from solana_payout import SolanaPayoutService
+    SOLANA_PAYOUT_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Solana payout service not available: {e}")
+    SolanaPayoutService = None
+    SOLANA_PAYOUT_AVAILABLE = False
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
