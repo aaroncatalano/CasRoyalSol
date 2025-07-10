@@ -160,7 +160,7 @@ class SolanaPayoutService:
             )
             
             transaction = self.Transaction.new_unsigned(message)
-            transaction.sign([self.house_keypair], recent_blockhash)
+            transaction.sign([self.house_keypair])
             
             # Update attempts
             await self.payouts_collection.update_one(
