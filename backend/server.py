@@ -100,6 +100,21 @@ class WagerRequest(BaseModel):
     session_id: str
     transaction_signature: Optional[str] = None
 
+class GameResultRequest(BaseModel):
+    session_id: str
+    player_wallet: str
+    game_type: str
+    wager_amount: float
+    payout_amount: float
+    game_data: dict
+    transaction_signature: Optional[str] = None
+
+class PayoutRequest(BaseModel):
+    winner_address: str
+    amount_sol: float
+    game_id: Optional[str] = None
+    session_id: Optional[str] = None
+
 class GameResult(BaseModel):
     session_id: str
     player_wallet: str
