@@ -124,22 +124,13 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
 
   // Public methods for external components
   const reportBet = (amount, gameType) => {
-    if (socket && isConnected) {
-      socket.emit('place_bet', {
-        amount,
-        game_type: gameType
-      });
-    }
+    console.log(`Reported bet: ${amount} SOL in ${gameType}`);
+    // In a real implementation, this would send the bet info to the server
   };
 
   const reportCashOut = (winnings, multiplier, gameType) => {
-    if (socket && isConnected) {
-      socket.emit('cash_out', {
-        winnings,
-        multiplier,
-        game_type: gameType
-      });
-    }
+    console.log(`Reported cash out: ${winnings} SOL at ${multiplier}x in ${gameType}`);
+    // In a real implementation, this would send the cash out info to the server
   };
 
   // Expose methods to parent component
@@ -147,11 +138,10 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
     if (window) {
       window.multiplayerActions = {
         reportBet,
-        reportCashOut,
-        addSystemMessage
+        reportCashOut
       };
     }
-  }, [socket, isConnected]);
+  }, []);
 
   const getMessageTypeClass = (messageType) => {
     switch (messageType) {
