@@ -143,19 +143,6 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
     }
   }, []);
 
-  const getMessageTypeClass = (messageType) => {
-    switch (messageType) {
-      case 'big-win':
-        return 'text-yellow-300 font-bold';
-      case 'cash-out':
-        return 'text-green-300';
-      case 'bet-placed':
-        return 'text-blue-300';
-      default:
-        return 'text-gray-300';
-    }
-  };
-
   const formatTimestamp = (timestamp) => {
     try {
       return new Date(timestamp).toLocaleTimeString('en-US', {
@@ -205,7 +192,7 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
         <div className="mb-4">
           <h4 className="text-white text-sm font-semibold mb-2">Active Players</h4>
           <div className="space-y-1 max-h-20 overflow-y-auto">
-            {activePlayers.map((player, index) => (
+            {activePlayers.slice(0, 5).map((player, index) => (
               <div key={index} className="flex justify-between items-center text-xs">
                 <span className="text-gray-300">{player.username}</span>
                 <div className="flex items-center gap-1">
@@ -223,7 +210,7 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
         <div className="mb-4">
           <h4 className="text-white text-sm font-semibold mb-2">Recent Big Wins</h4>
           <div className="space-y-1 max-h-24 overflow-y-auto">
-            {announcements.slice(0, 5).map((announcement, index) => (
+            {announcements.slice(0, 3).map((announcement, index) => (
               <div key={index} className="text-xs text-yellow-300">
                 {announcement.is_big_win && '🎉'} {announcement.message}
               </div>
@@ -251,18 +238,15 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
               {chatMessages.map((msg, index) => (
                 <div key={index} className="text-xs">
                   <span className="text-gray-500">{formatTimestamp(msg.timestamp)}</span>
-                  {msg.type === 'system' ? (
-                    <div className={`${getMessageTypeClass(msg.messageType)} ml-1`}>
-                      {msg.message}
-                    </div>
-                  ) : (
-                    <div>
-                      <span className="text-purple-400 ml-1">{msg.username}:</span>
-                      <span className="text-gray-300 ml-1">{msg.message}</span>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-purple-400 ml-1">{msg.username}:</span>
+                    <span className="text-gray-300 ml-1">{msg.message}</span>
+                  </div>
                 </div>
               ))}
+              {chatMessages.length === 0 && (
+                <div className="text-gray-500 text-center text-xs">No messages yet. Be the first to chat!</div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
