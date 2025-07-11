@@ -1501,6 +1501,17 @@ const Leaderboard = () => {
 const AppContent = () => {
   const [activeGame, setActiveGame] = useState('blackjack');
   const [showStats, setShowStats] = useState(false);
+  const { publicKey } = useWallet();
+
+  // Multiplayer integration handlers
+  const handlePlayerUpdate = (data) => {
+    console.log('Player update:', data);
+  };
+
+  const handleAnnouncementUpdate = (data) => {
+    console.log('New announcement:', data);
+    // You could show a toast notification here
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
@@ -1514,9 +1525,14 @@ const AppContent = () => {
         {/* Wallet Connection */}
         <WalletConnection />
 
-        {/* Navigation */}
-        <div className="mb-6">
-          <div className="flex justify-center gap-4 flex-wrap">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          
+          {/* Main Game Area (3/4 width) */}
+          <div className="lg:col-span-3">
+            {/* Navigation */}
+            <div className="mb-6">
+              <div className="flex justify-center gap-4 flex-wrap">
             <button
               onClick={() => {setActiveGame('blackjack'); setShowStats(false);}}
               className={`px-6 py-3 rounded-lg font-semibold ${
