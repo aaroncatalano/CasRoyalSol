@@ -97,8 +97,15 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
   }, [BACKEND_URL, username, onPlayerUpdate, chatMessages.length, showChat]);
 
   const scrollToBottom = () => {
+    // Only scroll the chat container, not the entire page
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (messagesEndRef.current && showChat) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'nearest',
+          inline: 'nearest'
+        });
+      }
     }, 100);
   };
 
