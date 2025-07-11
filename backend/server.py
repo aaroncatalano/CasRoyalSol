@@ -21,6 +21,7 @@ import random
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 import redis.asyncio as redis
+import socketio
 
 # Add the current directory to Python path to import our module
 sys.path.append(str(Path(__file__).parent))
@@ -32,6 +33,15 @@ except ImportError as e:
     print(f"Warning: Solana payout service not available: {e}")
     SolanaPayoutService = None
     SOLANA_PAYOUT_AVAILABLE = False
+
+try:
+    from multiplayer_service import multiplayer_service
+    MULTIPLAYER_AVAILABLE = True
+    print("✅ Multiplayer service loaded successfully")
+except ImportError as e:
+    print(f"Warning: Multiplayer service not available: {e}")
+    multiplayer_service = None
+    MULTIPLAYER_AVAILABLE = False
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
