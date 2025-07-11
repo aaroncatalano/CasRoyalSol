@@ -1496,7 +1496,7 @@ def run_all_tests():
         ("Phantom Wallet Backend APIs - Wallet Connection", test_wallet_connection),
         ("Game Session Management - Blackjack", test_blackjack_session_creation),
         ("Game Session Management - Video Poker", test_video_poker_session_creation),
-        ("Wagering System with 2% Dev Fee", test_wagering_system),
+        ("Wagering System with 4% Dev Fee", test_wagering_system),
         ("Game Logic APIs - Blackjack Hit", test_blackjack_hit),
         ("Game Logic APIs - Blackjack Hit Until Bust", test_blackjack_hit_until_bust),
         ("Game Logic APIs - Blackjack Stand", test_blackjack_stand),
@@ -1512,7 +1512,15 @@ def run_all_tests():
         ("Player Statistics", test_player_statistics),
         ("Get Player Sessions", test_get_player_sessions),
         ("Error Handling - Invalid Game Type", test_error_handling_invalid_game),
-        ("Error Handling - Invalid Session ID", test_error_handling_invalid_session)
+        ("Error Handling - Invalid Session ID", test_error_handling_invalid_session),
+        ("Error Handling - Invalid Wallet Address", test_error_handling_invalid_wallet_address),
+        ("Multiplayer Stats", test_multiplayer_stats),
+        ("Recent Announcements", test_recent_announcements),
+        ("Manual Win Announcement", test_manual_win_announcement),
+        ("SolanaBust Wager Validation", test_solana_bust_wager_validation),
+        ("Bet Categorization Logic", test_bet_categorization),
+        ("Enhanced Game Results with Multiplayer", test_enhanced_game_results),
+        ("Complete Crash Game Flow (SolanaBust)", test_crash_game_flow)
     ]
     
     results = {}
