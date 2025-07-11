@@ -252,7 +252,10 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
         {showChat && (
           <>
             {/* Chat Messages */}
-            <div className="bg-gray-900 rounded p-2 h-32 overflow-y-auto mb-2 space-y-1">
+            <div 
+              className="bg-gray-900 rounded p-2 h-32 overflow-y-auto mb-2 space-y-1" 
+              style={{ scrollBehavior: 'smooth' }}
+            >
               {chatMessages.map((msg, index) => (
                 <div key={index} className="text-xs">
                   <span className="text-gray-500">{formatTimestamp(msg.timestamp)}</span>
@@ -265,7 +268,7 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
               {chatMessages.length === 0 && (
                 <div className="text-gray-500 text-center text-xs">No messages yet. Be the first to chat!</div>
               )}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} style={{ height: '1px' }} />
             </div>
 
             {/* Chat Input */}
