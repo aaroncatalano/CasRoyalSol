@@ -11,12 +11,32 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [activePlayers, setActivePlayers] = useState([]);
+  const [userInteracting, setUserInteracting] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const messagesEndRef = useRef(null);
   const pollingInterval = useRef(null);
+  const chatContainerRef = useRef(null);
 
   // Get backend URL from environment
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+
+  // Detect user interaction to prevent auto-scroll during navigation
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      setUserInteracting(true);
+      setTimeout(() => setUserInteracting(false), 5000); // Reset after 5 seconds
+    };
+
+    window.addEventListener('click', handleUserInteraction);
+    window.addEventListener('scroll', handleUserInteraction);
+    window.addEventListener('touchstart', handleUserInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleUserInteraction);
+      window.removeEventListener('scroll', handleUserInteraction);
+      window.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
 
   // Generate a random username for the user
   const generateUsername = () => {
