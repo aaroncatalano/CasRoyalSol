@@ -1614,7 +1614,7 @@ const AppContent = () => {
         {/* Footer */}
         <div className="text-center mt-8 text-gray-400">
           <p>🔗 Running on Solana Testnet</p>
-          <p className="text-sm">Dev Fee: 4% | Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
+          <p className="text-sm">Dev Fee: 8% | Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
           <p className="text-xs mt-2">🍀 Blackjack: 69% win rate | Video Poker: 65% win rate | 🚀 SolanaBust: Real-time crash game</p>
           <div className="mt-4 text-xs">
             <p className="text-green-400">✅ PRODUCTION v3.0 - Real SOL Payouts + Multiplayer Live!</p>
