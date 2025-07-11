@@ -79,8 +79,16 @@ TRANSACTION_FEE_PERCENTAGE = 0.04  # 4%
 # Initialize Solana client
 solana_client = Client(SOLANA_RPC_URL)
 
-# Create the main app without a prefix
-app = FastAPI(title="Solana Gaming Platform", version="1.0.0")
+# Create FastAPI app
+app = FastAPI(title="Solana Gaming Platform API", version="1.0.0")
+
+# Create Socket.IO app if multiplayer is available
+if MULTIPLAYER_AVAILABLE:
+    sio_app = socketio.ASGIApp(multiplayer_service.sio, app)
+    logger.info("Socket.IO integrated with FastAPI")
+else:
+    sio_app = app
+    logger.warning("Socket.IO not available - multiplayer features disabled")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
