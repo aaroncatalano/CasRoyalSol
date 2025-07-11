@@ -2399,3 +2399,263 @@ def test_complete_crash_game_flow():
         }
     except Exception as e:
         return False, str(e)
+
+# Test 41: 8% Developer Fee Calculation Testing
+def test_8_percent_dev_fee_calculation():
+    """Test 8% developer fee calculation with different wager amounts"""
+    try:
+        test_amounts = [0.01, 0.05, 1.0, 5.0, 10.0]  # Different wager amounts
+        results = []
+        
+        for amount in test_amounts:
+            # Create a game session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "blackjack"
+                }
+            )
+            session_response.raise_for_status()
+            session_data = session_response.json()
+            session_id = session_data["session_id"]
+            
+            # Place wager
+            response = requests.post(
+                f"{API_URL}/game/wager",
+                json={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "amount": amount,
+                    "game_type": "blackjack",
+                    "session_id": session_id,
+                    "transaction_signature": TEST_SIGNATURE
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Calculate expected values
+            expected_dev_fee = amount * 0.08  # 8%
+            expected_game_amount = amount - expected_dev_fee
+            
+            # Verify calculations
+            fee_correct = abs(data["dev_fee"] - expected_dev_fee) < 0.000001
+            game_amount_correct = abs(data["game_amount"] - expected_game_amount) < 0.000001
+            total_correct = abs(data["total_amount"] - amount) < 0.000001
+            
+            results.append({
+                "wager_amount": amount,
+                "expected_dev_fee": expected_dev_fee,
+                "actual_dev_fee": data["dev_fee"],
+                "expected_game_amount": expected_game_amount,
+                "actual_game_amount": data["game_amount"],
+                "fee_correct": fee_correct,
+                "game_amount_correct": game_amount_correct,
+                "total_correct": total_correct,
+                "dev_wallet": data["dev_wallet"]
+            })
+        
+        # Check if all calculations are correct
+        all_correct = all(r["fee_correct"] and r["game_amount_correct"] and r["total_correct"] for r in results)
+        
+        return all_correct, {
+            "test_amounts": test_amounts,
+            "all_calculations_correct": all_correct,
+            "results": results
+        }
+    except Exception as e:
+        return False, str(e)
+
+# Test 42: SolanaBust 8% Fee Testing
+def test_solana_bust_8_percent_fee():
+    """Test 8% developer fee for SolanaBust with specific wager limits"""
+    try:
+        # SolanaBust specific test amounts (0.005-0.05 SOL range)
+        test_amounts = [0.005, 0.01, 0.025, 0.05]
+        results = []
+        
+        for amount in test_amounts:
+            # Place wager for crash game (SolanaBust)
+            response = requests.post(
+                f"{API_URL}/game/wager",
+                json={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "amount": amount,
+                    "game_type": "crash",
+                    "session_id": str(uuid.uuid4()),
+                    "transaction_signature": TEST_SIGNATURE
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Calculate expected values for 8% fee
+            expected_dev_fee = amount * 0.08
+            expected_game_amount = amount - expected_dev_fee
+            
+            # Verify calculations
+            fee_correct = abs(data["dev_fee"] - expected_dev_fee) < 0.000001
+            game_amount_correct = abs(data["game_amount"] - expected_game_amount) < 0.000001
+            
+            results.append({
+                "wager_amount": amount,
+                "expected_dev_fee": expected_dev_fee,
+                "actual_dev_fee": data["dev_fee"],
+                "expected_game_amount": expected_game_amount,
+                "actual_game_amount": data["game_amount"],
+                "fee_correct": fee_correct,
+                "game_amount_correct": game_amount_correct,
+                "dev_wallet": data["dev_wallet"]
+            })
+        
+        all_correct = all(r["fee_correct"] and r["game_amount_correct"] for r in results)
+        
+        return all_correct, {
+            "game_type": "crash (SolanaBust)",
+            "test_amounts": test_amounts,
+            "all_calculations_correct": all_correct,
+            "results": results
+        }
+    except Exception as e:
+        return False, str(e)
+
+# Test 43: Comprehensive 8% Fee System Validation
+def test_comprehensive_8_percent_fee_system():
+    """Comprehensive test of the entire 8% fee system"""
+    try:
+        comprehensive_results = {
+            "game_type_coverage": []
+        }
+        
+        # Test all game types with various amounts
+        test_scenarios = [
+            {"game_type": "crash", "amounts": [0.005, 0.01, 0.025, 0.05]},
+            {"game_type": "blackjack", "amounts": [0.01, 0.1, 1.0, 5.0, 10.0]},
+            {"game_type": "video_poker", "amounts": [0.01, 0.1, 1.0, 5.0, 10.0]}
+        ]
+        
+        for scenario in test_scenarios:
+            game_results = []
+            
+            for amount in scenario["amounts"]:
+                try:
+                    # Create session if needed
+                    session_id = str(uuid.uuid4())
+                    if scenario["game_type"] != "crash":
+                        session_response = requests.post(
+                            f"{API_URL}/game/session/create",
+                            params={
+                                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                                "game_type": scenario["game_type"]
+                            }
+                        )
+                        session_response.raise_for_status()
+                        session_data = session_response.json()
+                        session_id = session_data["session_id"]
+                    
+                    # Place wager
+                    response = requests.post(
+                        f"{API_URL}/game/wager",
+                        json={
+                            "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                            "amount": amount,
+                            "game_type": scenario["game_type"],
+                            "session_id": session_id,
+                            "transaction_signature": TEST_SIGNATURE
+                        }
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Verify 8% fee calculation
+                    expected_dev_fee = amount * 0.08
+                    expected_game_amount = amount - expected_dev_fee
+                    
+                    fee_correct = abs(data["dev_fee"] - expected_dev_fee) < 0.000001
+                    game_amount_correct = abs(data["game_amount"] - expected_game_amount) < 0.000001
+                    wallet_correct = data["dev_wallet"] == DEV_WALLET_ADDRESS
+                    
+                    game_results.append({
+                        "amount": amount,
+                        "dev_fee": data["dev_fee"],
+                        "expected_dev_fee": expected_dev_fee,
+                        "game_amount": data["game_amount"],
+                        "expected_game_amount": expected_game_amount,
+                        "fee_correct": fee_correct,
+                        "game_amount_correct": game_amount_correct,
+                        "wallet_correct": wallet_correct,
+                        "success": True
+                    })
+                    
+                except Exception as e:
+                    game_results.append({
+                        "amount": amount,
+                        "success": False,
+                        "error": str(e)
+                    })
+            
+            comprehensive_results["game_type_coverage"].append({
+                "game_type": scenario["game_type"],
+                "results": game_results,
+                "all_successful": all(r.get("success", False) for r in game_results),
+                "all_fees_correct": all(r.get("fee_correct", False) for r in game_results if r.get("success", False)),
+                "all_wallets_correct": all(r.get("wallet_correct", False) for r in game_results if r.get("success", False))
+            })
+        
+        # Overall system validation
+        all_games_working = all(g["all_successful"] for g in comprehensive_results["game_type_coverage"])
+        all_fees_correct = all(g["all_fees_correct"] for g in comprehensive_results["game_type_coverage"])
+        all_wallets_correct = all(g["all_wallets_correct"] for g in comprehensive_results["game_type_coverage"])
+        
+        system_working = all_games_working and all_fees_correct and all_wallets_correct
+        
+        return system_working, {
+            "system_working": system_working,
+            "all_games_working": all_games_working,
+            "all_fees_correct": all_fees_correct,
+            "all_wallets_correct": all_wallets_correct,
+            "detailed_results": comprehensive_results
+        }
+    except Exception as e:
+        return False, str(e)
+
+def run_8_percent_fee_tests():
+    """Run comprehensive 8% fee system tests"""
+    print("\n" + "=" * 80)
+    print("8% DEVELOPER FEE SYSTEM TESTING")
+    print("=" * 80)
+    
+    # Run specific 8% fee tests
+    fee_tests = [
+        ("8% Developer Fee Calculation Testing", test_8_percent_dev_fee_calculation),
+        ("SolanaBust 8% Fee Testing", test_solana_bust_8_percent_fee),
+        ("Comprehensive 8% Fee System Validation", test_comprehensive_8_percent_fee_system)
+    ]
+    
+    fee_results = {}
+    
+    for test_name, test_func in fee_tests:
+        print(f"\nRunning test: {test_name}")
+        success, data = test_func()
+        print_test_result(test_name, success, data if success else None, data if not success else None)
+        fee_results[test_name] = success
+    
+    print("\n" + "=" * 80)
+    print("8% FEE SYSTEM TEST SUMMARY")
+    print("=" * 80)
+    
+    passed = sum(1 for success in fee_results.values() if success)
+    total = len(fee_results)
+    
+    for test_name, success in fee_results.items():
+        status = "✅ PASSED" if success else "❌ FAILED"
+        print(f"{status} - {test_name}")
+    
+    print("-" * 80)
+    print(f"8% Fee System Tests: {total}")
+    print(f"Passed: {passed}")
+    print(f"Failed: {total - passed}")
+    print(f"Success Rate: {passed/total*100:.2f}%")
+    print("=" * 80)
+    
+    return fee_results
