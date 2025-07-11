@@ -934,8 +934,8 @@ const CrashGame = () => {
   // Simulate crash point using production-ready algorithm
   const generateCrashPoint = () => {
     const random = Math.random();
-    // House edge built-in: 4% advantage (improved for production)
-    const crashMultiplier = 1 / (1 - random * 0.96) * 0.99;
+    // House edge built-in: 8% advantage (updated for production)
+    const crashMultiplier = 1 / (1 - random * 0.92) * 0.99;
     return Math.max(1.01, Math.min(100, crashMultiplier));
   };
 
