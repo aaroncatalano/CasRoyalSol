@@ -1266,6 +1266,42 @@ async def get_payout_history(limit: int = 50):
         raise HTTPException(status_code=500, detail=result["error"])
     return result
 
+# Multiplayer Endpoints
+@api_router.get("/multiplayer/stats")
+async def get_multiplayer_stats():
+    """Get current multiplayer statistics"""
+    if not MULTIPLAYER_AVAILABLE or not multiplayer_service:
+        raise HTTPException(status_code=503, detail="Multiplayer service not available")
+    
+    stats = await multiplayer_service.get_stats()
+    return stats
+
+@api_router.get("/multiplayer/announcements")
+async def get_recent_announcements(limit: int = 20):
+    """Get recent win/loss announcements"""
+    if not MULTIPLAYER_AVAILABLE or not multiplayer_service:
+        raise HTTPException(status_code=503, detail="Multiplayer service not available")
+    
+    announcements = await multiplayer_service._get_recent_announcements(limit)
+    return {"announcements": announcements}
+
+@api_router.post("/multiplayer/announce-win")
+async def announce_win(data: dict):
+    """Manually announce a win (for testing or external triggers)"""
+    if not MULTIPLAYER_AVAILABLE or not multiplayer_service:
+        raise HTTPException(status_code=503, detail="Multiplayer service not available")
+    
+    player_wallet = data.get("player_wallet")
+    amount = data.get("amount", 0)
+    game_type = data.get("game_type", "unknown")
+    multiplier = data.get("multiplier", 1.0)
+    
+    if not player_wallet or amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid player_wallet or amount")
+    
+    await multiplayer_service.announce_win(player_wallet, amount, game_type, multiplier)
+    return {"success": True, "message": "Win announced"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
@@ -1287,3 +1323,62 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+# Update game result endpoint to integrate with multiplayer announcements
+async def enhanced_record_game_result(result):
+    """Enhanced game result recording with multiplayer announcements"""
+    try:
+        # Record the game result
+        await db.game_results.insert_one(result.dict())
+        
+        response = {
+            "success": True,
+            "message": "Game result recorded",
+            "payout_amount": result.payout_amount
+        }
+        
+        # If player won (payout > 0), automatically send real SOL payout
+        if result.payout_amount > 0 and solana_payout_service:
+            try:
+                logger.info(f"Processing automatic payout for winner: {result.player_wallet}, amount: {result.payout_amount} SOL")
+                
+                payout_result = await solana_payout_service.send_winner_payout(
+                    winner_address=result.player_wallet,
+                    amount_sol=result.payout_amount,
+                    game_id=f"{result.game_type}_{result.session_id}",
+                    session_id=result.session_id
+                )
+                
+                if payout_result["success"]:
+                    response["payout_sent"] = True
+                    response["payout_signature"] = payout_result["signature"]
+                    response["explorer_url"] = payout_result["explorer_url"]
+                    logger.info(f"Automatic payout successful: {payout_result['signature']}")
+                    
+                    # Announce the win via multiplayer service
+                    if MULTIPLAYER_AVAILABLE and multiplayer_service:
+                        await multiplayer_service.announce_win(
+                            player_wallet=result.player_wallet,
+                            amount=result.payout_amount,
+                            game_type=result.game_type,
+                            multiplier=result.payout_amount / result.wager_amount if result.wager_amount > 0 else 1.0
+                        )
+                else:
+                    response["payout_sent"] = False
+                    response["payout_error"] = payout_result["error"]
+                    logger.error(f"Automatic payout failed: {payout_result['error']}")
+                    
+            except Exception as payout_error:
+                logger.error(f"Automatic payout exception: {str(payout_error)}")
+                response["payout_sent"] = False
+                response["payout_error"] = str(payout_error)
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error recording game result: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Update the main uvicorn run to use sio_app
+if __name__ == "__main__":
+    uvicorn.run(sio_app, host="0.0.0.0", port=8001)
