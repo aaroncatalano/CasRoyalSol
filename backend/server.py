@@ -1220,6 +1220,68 @@ async def get_payout_history(limit: int = 50):
         raise HTTPException(status_code=500, detail=result["error"])
     return result
 
+# Simple polling-based chat system (WebSocket alternative)
+chat_messages = []
+active_players_simulation = []
+
+@api_router.post("/multiplayer/chat/send")
+async def send_chat_message(data: dict):
+    """Send a chat message (polling-based)"""
+    message = data.get("message", "").strip()
+    username = data.get("username", "Anonymous")
+    
+    if not message or len(message) > 200:
+        raise HTTPException(status_code=400, detail="Invalid message")
+    
+    chat_message = {
+        "id": str(uuid.uuid4()),
+        "username": username,
+        "message": message,
+        "timestamp": datetime.utcnow().isoformat(),
+        "type": "chat"
+    }
+    
+    # Keep last 50 messages
+    chat_messages.append(chat_message)
+    if len(chat_messages) > 50:
+        chat_messages.pop(0)
+    
+    return {"success": True, "message": "Message sent"}
+
+@api_router.get("/multiplayer/chat/messages")
+async def get_chat_messages(limit: int = 20):
+    """Get recent chat messages (polling-based)"""
+    recent_messages = chat_messages[-limit:] if chat_messages else []
+    return {"messages": recent_messages}
+
+@api_router.get("/multiplayer/status")
+async def get_multiplayer_status():
+    """Get multiplayer status including player count and activity"""
+    
+    # Simulate active players for demo
+    import random
+    player_count = random.randint(5, 15)
+    active_players = []
+    
+    for i in range(min(player_count, 8)):
+        active_players.append({
+            "id": f"player_{i}",
+            "username": f"Player{random.randint(100, 999)}",
+            "bet_amount": round(random.uniform(0.005, 0.05), 3),
+            "bet_category": {
+                "label": random.choice(["Small Fish", "Medium Bet", "High Roller"]),
+                "icon": random.choice(["🐟", "🎯", "💎"])
+            },
+            "status": random.choice(["betting", "playing", "cashed_out"])
+        })
+    
+    return {
+        "connected": True,
+        "total_online": player_count,
+        "active_players": active_players,
+        "chat_messages_count": len(chat_messages)
+    }
+
 # Multiplayer Endpoints
 @api_router.get("/multiplayer/stats")
 async def get_multiplayer_stats():
