@@ -1014,6 +1014,11 @@ const CrashGame = () => {
       
       // Check if real payout was sent
       if (response.data.payout_sent && response.data.payout_signature) {
+        // Report cash out to multiplayer service
+        if (window.multiplayerActions) {
+          window.multiplayerActions.reportCashOut(winnings, multiplier, 'crash');
+        }
+        
         alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\n` +
               `Winnings: ${winnings.toFixed(6)} SOL\n` +
               `✅ Real SOL transfer sent!\n` +
