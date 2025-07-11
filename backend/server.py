@@ -98,11 +98,10 @@ api_router = APIRouter(prefix="/api")
 @app.on_event("startup")
 async def startup():
     try:
-        redis_client = redis.from_url("redis://localhost:6379", decode_responses=True)
-        await FastAPILimiter.init(redis_client)
-        logger.info("Rate limiting enabled with Redis")
+        # Disable Redis rate limiting for now to avoid compatibility issues
+        logger.info("Rate limiting disabled - Redis not required for Socket.IO functionality")
     except Exception as e:
-        logger.warning(f"Redis not available, rate limiting disabled: {e}")
+        logger.warning(f"Rate limiting setup warning: {e}")
         # Continue without rate limiting
 
 # Models
