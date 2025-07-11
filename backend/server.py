@@ -486,10 +486,8 @@ async def get_status_checks():
 
 def optional_rate_limiter():
     """Optional rate limiter that doesn't fail if Redis is unavailable"""
-    try:
-        return RateLimiter(times=10, seconds=60)
-    except:
-        return None
+    # Rate limiting disabled
+    return None
 
 @api_router.post("/wallet/connect")
 async def connect_wallet(request: WalletConnectionRequest):
