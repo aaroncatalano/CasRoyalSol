@@ -1071,49 +1071,8 @@ async def get_player_sessions(player_wallet: str):
 
 @api_router.post("/game/result")
 async def record_game_result(result: GameResult):
-    """Record game result and handle automatic payouts for winners"""
-    try:
-        # Record the game result
-        await db.game_results.insert_one(result.dict())
-        
-        response = {
-            "success": True,
-            "message": "Game result recorded",
-            "payout_amount": result.payout_amount
-        }
-        
-        # If player won (payout > 0), automatically send real SOL payout
-        if result.payout_amount > 0 and solana_payout_service:
-            try:
-                logger.info(f"Processing automatic payout for winner: {result.player_wallet}, amount: {result.payout_amount} SOL")
-                
-                payout_result = await solana_payout_service.send_winner_payout(
-                    winner_address=result.player_wallet,
-                    amount_sol=result.payout_amount,
-                    game_id=f"{result.game_type}_{result.session_id}",
-                    session_id=result.session_id
-                )
-                
-                if payout_result["success"]:
-                    response["payout_sent"] = True
-                    response["payout_signature"] = payout_result["signature"]
-                    response["explorer_url"] = payout_result["explorer_url"]
-                    logger.info(f"Automatic payout successful: {payout_result['signature']}")
-                else:
-                    response["payout_sent"] = False
-                    response["payout_error"] = payout_result["error"]
-                    logger.error(f"Automatic payout failed: {payout_result['error']}")
-                    
-            except Exception as payout_error:
-                logger.error(f"Automatic payout exception: {str(payout_error)}")
-                response["payout_sent"] = False
-                response["payout_error"] = str(payout_error)
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"Error recording game result: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """Record game result and handle automatic payouts for winners with multiplayer announcements"""
+    return await enhanced_record_game_result(result)
 
 @api_router.get("/player/stats/{player_wallet}")
 async def get_player_stats(player_wallet: str):
