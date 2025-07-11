@@ -272,6 +272,7 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
           <>
             {/* Chat Messages */}
             <div 
+              ref={chatContainerRef}
               className="bg-gray-900 rounded p-2 h-32 overflow-y-auto mb-2 space-y-1" 
               style={{ scrollBehavior: 'smooth' }}
             >
