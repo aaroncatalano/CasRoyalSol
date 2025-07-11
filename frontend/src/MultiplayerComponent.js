@@ -18,96 +18,72 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
   // Get backend URL from environment
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
+  // Generate a random username for the user
+  const generateUsername = () => {
+    const adjectives = ['Lucky', 'Crypto', 'Solana', 'Diamond', 'Golden', 'Silver', 'Rocket', 'Moon'];
+    const nouns = ['Trader', 'Whale', 'Bull', 'Bear', 'Hodler', 'Ape', 'Wolf', 'Lion'];
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    const number = Math.floor(Math.random() * 900) + 100;
+    return `${adjective}${noun}${number}`;
+  };
+
+  const [username] = useState(() => generateUsername());
+
   useEffect(() => {
-    // Initialize Socket.IO connection
-    const newSocket = io(BACKEND_URL, {
-      transports: ['websocket', 'polling'],
-      timeout: 20000,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
-    });
+    // Start polling for multiplayer data
+    const pollMultiplayerData = async () => {
+      try {
+        // Fetch multiplayer status
+        const statusResponse = await fetch(`${BACKEND_URL}/api/multiplayer/status`);
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          setIsConnected(statusData.connected);
+          setPlayerStats({
+            username,
+            activePlayers: statusData.active_players.length,
+            totalOnline: statusData.total_online
+          });
+          setActivePlayers(statusData.active_players);
+          
+          if (onPlayerUpdate) {
+            onPlayerUpdate({ totalOnline: statusData.total_online });
+          }
+        }
 
-    // Connection event handlers
-    newSocket.on('connect', () => {
-      console.log('✅ Connected to multiplayer server');
-      setIsConnected(true);
-      
-      // Join current game if set
-      if (currentGame) {
-        newSocket.emit('join_game', { game_type: currentGame });
+        // Fetch chat messages
+        const chatResponse = await fetch(`${BACKEND_URL}/api/multiplayer/chat/messages?limit=20`);
+        if (chatResponse.ok) {
+          const chatData = await chatResponse.json();
+          setChatMessages(chatData.messages || []);
+          scrollToBottom();
+        }
+
+        // Fetch announcements
+        const announcementsResponse = await fetch(`${BACKEND_URL}/api/multiplayer/announcements?limit=10`);
+        if (announcementsResponse.ok) {
+          const announcementsData = await announcementsResponse.json();
+          setAnnouncements(announcementsData.announcements || []);
+        }
+
+      } catch (error) {
+        console.error('Error polling multiplayer data:', error);
+        setIsConnected(false);
       }
-    });
+    };
 
-    newSocket.on('disconnect', () => {
-      console.log('❌ Disconnected from multiplayer server');
-      setIsConnected(false);
-    });
+    // Initial fetch
+    pollMultiplayerData();
 
-    // Welcome message
-    newSocket.on('welcome', (data) => {
-      console.log('Welcome message:', data);
-      setPlayerStats(prev => ({ ...prev, username: data.username }));
-      addSystemMessage(`Welcome ${data.username}! You're now connected.`);
-    });
-
-    // Player count updates
-    newSocket.on('player_count_update', (data) => {
-      setPlayerStats(prev => ({ ...prev, totalOnline: data.count }));
-      if (onPlayerUpdate) {
-        onPlayerUpdate({ totalOnline: data.count });
-      }
-    });
-
-    // Active players in current game
-    newSocket.on('active_players_update', (data) => {
-      if (data.game_type === currentGame) {
-        setActivePlayers(data.players);
-        setPlayerStats(prev => ({ ...prev, activePlayers: data.count }));
-      }
-    });
-
-    // Chat messages
-    newSocket.on('chat_message', (data) => {
-      setChatMessages(prev => [...prev.slice(-49), data]); // Keep last 50 messages
-      scrollToBottom();
-    });
-
-    newSocket.on('chat_history', (data) => {
-      setChatMessages(data.messages || []);
-      scrollToBottom();
-    });
-
-    // Game announcements
-    newSocket.on('big_win_announcement', (data) => {
-      console.log('🎉 Big win announcement:', data);
-      setAnnouncements(prev => [data, ...prev.slice(0, 19)]); // Keep last 20
-      addSystemMessage(data.message, 'big-win');
-      if (onAnnouncementUpdate) {
-        onAnnouncementUpdate(data);
-      }
-    });
-
-    newSocket.on('cash_out_announcement', (data) => {
-      console.log('💰 Cash out announcement:', data);
-      setAnnouncements(prev => [data, ...prev.slice(0, 19)]);
-      addSystemMessage(data.message, 'cash-out');
-    });
-
-    newSocket.on('player_bet_placed', (data) => {
-      addSystemMessage(data.message, 'bet-placed');
-    });
-
-    newSocket.on('recent_announcements', (data) => {
-      setAnnouncements(data.announcements || []);
-    });
-
-    setSocket(newSocket);
+    // Set up polling interval (every 3 seconds)
+    pollingInterval.current = setInterval(pollMultiplayerData, 3000);
 
     return () => {
-      newSocket.close();
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
+      }
     };
-  }, [BACKEND_URL, currentGame, onPlayerUpdate, onAnnouncementUpdate]);
+  }, [BACKEND_URL, username, onPlayerUpdate]);
 
   // Join game when currentGame changes
   useEffect(() => {
