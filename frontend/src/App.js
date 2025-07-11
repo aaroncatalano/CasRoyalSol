@@ -5,6 +5,7 @@ import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import axios from 'axios';
+import MultiplayerComponent from './MultiplayerComponent';
 import './App.css';
 
 // Import wallet adapter CSS
