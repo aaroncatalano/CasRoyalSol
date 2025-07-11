@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import io from 'socket.io-client';
 
 const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnouncementUpdate }) => {
-  const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [playerStats, setPlayerStats] = useState({
     username: '',
@@ -15,6 +13,7 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
   const [activePlayers, setActivePlayers] = useState([]);
   const [showChat, setShowChat] = useState(true);
   const messagesEndRef = useRef(null);
+  const pollingInterval = useRef(null);
 
   // Get backend URL from environment
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
