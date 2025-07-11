@@ -979,6 +979,11 @@ const CrashGame = () => {
       });
       setCashedOut(false);
       
+      // Report bet to multiplayer service
+      if (window.multiplayerActions) {
+        window.multiplayerActions.reportBet(totalWager, 'crash');
+      }
+      
       console.log('Bet placed successfully:', { amount: totalWager, gameState });
       
     } catch (error) {
