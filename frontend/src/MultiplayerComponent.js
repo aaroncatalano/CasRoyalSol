@@ -117,16 +117,15 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
   }, [BACKEND_URL, username, onPlayerUpdate, chatMessages.length, showChat]);
 
   const scrollToBottom = () => {
-    // Only scroll the chat container, not the entire page
-    setTimeout(() => {
-      if (messagesEndRef.current && showChat) {
-        messagesEndRef.current.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'nearest',
-          inline: 'nearest'
-        });
-      }
-    }, 100);
+    // Only scroll if user is not actively interacting and chat is visible
+    if (!userInteracting && showChat && chatContainerRef.current) {
+      setTimeout(() => {
+        if (messagesEndRef.current && !userInteracting) {
+          // Scroll only within the chat container
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    }
   };
 
   const sendChatMessage = async () => {
