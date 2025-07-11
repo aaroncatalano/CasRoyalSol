@@ -85,7 +85,7 @@ app = FastAPI(title="Solana Gaming Platform API", version="1.0.0")
 
 # Create Socket.IO app if multiplayer is available
 if MULTIPLAYER_AVAILABLE:
-    sio_app = socketio.ASGIApp(multiplayer_service.sio, app)
+    sio_app = socketio.ASGIApp(multiplayer_service.sio, app, other_asgi_app=app)
     logger.info("Socket.IO integrated with FastAPI")
 else:
     sio_app = app
