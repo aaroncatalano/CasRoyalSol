@@ -55,8 +55,19 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
         const chatResponse = await fetch(`${BACKEND_URL}/api/multiplayer/chat/messages?limit=20`);
         if (chatResponse.ok) {
           const chatData = await chatResponse.json();
-          setChatMessages(chatData.messages || []);
-          scrollToBottom();
+          const newMessages = chatData.messages || [];
+          
+          // Only scroll if there are new messages
+          const hasNewMessages = newMessages.length > chatMessages.length || 
+            (newMessages.length > 0 && chatMessages.length > 0 && 
+             newMessages[newMessages.length - 1].id !== chatMessages[chatMessages.length - 1]?.id);
+          
+          setChatMessages(newMessages);
+          
+          // Only scroll to bottom if there are actually new messages
+          if (hasNewMessages && showChat) {
+            scrollToBottom();
+          }
         }
 
         // Fetch announcements
@@ -83,7 +94,7 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
         clearInterval(pollingInterval.current);
       }
     };
-  }, [BACKEND_URL, username, onPlayerUpdate]);
+  }, [BACKEND_URL, username, onPlayerUpdate, chatMessages.length, showChat]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
