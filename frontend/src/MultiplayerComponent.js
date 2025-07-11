@@ -85,36 +85,34 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
     };
   }, [BACKEND_URL, username, onPlayerUpdate]);
 
-  // Join game when currentGame changes
-  useEffect(() => {
-    if (socket && isConnected && currentGame) {
-      socket.emit('join_game', { game_type: currentGame });
-    }
-  }, [socket, isConnected, currentGame]);
-
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
 
-  const addSystemMessage = (message, type = 'info') => {
-    const systemMessage = {
-      username: 'System',
-      message,
-      timestamp: new Date().toISOString(),
-      type: 'system',
-      messageType: type
-    };
-    setChatMessages(prev => [...prev.slice(-49), systemMessage]);
-    scrollToBottom();
-  };
-
-  const sendChatMessage = () => {
-    if (!socket || !isConnected || !chatInput.trim()) return;
+  const sendChatMessage = async () => {
+    if (!publicKey || !isConnected || !chatInput.trim()) return;
     
-    socket.emit('send_chat', { message: chatInput.trim() });
-    setChatInput('');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/multiplayer/chat/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          message: chatInput.trim()
+        })
+      });
+
+      if (response.ok) {
+        setChatInput('');
+        // Message will appear in next poll cycle
+      }
+    } catch (error) {
+      console.error('Error sending chat message:', error);
+    }
   };
 
   const handleKeyPress = (e) => {
