@@ -75,7 +75,7 @@ else:
 SOLANA_RPC_URL = "https://api.devnet.solana.com"
 TESTNET_TOKEN_ADDRESS = "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"
 DEV_WALLET_ADDRESS = "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
-TRANSACTION_FEE_PERCENTAGE = 0.04  # 4%
+TRANSACTION_FEE_PERCENTAGE = 0.08  # 8%
 
 # Initialize Solana client
 solana_client = Client(SOLANA_RPC_URL)
