@@ -22,6 +22,7 @@ from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 import redis.asyncio as redis
 import socketio
+import uvicorn
 
 # Add the current directory to Python path to import our module
 sys.path.append(str(Path(__file__).parent))
