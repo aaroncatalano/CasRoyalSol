@@ -1099,7 +1099,7 @@ const CrashGame = () => {
   return (
     <div className="bg-gray-800 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-4">🚀 SolanaBust Crash Game</h2>
-      <p className="text-green-400 text-sm mb-4">House Edge: 4% | Instant Cashout | Production Ready</p>
+      <p className="text-green-400 text-sm mb-4">House Edge: 8% | Instant Cashout | Production Ready</p>
       
       {/* Multiplier Display */}
       <div className="text-center mb-6">
