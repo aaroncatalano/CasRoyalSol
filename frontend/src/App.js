@@ -1551,7 +1551,7 @@ const AppContent = () => {
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              🃏 Multi-Hand Blackjack
+              🃏 Blackjack
             </button>
             <button
               onClick={() => {setActiveGame('video_poker'); setShowStats(false);}}
