@@ -1529,7 +1529,7 @@ const AppContent = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">🎰 Solana Gaming Platform</h1>
-          <p className="text-gray-300">Play Blackjack & Video Poker on Solana Testnet</p>
+          <p className="text-gray-300">Play Blackjack, Video Poker & SolanaBust on Solana Testnet</p>
         </div>
 
         {/* Wallet Connection */}
