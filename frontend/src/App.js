@@ -1618,7 +1618,7 @@ const AppContent = () => {
           <p className="text-xs mt-2">🍀 Blackjack: 69% win rate | Video Poker: 65% win rate | 🚀 SolanaBust: Real-time crash game</p>
           <div className="mt-4 text-xs">
             <p className="text-green-400">✅ PRODUCTION v3.0 - Real SOL Payouts + Multiplayer Live!</p>
-            <p className="text-gray-500">Built with React + FastAPI + Solana Web3 + Socket.IO</p>
+            <p className="text-gray-500">Built with React + FastAPI + Solana Web3 + Real-time Polling</p>
           </div>
         </div>
       </div>
