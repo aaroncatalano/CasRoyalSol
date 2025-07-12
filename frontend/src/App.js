@@ -749,8 +749,8 @@ const VideoPokerGame = () => {
             <div className="bg-gray-700 p-3 rounded-lg mb-2">
               <p className="text-gray-300 text-sm">Transaction Breakdown:</p>
               <p className="text-white">Total Deducted: {wagerAmount} SOL</p>
-              <p className="text-yellow-400">Dev Fee (2%): {(wagerAmount * 0.02).toFixed(6)} SOL</p>
-              <p className="text-red-400">House Amount: {(wagerAmount * 0.98).toFixed(6)} SOL</p>
+              <p className="text-yellow-400">Dev Fee (12%): {(wagerAmount * 0.12).toFixed(6)} SOL</p>
+              <p className="text-red-400">House Amount: {(wagerAmount * 0.88).toFixed(6)} SOL</p>
               <p className="text-gray-400 text-xs mt-1">* Full amount deducted upfront, winnings paid separately</p>
             </div>
           </div>
