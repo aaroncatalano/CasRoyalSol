@@ -188,7 +188,7 @@ const BlackjackGame = () => {
       const transaction = new Transaction();
       
       // For now, send full amount to dev wallet (acts as house wallet)
-      // In production, would split between dev wallet (2%) and house wallet (98%)
+      // In production, would split between dev wallet (12%) and house wallet (88%)
       const lamportsToSend = Math.floor(totalWager * LAMPORTS_PER_SOL);
       
       console.log(`LAMPORTS DEBUG: totalWager=${totalWager}, LAMPORTS_PER_SOL=${LAMPORTS_PER_SOL}`);
