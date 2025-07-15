@@ -568,8 +568,6 @@ test_plan:
   current_focus:
     - "SolanaBust Multiplayer Rooms System"
     - "SolanaBust Multiplayer Room Endpoints"
-    - "Real SOL Payout System"
-    - "12% Dev Fee Implementation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
