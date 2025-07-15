@@ -913,48 +913,15 @@ const CrashGame = () => {
     }
   }, [inRoom, publicKey, API]);
 
-  const sendQuickMessage = (message) => {
-    if (!publicKey) return;
-    
-    const newMessage = {
-      id: Date.now(),
-      user: publicKey.toString().slice(0, 6),
-      message: message,
-      timestamp: new Date().toLocaleTimeString()
-    };
-    setChatMessages(prev => [...prev.slice(-9), newMessage]);
-  };
-
-  const sendChatMessage = () => {
-    if (!chatInput.trim() || !publicKey) return;
-    
-    const newMessage = {
-      id: Date.now(),
-      user: publicKey.toString().slice(0, 6),
-      message: chatInput,
-      timestamp: new Date().toLocaleTimeString()
-    };
-    setChatMessages(prev => [...prev.slice(-9), newMessage]);
-    setChatInput('');
-  };
-
-  // Simulate crash point using production-ready algorithm
-  const generateCrashPoint = () => {
-    const random = Math.random();
-    // House edge built-in: 12% advantage (updated for increased revenue)
-    const crashMultiplier = 1 / (1 - random * 0.88) * 0.99;
-    return Math.max(1.01, Math.min(100, crashMultiplier));
-  };
-
   const placeBet = async () => {
-    if (!publicKey || gameState !== 'betting') {
-      console.log('Place bet conditions not met:', { publicKey, gameState });
+    if (!publicKey) {
+      alert('Please connect your wallet first');
       return;
     }
     
     setLoading(true);
     try {
-      // Reuse existing transaction system
+      // Create Solana transaction for wager
       const totalWager = wagerAmount;
       const transaction = new Transaction();
       
@@ -969,29 +936,47 @@ const CrashGame = () => {
       const signature = await sendTransaction(transaction, connection);
       await connection.confirmTransaction(signature, 'confirmed');
       
-      // Record bet
-      await axios.post(`${API}/game/wager`, {
+      // Record wager
+      await axios.post(`${API}/api/game/wager`, {
         player_wallet: publicKey.toString(),
         amount: totalWager,
         game_type: 'crash',
-        session_id: 'crash-' + Date.now(),
+        session_id: 'crash-room-' + Date.now(),
         transaction_signature: signature
       });
       
-      setPlayerBet({ 
-        amount: totalWager, 
-        cashedOut: false, 
-        winnings: 0,
-        timestamp: Date.now()
+      // Join multiplayer room
+      const response = await fetch(`${API}/api/solanabust/join-room`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          wallet_address: publicKey.toString(),
+          username: username,
+          bet_amount: totalWager
+        })
       });
-      setCashedOut(false);
       
-      // Report bet to multiplayer service
-      if (window.multiplayerActions) {
-        window.multiplayerActions.reportBet(totalWager, 'crash');
+      const data = await response.json();
+      
+      if (data.success) {
+        setInRoom(true);
+        setRoomState(data.room_state);
+        
+        // Find current player data
+        const currentPlayer = data.room_state.players.find(p => p.wallet_address === publicKey.toString());
+        setPlayerData(currentPlayer);
+        
+        // Report bet to multiplayer service
+        if (window.multiplayerActions) {
+          window.multiplayerActions.reportBet(totalWager, 'crash');
+        }
+        
+        console.log('Successfully joined room:', data.room_id);
+      } else {
+        alert('Failed to join game room');
       }
-      
-      console.log('Bet placed successfully:', { amount: totalWager, gameState });
       
     } catch (error) {
       console.error('Error placing bet:', error);
