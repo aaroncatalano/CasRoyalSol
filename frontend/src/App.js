@@ -986,55 +986,53 @@ const CrashGame = () => {
   };
 
   const cashOut = async () => {
-    if (!playerBet || !playerBet.amount || cashedOut || gameState !== 'flying') {
-      console.log('Cash out conditions not met:', { playerBet, cashedOut, gameState });
+    if (!publicKey || !playerData || playerData.status !== 'flying') {
+      console.log('Cash out conditions not met');
       return;
     }
     
     try {
-      const winnings = playerBet.amount * multiplier;
-      setCashedOut(true);
-      setPlayerBet({ ...playerBet, cashedOut: true, winnings });
-      
-      console.log(`PAYOUT: Sending ${winnings.toFixed(4)} SOL to ${publicKey.toString()}`);
-      console.log(`FROM: House wallet ${HOUSE_WALLET_ADDRESS}`);
-      
-      // Record the payout in backend (this will automatically trigger real SOL transfer)
-      const response = await axios.post(`${API}/game/result`, {
-        session_id: 'crash-' + Date.now(),
-        player_wallet: publicKey.toString(),
-        game_type: 'crash',
-        wager_amount: playerBet.amount,
-        payout_amount: winnings,
-        game_data: { multiplier, crashPoint, cashedOut: true }
+      const response = await fetch(`${API}/api/solanabust/cash-out`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          wallet_address: publicKey.toString()
+        })
       });
       
-      // Check if real payout was sent
-      if (response.data.payout_sent && response.data.payout_signature) {
+      const data = await response.json();
+      
+      if (data.success && data.cashed_out) {
         // Report cash out to multiplayer service
         if (window.multiplayerActions) {
-          window.multiplayerActions.reportCashOut(winnings, multiplier, 'crash');
+          window.multiplayerActions.reportCashOut(data.payout_amount, data.multiplier, 'crash');
         }
         
-        alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\n` +
-              `Winnings: ${winnings.toFixed(6)} SOL\n` +
-              `✅ Real SOL transfer sent!\n` +
-              `Transaction: ${response.data.payout_signature}\n` +
-              `View on Explorer: ${response.data.explorer_url || 'Solana Explorer'}`);
-      } else if (response.data.payout_error) {
-        alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\n` +
-              `Winnings: ${winnings.toFixed(6)} SOL\n` +
-              `⚠️ Payout failed: ${response.data.payout_error}\n` +
-              `Please contact support with session ID: crash-${Date.now()}`);
+        // Show payout result
+        if (data.payout_sent && data.payout_signature) {
+          alert(`🎉 CASHED OUT at ${data.multiplier.toFixed(2)}x!\n` +
+                `Winnings: ${data.payout_amount.toFixed(6)} SOL\n` +
+                `✅ Real SOL transfer sent!\n` +
+                `Transaction: ${data.payout_signature}\n` +
+                `View on Explorer: ${data.explorer_url || 'Solana Explorer'}`);
+        } else if (data.payout_error) {
+          alert(`🎉 CASHED OUT at ${data.multiplier.toFixed(2)}x!\n` +
+                `Winnings: ${data.payout_amount.toFixed(6)} SOL\n` +
+                `⚠️ Payout failed: ${data.payout_error}`);
+        } else {
+          alert(`🎉 CASHED OUT at ${data.multiplier.toFixed(2)}x!\n` +
+                `Winnings: ${data.payout_amount.toFixed(6)} SOL\n` +
+                `💰 Payout processing...`);
+        }
       } else {
-        alert(`🎉 CASHED OUT at ${multiplier.toFixed(2)}x!\n` +
-              `Winnings: ${winnings.toFixed(6)} SOL\n` +
-              `💰 Payout processing...`);
+        alert('Failed to cash out');
       }
       
     } catch (error) {
-      console.error('Payout error:', error);
-      alert(`Cashed out at ${multiplier.toFixed(2)}x but payout failed. Contact support.`);
+      console.error('Error cashing out:', error);
+      alert('Error cashing out. Please try again.');
     }
   };
 
