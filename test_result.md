@@ -521,12 +521,24 @@ metadata:
   test_sequence: 1
   run_ui: false
 
+  - task: "SolanaBust Multiplayer Room Endpoints"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented SolanaBust multiplayer room API endpoints including /api/solanabust/join-room, /api/solanabust/cash-out, /api/solanabust/room-state, and /api/solanabust/active-room. These endpoints integrate with the room manager system, handle player actions, and process real SOL payouts. All endpoints have proper error handling and validation. Need to test the complete API flow including room joining, cash-out mechanics, and real SOL payout integration."
+
 test_plan:
   current_focus:
-    - "SolanaBust Runtime Error Fixes"
-    - "4% Dev Fee Implementation"
-    - "SolanaBust Crash Game Backend"
-    - "SolanaBust Wager Validation"
+    - "SolanaBust Multiplayer Rooms System"
+    - "SolanaBust Multiplayer Room Endpoints"
+    - "Real SOL Payout System"
+    - "12% Dev Fee Implementation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
