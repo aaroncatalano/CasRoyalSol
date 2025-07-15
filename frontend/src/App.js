@@ -1036,55 +1036,54 @@ const CrashGame = () => {
     }
   };
 
-  // Game loop simulation
-  useEffect(() => {
-    const gameLoop = setInterval(() => {
-      if (gameState === 'waiting') {
-        setTimeLeft(30); // Increased betting time to 30 seconds
-        setGameState('betting');
-        setMultiplier(1.00);
-        setCrashPoint(generateCrashPoint());
-        setPlayerBet(null);
-        setCashedOut(false);
-      } else if (gameState === 'betting') {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            setGameState('flying');
-            return 0;
-          }
-          return prev - 1;
-        });
-      } else if (gameState === 'flying') {
-        setMultiplier(prev => {
-          const next = prev + 0.02; // Slower multiplier increase
-          if (next >= crashPoint) {
-            setGameState('crashed');
-            // Handle crash - record loss
-            if (playerBet && playerBet.amount && !cashedOut) {
-              // Record loss in backend (no payout)
-              axios.post(`${API}/game/result`, {
-                session_id: 'crash-' + Date.now(),
-                player_wallet: publicKey?.toString() || 'unknown',
-                game_type: 'crash',
-                wager_amount: playerBet.amount,
-                payout_amount: 0,
-                game_data: { multiplier: next, crashPoint, cashedOut: false }
-              }).then(response => {
-                console.log('Loss recorded successfully');
-              }).catch(console.error);
-              
-              alert(`💥 CRASHED at ${next.toFixed(2)}x!\nYou lost ${playerBet.amount} SOL\n💸 No payout - better luck next time!`);
-            }
-            setTimeout(() => setGameState('waiting'), 8000);
-            return crashPoint;
-          }
-          return next;
-        });
-      }
-    }, gameState === 'flying' ? 150 : 1000); // Slower flying updates
+  const getGameStateDisplay = () => {
+    if (!roomState) return 'Loading...';
+    
+    switch (roomState.game_state) {
+      case 'waiting':
+        return 'Waiting for players...';
+      case 'betting':
+        return `Betting Phase (${Math.ceil(roomState.betting_time_left)}s left)`;
+      case 'flying':
+        return `Flying at ${roomState.current_multiplier.toFixed(2)}x`;
+      case 'crashed':
+        return `Crashed at ${roomState.crash_point}x`;
+      case 'finished':
+        return 'Game finished, preparing next round...';
+      default:
+        return 'Unknown state';
+    }
+  };
 
-    return () => clearInterval(gameLoop);
-  }, [gameState, timeLeft, crashPoint, playerBet, cashedOut, publicKey]);
+  const getPlayerStatusColor = (status) => {
+    switch (status) {
+      case 'betting':
+        return 'text-blue-400';
+      case 'flying':
+        return 'text-green-400';
+      case 'cashed_out':
+        return 'text-yellow-400';
+      case 'crashed':
+        return 'text-red-400';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  const getPlayerStatusIcon = (status) => {
+    switch (status) {
+      case 'betting':
+        return '💰';
+      case 'flying':
+        return '🚀';
+      case 'cashed_out':
+        return '✅';
+      case 'crashed':
+        return '💥';
+      default:
+        return '❓';
+    }
+  };
 
   return (
     <div className="bg-gray-800 rounded-lg p-6">
