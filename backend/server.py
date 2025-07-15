@@ -322,7 +322,7 @@ class BlackjackGame:
 
 # Video Poker Game Logic
 class VideoPokerGame:
-    def __init__(self, winning_percentage: float = 0.65):
+    def __init__(self, winning_percentage: float = 0.35):
         self.deck = self._create_deck()
         self.hand = []
         self.held_cards = [False] * 5
