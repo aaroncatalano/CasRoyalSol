@@ -863,17 +863,18 @@ const CrashGame = () => {
   };
 
   const [username] = useState(() => generateUsername());
+  // Auto cash-out logic
   useEffect(() => {
     if (autoCashOut && 
-        multiplier >= autoCashOut && 
-        playerBet && 
-        playerBet.amount && 
-        !cashedOut && 
-        gameState === 'flying') {
-      console.log(`Auto cash-out triggered at ${multiplier.toFixed(2)}x`);
+        roomState && 
+        roomState.current_multiplier >= autoCashOut && 
+        playerData && 
+        playerData.status === 'flying' &&
+        roomState.game_state === 'flying') {
+      console.log(`Auto cash-out triggered at ${roomState.current_multiplier.toFixed(2)}x`);
       cashOut();
     }
-  }, [multiplier, autoCashOut, playerBet, cashedOut, gameState]);
+  }, [roomState, autoCashOut, playerData]);
 
   // Room state polling
   useEffect(() => {
