@@ -1,91 +1,89 @@
 <analysis>
-The previous AI engineer effectively initiated a hyper-casual gaming platform on the Solana testnet, delivering core features iteratively. Starting with a detailed plan, the engineer focused on critical blockchain and wallet integrations (Solana, Phantom), followed by game logic for Blackjack and Video Poker. The development was characterized by a strong emphasis on immediate user feedback, addressing bugs promptly, and continuously refining features like transaction fees (initially 2%, then 4%), game flow, and UI responsiveness. Key challenges involved debugging Solana transaction issues, ensuring correct wager deductions, and handling frontend React errors. The engineer demonstrated an ability to analyze error logs, fix both backend FastAPI and frontend React issues, and adapt to evolving product requirements, such as the introduction of the SolanaBust crash game. Despite significant progress, some critical features, particularly real SOL payouts and full real-time multiplayer/chat, remain incomplete or require further stabilization, as detailed in the final checklist.
+The previous AI engineer successfully transformed a basic gaming dApp into a robust, nearly production-ready platform. The development trajectory highlights an iterative, problem-solving approach, starting with critical bug fixes in the SolanaBust game. Key accomplishments include stabilizing the SolanaBust game, implementing a real SOL payout system, integrating real-time multiplayer features (via HTTP polling after Socket.IO issues), and optimizing game economics by adjusting developer fees (to 12%) and significantly altering Blackjack/Video Poker win rates to ensure house profitability. The engineer demonstrated strong debugging skills, adapting to various technical challenges and evolving user requirements, moving towards a truly multiplayer and profitable blockchain gaming experience. The ongoing work is focused on fully implementing the SolanaBust shared game room system to centralize gameplay and manage multi-player interactions.
 </analysis>
 
 <product_requirements>
-The user requested a hyper-casual gaming site featuring multi-hand Blackjack and Video Poker, built on the Solana testnet blockchain. A 2% transaction fee was initially required on every wager, payable to a specified Solana developer wallet (). The development was planned in phases: Phase 1 for backend, Web3, and Phantom wallet integration; Phase 2 for wagering and game logic; and Phase 3 for the frontend.
-
-Later requirements included:
-- **Game Specifications:** Multi-hand Blackjack (configurable hands), Video Poker (Jacks or Better variant), and specific minimum/maximum bet amounts in SOL.
-- **New Game:** Implementation of a Bustabit type crash game (SolanaBust) on the Solana blockchain.
-- **Transaction Fee Update:** Increase the developer fee from 2% to 4% for all wagers.
-- **Wallet & Payouts:** Integrate USDC test token for payouts, using  as the house wallet for winners.
-- **Security:** Implement Cloudflare for bot and DDoS protection.
-- **User Engagement:** Integrate a real-time chat system for the SolanaBust game and a live player list.
-- **Game Flow:** Adjust the game flow for Blackjack and Video Poker to deduct wager *before* cards are dealt.
-- **UI Updates:** Ensure wallet balance updates dynamically after transactions and winnings are displayed.
+The initial request was for a hyper-casual gaming site on Solana testnet featuring multi-hand Blackjack and Video Poker, with a 2% developer fee to a specified wallet. Subsequent requirements included: adding SolanaBust (crash game); increasing the developer fee to 4%, then 8%, and finally 12% for all games; integrating USDC for payouts (though actual SOL transfers were implemented instead); implementing Cloudflare (postponed); integrating real-time chat and a live player list; adjusting wager deduction to be upfront; and dynamically updating UI. Later, the user requested bug fixes for SolanaBust runtime errors, stabilization of auto cash-out, implementation of real winner payouts from a house wallet, multiplayer enhancements (live player list, player count, cash-out notifications with random usernames and bet categories), and big win announcements (threshold 0.1 SOL). Most recently, the user mandated increasing win rates for Blackjack and Video Poker from 69% to 35% for players to ensure house profitability, and implementing a true shared multiplayer room system for SolanaBust, including a 4-player minimum for mainnet.
 </product_requirements>
 
 <key_technical_concepts>
-- **Solana Blockchain:** Core blockchain for transactions and game logic.
-- **Phantom Wallet:** User wallet for authentication, transaction signing, and SOL transfers.
-- **FastAPI:** Python backend framework for API endpoints and game logic.
-- **React.js:** Frontend framework for the user interface.
-- **MongoDB:** Database for persistent game sessions, user data, and statistics.
-- **Web3.js (Solana Web3.js):** JavaScript library for interacting with Solana blockchain from frontend.
-- **SPL Tokens:** Solana Program Library tokens, specifically USDC for payouts.
-- **WebSockets:** Planned for real-time features like the crash game multiplier and chat.
-- **Tailwind CSS:** Frontend styling framework.
-- **Supervisor:** Process control system for managing backend and frontend services.
+- **Solana Blockchain**: Core for transactions and smart contract interactions.
+- **Phantom Wallet**: User authentication and transaction signing.
+- **FastAPI**: Python backend for API logic and game management.
+- **React.js**: Frontend for UI, state management, and API integration.
+- **MongoDB**: Database for sessions, user data, and statistics.
+- **Solana Web3.js / Python SDK**: SDKs for blockchain interaction.
+- **SPL Tokens**: Solana Program Library tokens (USDC for payouts, though SOL is used).
+- **HTTP Polling**: Implemented for real-time features (alternative to WebSockets).
+- **Tailwind CSS**: Frontend styling.
+- **Supervisor**: Process management for backend/frontend services.
 </key_technical_concepts>
 
 <code_architecture>
-The application follows a standard full-stack architecture with a React frontend and a FastAPI backend, interacting with a MongoDB database and the Solana blockchain.
-
 
 
 -   **/app/backend/server.py**:
-    -   **Summary of importance**: This is the core FastAPI application handling all backend logic. It defines API endpoints for game sessions (Blackjack, Video Poker, SolanaBust), wagering, transaction processing, and game state management. It directly interacts with MongoDB for data persistence and integrates with the Solana blockchain via Python SDK.
-    -   **Changes made**: Initial setup for FastAPI with MongoDB and CORS. Implemented game logic classes (, , ) and their respective endpoints (, , , , etc.). Integrated Solana transaction processing (wager, fees, payouts). Modified to make Redis for rate limiting optional. Updated game logic to incorporate win biases and ensure correct state transitions. Adjusted developer fee calculation to 4%.
+    -   **Summary of importance**: The central FastAPI application. It orchestrates game sessions, transaction processing, and data persistence. It routes API requests and integrates with Solana and MongoDB.
+    -   **Changes made**: Substantial modifications for game logic (Blackjack, Video Poker, SolanaBust), incorporating an 8% then 12% developer fee, handling SOL wagers, and integrating real SOL payouts. It was refactored to include  and  endpoints. Win rates for Blackjack and Video Poker were adjusted from ~69% to 35% for players to ensure house profitability. It now also manages  for multiplayer functionality.
+
+-   **/app/backend/solana_payout.py**:
+    -   **Summary of importance**: A newly created service dedicated to handling real SOL transfers from the house wallet to winning players on the Solana testnet. It abstracts away the direct Solana SDK interactions for payouts.
+    -   **Changes made**: Implemented  class with methods for sending SOL, checking house balance, and managing transactions, using the  and  modules.
+
+-   **/app/backend/multiplayer_service.py**:
+    -   **Summary of importance**: A newly created backend service responsible for managing and providing real-time-like data for multiplayer features such as player count, active players, and chat messages. Initially intended for WebSockets, it was refactored to support HTTP polling due to compatibility issues.
+    -   **Changes made**: Defines functions to get multiplayer statistics and manage chat messages through a polling mechanism, moving away from a full WebSocket implementation.
+
+-   **/app/backend/solanabust_rooms.py**:
+    -   **Summary of importance**: A newly created module responsible for managing game rooms and shared game state for SolanaBust, to enable a true multiplayer experience where all players participate in the same round with a single crash point.
+    -   **Changes made**: Implements logic for creating, joining, and managing shared SolanaBust game rooms. This is currently under active implementation.
 
 -   **/app/frontend/src/App.js**:
-    -   **Summary of importance**: This is the main React component rendering the entire application's UI and managing frontend state. It handles user interactions, connects to the Phantom wallet, displays game interfaces, and makes API calls to the backend. It dynamically updates the UI based on game state and wallet information.
-    -   **Changes made**: Integrated Phantom Wallet connection using  hook. Implemented UI for Blackjack, Video Poker, and SolanaBust games, including betting inputs, card displays, and game controls (Hit, Stand, Hold, Draw, Cash Out). Added logic for displaying transaction breakdowns (wager, dev fee, game amount). Refined game flow to deduct wager upfront. Implemented auto-balance refresh and a manual refresh button. Added components for Player Statistics and Leaderboard. Introduced and then attempted to debug and refactor  and chat components, leading to syntax and runtime errors, specifically related to  context and rendering logic.
+    -   **Summary of importance**: The main React component that renders the entire user interface. It connects to the Phantom wallet, manages game states, displays game interfaces, and communicates with the backend APIs.
+    -   **Changes made**: Integrated Phantom Wallet, implemented UI for all three games, updated wager deduction logic, and added balance refresh. Crucially, it was modified to integrate the  and display real-time activity and chat (via polling). UI texts were updated to reflect the 12% developer fee, 35% player win rates for Blackjack/Video Poker, and correct game names (e.g., Blackjack instead of Multi-Hand Blackjack). Fixed a critical auto-scrolling bug caused by the chat system.
+
+-   **/app/frontend/src/MultiplayerComponent.js**:
+    -   **Summary of importance**: A newly created React component responsible for rendering the multiplayer sidebar, including live player count, active players list, recent big wins, and the chat interface. It fetches data from the backend using the polling mechanism.
+    -   **Changes made**: Implemented polling logic to fetch multiplayer stats and chat messages, UI for displaying players with random usernames and bet categories, and the chat input/display.
 
 -   **/app/backend/.env**:
-    -   **Summary of importance**: Stores environment variables critical for backend operation, specifically  for database connection.
-    -   **Changes made**:  added initially, no other modifications explicitly stated, but backend relies on .
+    -   **Summary of importance**: Stores environment variables for backend operation, including .
+    -   **Changes made**:  was added to securely store the private key for the house wallet, enabling real SOL payouts.
 
 -   **/app/frontend/.env**:
-    -   **Summary of importance**: Stores environment variables for the frontend, primarily  to point to the FastAPI backend.
-    -   **Changes made**:  is configured, no modifications explicitly stated.
+    -   **Summary of importance**: Stores environment variables for the frontend, primarily .
+    -   **Changes made**: No explicit modifications, but  is critical for frontend-backend communication.
 
 -   **/app/test_result.md**:
-    -   **Summary of importance**: Documents the testing protocol and records the outcomes of backend and frontend tests.
-    -   **Changes made**: Continuously updated with test statuses, success rates, and descriptions of fixed bugs after each testing phase.
+    -   **Summary of importance**: Documents testing protocols and records backend and frontend test outcomes, crucial for tracking progress and identified issues.
+    -   **Changes made**: Continuously updated with test statuses, success rates, and bug fixes for SolanaBust, multiplayer features, fee calculations, and real payouts.
 
 -   **/app/README.md**:
-    -   **Summary of importance**: Provides comprehensive documentation for setting up, installing dependencies, and running the application, along with architectural details and game rules.
-    -   **Changes made**: Created and incrementally updated to include installation instructions, CLI commands, API documentation, architecture overview, game rules, and troubleshooting.
+    -   **Summary of importance**: Provides documentation for setup, dependencies, running the application, and architectural overview.
+    -   **Changes made**: Incrementally updated to reflect new features, architectural decisions, and game rules.
 </code_architecture>
 
 <pending_tasks>
--   Fix SolanaBust null reference errors.
--   Resolve syntax errors in SolanaBust components.
--   Correct auto cash-out logic.
--   Stabilize SolanaBust game state management and timing.
--   Implement actual SOL/USDC transfers for winner payouts from the house wallet.
--   Integrate WebSocket backend for real-time multiplayer features.
--   Complete the real-time chat system, including message persistence, moderation, announcements, and emoji reactions.
--   Implement Cloudflare for DDoS and bot protection.
--   Add performance optimizations like database indexing and caching.
--   Enhance mobile and UX, including PWA support and better loading states.
+- Complete the implementation of the SolanaBust shared game room system.
+- Update frontend UI to show other players in the SolanaBust room.
+- Implement the 4-player minimum requirement for SolanaBust before the game starts (for mainnet).
+- Integrate Cloudflare for DDoS and bot protection (planned for mainnet).
+- Implement performance optimizations like database indexing and caching.
+- Enhance mobile and UX, including PWA support and better loading states.
+- Fully implement real-time synchronization with WebSockets (currently using polling as a workaround).
+- Implement comprehensive message persistence, moderation, announcements, and advanced features for the chat system.
 </pending_tasks>
 
 <current_work>
-The Solana Gaming Platform is a multi-game dApp integrated with the Solana blockchain and Phantom Wallet. Currently, it features three playable games: Multi-hand Blackjack, Jacks or Better Video Poker, and the SolanaBust crash game.
+The Solana Gaming Platform is a multi-game dApp on the Solana testnet, featuring Blackjack, Video Poker, and SolanaBust. All games integrate with Phantom Wallet, process wagers with an 12% developer fee, and now perform real SOL payouts from a designated house wallet (). The game flow ensures upfront wager deduction.
 
-All games integrate with the Phantom Wallet for user authentication and transaction initiation. Wagers are processed with a 4% developer fee, which is successfully deducted from the player's wallet and sent to the developer's wallet (). The game flow was adjusted so that the full wager amount is deducted upfront upon starting a game.
+The application boasts enhanced multiplayer features: a live player list with count, randomized usernames, and bet categories (Small Fish, Medium Bet, High Roller). A real-time chat system is functional via HTTP polling (a stable alternative to problematic Socket.IO integration), along with a big-win announcement system (for payouts ≥ 0.1 SOL).
 
-Player statistics, including win/loss tracking and game history, are managed by the backend (FastAPI + MongoDB). A leaderboard system is also in place, ranking top players by net profit. The frontend is built with React and Tailwind CSS, providing a responsive UI. The SolanaBust game includes a real-time multiplier and an auto-cash-out feature.
+Crucially, game economics have been adjusted for profitability: Blackjack and Video Poker now have a 35% player win rate (from ~69%), ensuring a 65% house edge. SolanaBust has a 12% house edge built into its crash algorithm, plus the 12% developer fee.
 
-**Current Nuances and Known Issues:**
-1.  **Payout System (Critical):** While wagers and developer fees are handled on-chain, actual SOL/USDC payouts to winners are currently only simulated via alerts; real transfers from the designated house wallet () are not yet implemented.
-2.  **Wallet Balance Display:** Although transactions deduct funds, the frontend balance display does not automatically refresh to show the full wager deduction post-transaction, requiring manual refresh. There have been persistent issues with Phantom wallet popup *displaying* only gas fees, even when console logs confirm correct lamport calculations for the wager amount.
-3.  **SolanaBust Stability:** The SolanaBust crash game and its integration (particularly the chat system) are still incomplete or experiencing runtime errors (e.g., ) and syntax errors preventing full compilation and stable operation of recently added features.
-4.  **Real-time Features:** The real-time chat and full multiplayer synchronization (e.g., live player list, synchronized crash points) primarily rely on frontend simulation, with the WebSocket backend not fully implemented for actual communication and synchronization.
+**Current work focuses on transforming SolanaBust into a true multiplayer crash game.** Previously, each player had their own game instance; the goal is a shared game room with a single crash point for all participants. The backend is actively being developed to manage these shared game rooms in , and the frontend in  is being updated to reflect this shared experience.
 </current_work>
 
 <optional_next_step>
-The immediate next step is to fix the critical runtime and syntax errors in the SolanaBust game to ensure its stability and functionality.
+Continue with comprehensive testing of the newly implemented multiplayer room system for SolanaBust.
 </optional_next_step>
