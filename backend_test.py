@@ -2298,7 +2298,16 @@ def run_all_tests():
         ("SolanaBust Wager Validation", test_solana_bust_wager_validation),
         ("Bet Categorization Logic", test_bet_categorization),
         ("Enhanced Game Results with Multiplayer", test_enhanced_game_results),
-        ("Complete Crash Game Flow (SolanaBust)", test_crash_game_flow)
+        ("Complete Crash Game Flow (SolanaBust)", test_crash_game_flow),
+        ("SolanaBust Room Join", test_solanabust_room_join),
+        ("SolanaBust Room Join Validation", test_solanabust_room_join_validation),
+        ("SolanaBust Room State Retrieval", test_solanabust_room_state),
+        ("SolanaBust Active Room Status", test_solanabust_active_room),
+        ("SolanaBust Cash Out Mechanics", test_solanabust_cash_out),
+        ("SolanaBust 12% Developer Fee Calculation", test_solanabust_12_percent_dev_fee),
+        ("SolanaBust Multiplayer Game Flow", test_solanabust_multiplayer_game_flow),
+        ("SolanaBust Real SOL Payout Integration", test_solanabust_real_sol_payout_integration),
+        ("SolanaBust Edge Cases and Error Handling", test_solanabust_edge_cases)
     ]
     
     results = {}
