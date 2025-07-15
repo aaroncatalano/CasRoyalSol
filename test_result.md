@@ -303,6 +303,18 @@ backend:
         agent: "testing"
         comment: "REAL-TIME WIN/LOSS ANNOUNCEMENTS WITH 8% FEE INTEGRATION VERIFIED! The real-time announcements system is working perfectly with the updated 8% developer fee structure. Testing confirms: ✅ Big win threshold (0.1 SOL) detection working correctly ✅ Automatic announcements for wins above threshold ✅ Manual win announcement endpoint functional ✅ Random username generation for privacy (e.g., 'PlayerA7GZMJ...') ✅ Announcement storage in MongoDB working ✅ Recent announcements retrieval (8 announcements available) ✅ Integration with enhanced game result recording ✅ Proper categorization across all game types including SolanaBust. The announcement system enhances player engagement and is production-ready."
 
+  - task: "SolanaBust Multiplayer Rooms System"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/solanabust_rooms.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented complete SolanaBust multiplayer room system with 4-player minimum requirement, shared crash points, real-time room state updates, and 12% developer fee. System includes room creation, player joining/leaving, cash-out mechanics, and integration with real SOL payout system. Frontend updated with room-based UI showing all players, their bets, and status. Need to test the complete multiplayer room flow including joining, game state synchronization, cash-out mechanics, and real SOL payouts."
+
 backend:
   - task: "4% Dev Fee Implementation"
     implemented: true
