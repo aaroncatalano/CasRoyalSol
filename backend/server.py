@@ -1236,6 +1236,151 @@ async def get_payout_history(limit: int = 50):
         raise HTTPException(status_code=500, detail=result["error"])
     return result
 
+# SolanaBust Room Endpoints
+@api_router.post("/solanabust/join-room")
+async def join_solanabust_room(data: dict):
+    """Join a SolanaBust multiplayer room"""
+    if not ROOMS_AVAILABLE or not room_manager:
+        raise HTTPException(status_code=503, detail="SolanaBust rooms service not available")
+    
+    try:
+        wallet_address = data.get("wallet_address")
+        username = data.get("username", f"Player{wallet_address[:6]}...")
+        bet_amount = float(data.get("bet_amount", 0))
+        
+        # Validate inputs
+        if not wallet_address:
+            raise HTTPException(status_code=400, detail="Wallet address required")
+        
+        if bet_amount < 0.005 or bet_amount > 0.2:
+            raise HTTPException(status_code=400, detail="Bet amount must be between 0.005 and 0.2 SOL")
+        
+        # Join room
+        room_id = room_manager.join_room(wallet_address, username, bet_amount)
+        
+        if room_id:
+            room_state = room_manager.get_room_state(room_id)
+            return {
+                "success": True,
+                "room_id": room_id,
+                "room_state": room_state
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Could not join room")
+            
+    except Exception as e:
+        logger.error(f"Error joining SolanaBust room: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/solanabust/cash-out")
+async def cash_out_solanabust(data: dict):
+    """Cash out from SolanaBust room"""
+    if not ROOMS_AVAILABLE or not room_manager:
+        raise HTTPException(status_code=503, detail="SolanaBust rooms service not available")
+    
+    try:
+        wallet_address = data.get("wallet_address")
+        
+        if not wallet_address:
+            raise HTTPException(status_code=400, detail="Wallet address required")
+        
+        # Attempt cash out
+        success = room_manager.cash_out_player(wallet_address)
+        
+        if success:
+            room_state = room_manager.get_player_room_state(wallet_address)
+            
+            # Process real payout if available
+            if SOLANA_PAYOUT_AVAILABLE and solana_payout_service:
+                try:
+                    # Find player in room state
+                    player_data = None
+                    for player in room_state.get("players", []):
+                        if player["wallet_address"] == wallet_address:
+                            player_data = player
+                            break
+                    
+                    if player_data and player_data.get("payout_amount", 0) > 0:
+                        payout_result = await solana_payout_service.send_winner_payout(
+                            winner_address=wallet_address,
+                            amount_sol=player_data["payout_amount"],
+                            game_id=f"solanabust_{room_state['room_id']}",
+                            session_id=f"room_{room_state['room_id']}_round_{room_state['round_number']}"
+                        )
+                        
+                        return {
+                            "success": True,
+                            "cashed_out": True,
+                            "payout_amount": player_data["payout_amount"],
+                            "multiplier": player_data["cash_out_multiplier"],
+                            "payout_sent": payout_result.get("success", False),
+                            "payout_signature": payout_result.get("signature"),
+                            "explorer_url": payout_result.get("explorer_url"),
+                            "room_state": room_state
+                        }
+                except Exception as payout_error:
+                    logger.error(f"Payout error: {payout_error}")
+            
+            return {
+                "success": True,
+                "cashed_out": True,
+                "room_state": room_state
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Could not cash out")
+            
+    except Exception as e:
+        logger.error(f"Error cashing out from SolanaBust room: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/solanabust/room-state")
+async def get_solanabust_room_state(wallet_address: str):
+    """Get current room state for player"""
+    if not ROOMS_AVAILABLE or not room_manager:
+        raise HTTPException(status_code=503, detail="SolanaBust rooms service not available")
+    
+    try:
+        room_state = room_manager.get_player_room_state(wallet_address)
+        
+        if room_state:
+            return {
+                "success": True,
+                "room_state": room_state
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Not in any room"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting room state: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/solanabust/active-room")
+async def get_active_solanabust_room():
+    """Get active room state"""
+    if not ROOMS_AVAILABLE or not room_manager:
+        raise HTTPException(status_code=503, detail="SolanaBust rooms service not available")
+    
+    try:
+        room = room_manager.get_active_room()
+        
+        if room:
+            return {
+                "success": True,
+                "room_state": room.get_room_state()
+            }
+        else:
+            return {
+                "success": False,
+                "message": "No active room"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting active room: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Simple polling-based chat system (WebSocket alternative)
 chat_messages = []
 active_players_simulation = []
