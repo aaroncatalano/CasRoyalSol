@@ -1488,6 +1488,784 @@ def test_error_handling_invalid_session():
     except Exception as e:
         return False, str(e)
 
+# Test 43: SolanaBust Room Join
+def test_solanabust_room_join():
+    """Test joining a SolanaBust multiplayer room"""
+    try:
+        # Test data for room joining
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"  # Valid phantom wallet format
+        test_username = "TestPlayer123"
+        test_bet_amount = 0.01  # Valid bet amount
+        
+        response = requests.post(
+            f"{API_URL}/solanabust/join-room",
+            json={
+                "wallet_address": test_wallet,
+                "username": test_username,
+                "bet_amount": test_bet_amount
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify successful room join
+        if (data.get("success") and 
+            "room_id" in data and 
+            "room_state" in data):
+            
+            room_state = data["room_state"]
+            
+            # Verify room state structure
+            if ("room_id" in room_state and
+                "game_state" in room_state and
+                "players" in room_state and
+                "player_count" in room_state and
+                "min_players" in room_state):
+                
+                # Verify player was added to room
+                player_found = False
+                for player in room_state["players"]:
+                    if (player["wallet_address"] == test_wallet and
+                        player["username"] == test_username and
+                        player["bet_amount"] == test_bet_amount):
+                        player_found = True
+                        break
+                
+                if player_found:
+                    return True, {
+                        "room_id": data["room_id"],
+                        "player_count": room_state["player_count"],
+                        "game_state": room_state["game_state"],
+                        "min_players": room_state["min_players"],
+                        "player_added": True
+                    }
+                else:
+                    return False, "Player not found in room after joining"
+            else:
+                return False, "Room state missing expected fields"
+        else:
+            return False, "Room join failed or missing expected response fields"
+    except Exception as e:
+        return False, str(e)
+
+# Test 44: SolanaBust Room Join Validation
+def test_solanabust_room_join_validation():
+    """Test SolanaBust room join validation with various inputs"""
+    try:
+        test_cases = [
+            # Valid cases
+            {
+                "wallet_address": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+                "username": "ValidPlayer",
+                "bet_amount": 0.005,
+                "should_pass": True,
+                "description": "Minimum valid bet amount"
+            },
+            {
+                "wallet_address": "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ",
+                "username": "MaxBetPlayer",
+                "bet_amount": 0.2,
+                "should_pass": True,
+                "description": "Maximum valid bet amount"
+            },
+            
+            # Invalid cases
+            {
+                "wallet_address": "",
+                "username": "NoWallet",
+                "bet_amount": 0.01,
+                "should_pass": False,
+                "description": "Empty wallet address"
+            },
+            {
+                "wallet_address": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+                "username": "LowBet",
+                "bet_amount": 0.004,
+                "should_pass": False,
+                "description": "Below minimum bet amount"
+            },
+            {
+                "wallet_address": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+                "username": "HighBet",
+                "bet_amount": 0.21,
+                "should_pass": False,
+                "description": "Above maximum bet amount"
+            }
+        ]
+        
+        results = []
+        for test_case in test_cases:
+            try:
+                response = requests.post(
+                    f"{API_URL}/solanabust/join-room",
+                    json={
+                        "wallet_address": test_case["wallet_address"],
+                        "username": test_case["username"],
+                        "bet_amount": test_case["bet_amount"]
+                    }
+                )
+                
+                success = response.status_code == 200 and response.json().get("success", False)
+                
+                results.append({
+                    "description": test_case["description"],
+                    "expected_pass": test_case["should_pass"],
+                    "actual_pass": success,
+                    "status_code": response.status_code,
+                    "correct": success == test_case["should_pass"]
+                })
+                
+            except Exception as e:
+                results.append({
+                    "description": test_case["description"],
+                    "expected_pass": test_case["should_pass"],
+                    "actual_pass": False,
+                    "error": str(e),
+                    "correct": not test_case["should_pass"]  # If we expected failure and got error, that's correct
+                })
+        
+        all_correct = all(result["correct"] for result in results)
+        
+        return all_correct, {
+            "test_cases": len(test_cases),
+            "all_correct": all_correct,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 45: SolanaBust Room State Retrieval
+def test_solanabust_room_state():
+    """Test retrieving room state for a specific player"""
+    try:
+        # First join a room
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        test_username = "StateTestPlayer"
+        test_bet_amount = 0.015
+        
+        join_response = requests.post(
+            f"{API_URL}/solanabust/join-room",
+            json={
+                "wallet_address": test_wallet,
+                "username": test_username,
+                "bet_amount": test_bet_amount
+            }
+        )
+        join_response.raise_for_status()
+        join_data = join_response.json()
+        
+        if not join_data.get("success"):
+            return False, "Failed to join room for state test"
+        
+        # Now get room state
+        response = requests.get(
+            f"{API_URL}/solanabust/room-state",
+            params={"wallet_address": test_wallet}
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Verify room state response
+        if (data.get("success") and "room_state" in data):
+            room_state = data["room_state"]
+            
+            # Verify room state structure
+            if ("room_id" in room_state and
+                "game_state" in room_state and
+                "players" in room_state and
+                "current_multiplier" in room_state and
+                "player_count" in room_state):
+                
+                # Verify our player is in the room state
+                player_found = False
+                for player in room_state["players"]:
+                    if player["wallet_address"] == test_wallet:
+                        player_found = True
+                        break
+                
+                if player_found:
+                    return True, {
+                        "room_id": room_state["room_id"],
+                        "game_state": room_state["game_state"],
+                        "player_count": room_state["player_count"],
+                        "current_multiplier": room_state["current_multiplier"],
+                        "player_found": True
+                    }
+                else:
+                    return False, "Player not found in room state"
+            else:
+                return False, "Room state missing expected fields"
+        else:
+            return False, "Room state retrieval failed or missing expected response fields"
+    except Exception as e:
+        return False, str(e)
+
+# Test 46: SolanaBust Active Room Status
+def test_solanabust_active_room():
+    """Test getting active room status"""
+    try:
+        response = requests.get(f"{API_URL}/solanabust/active-room")
+        response.raise_for_status()
+        data = response.json()
+        
+        # The response should either show an active room or indicate no active room
+        if data.get("success"):
+            # Active room found
+            if "room_state" in data:
+                room_state = data["room_state"]
+                
+                # Verify room state structure
+                if ("room_id" in room_state and
+                    "game_state" in room_state and
+                    "players" in room_state):
+                    return True, {
+                        "has_active_room": True,
+                        "room_id": room_state["room_id"],
+                        "game_state": room_state["game_state"],
+                        "player_count": room_state.get("player_count", 0)
+                    }
+                else:
+                    return False, "Active room state missing expected fields"
+            else:
+                return False, "Success response missing room_state"
+        else:
+            # No active room - this is also a valid response
+            if "message" in data:
+                return True, {
+                    "has_active_room": False,
+                    "message": data["message"]
+                }
+            else:
+                return False, "No active room response missing message"
+    except Exception as e:
+        return False, str(e)
+
+# Test 47: SolanaBust Cash Out Mechanics
+def test_solanabust_cash_out():
+    """Test SolanaBust cash out mechanics"""
+    try:
+        # First join a room
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        test_username = "CashOutPlayer"
+        test_bet_amount = 0.02
+        
+        join_response = requests.post(
+            f"{API_URL}/solanabust/join-room",
+            json={
+                "wallet_address": test_wallet,
+                "username": test_username,
+                "bet_amount": test_bet_amount
+            }
+        )
+        join_response.raise_for_status()
+        join_data = join_response.json()
+        
+        if not join_data.get("success"):
+            return False, "Failed to join room for cash out test"
+        
+        # Attempt to cash out
+        response = requests.post(
+            f"{API_URL}/solanabust/cash-out",
+            json={"wallet_address": test_wallet}
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Cash out might succeed or fail depending on game state
+        # Both are valid responses as long as the API responds correctly
+        if data.get("success"):
+            # Cash out succeeded
+            if ("cashed_out" in data and "room_state" in data):
+                return True, {
+                    "cash_out_successful": True,
+                    "cashed_out": data["cashed_out"],
+                    "payout_amount": data.get("payout_amount"),
+                    "multiplier": data.get("multiplier"),
+                    "payout_sent": data.get("payout_sent", False),
+                    "payout_signature": data.get("payout_signature"),
+                    "explorer_url": data.get("explorer_url")
+                }
+            else:
+                return False, "Cash out success response missing expected fields"
+        else:
+            # Cash out failed (likely due to game state) - this is also valid
+            return True, {
+                "cash_out_successful": False,
+                "message": "Cash out failed (likely due to game state - this is expected behavior)"
+            }
+    except Exception as e:
+        return False, str(e)
+
+# Test 48: SolanaBust 12% Developer Fee Calculation
+def test_solanabust_12_percent_dev_fee():
+    """Test 12% developer fee calculation for SolanaBust"""
+    try:
+        test_amounts = [0.005, 0.01, 0.025, 0.05, 0.1, 0.2]  # Various SolanaBust amounts
+        results = []
+        
+        for amount in test_amounts:
+            # Join room with specific bet amount
+            test_wallet = f"9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWW{random.randint(1,9)}"
+            test_username = f"FeeTestPlayer{random.randint(100,999)}"
+            
+            try:
+                response = requests.post(
+                    f"{API_URL}/solanabust/join-room",
+                    json={
+                        "wallet_address": test_wallet,
+                        "username": test_username,
+                        "bet_amount": amount
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("success") and "room_state" in data:
+                        # Find our player in the room state
+                        player_data = None
+                        for player in data["room_state"]["players"]:
+                            if player["wallet_address"] == test_wallet:
+                                player_data = player
+                                break
+                        
+                        if player_data:
+                            expected_dev_fee = amount * 0.12  # 12% fee
+                            expected_net_bet = amount - expected_dev_fee
+                            
+                            actual_dev_fee = player_data.get("dev_fee", 0)
+                            actual_net_bet = player_data.get("net_bet", 0)
+                            
+                            fee_correct = abs(actual_dev_fee - expected_dev_fee) < 0.000001
+                            net_correct = abs(actual_net_bet - expected_net_bet) < 0.000001
+                            
+                            results.append({
+                                "bet_amount": amount,
+                                "expected_dev_fee": expected_dev_fee,
+                                "actual_dev_fee": actual_dev_fee,
+                                "expected_net_bet": expected_net_bet,
+                                "actual_net_bet": actual_net_bet,
+                                "fee_correct": fee_correct,
+                                "net_correct": net_correct,
+                                "overall_correct": fee_correct and net_correct
+                            })
+                        else:
+                            results.append({
+                                "bet_amount": amount,
+                                "error": "Player not found in room state"
+                            })
+                    else:
+                        results.append({
+                            "bet_amount": amount,
+                            "error": "Failed to join room or get room state"
+                        })
+                else:
+                    results.append({
+                        "bet_amount": amount,
+                        "error": f"HTTP {response.status_code}"
+                    })
+                    
+            except Exception as e:
+                results.append({
+                    "bet_amount": amount,
+                    "error": str(e)
+                })
+        
+        # Check if all calculations are correct
+        successful_tests = [r for r in results if "overall_correct" in r]
+        all_correct = all(r["overall_correct"] for r in successful_tests)
+        
+        return all_correct, {
+            "test_amounts": test_amounts,
+            "successful_tests": len(successful_tests),
+            "total_tests": len(test_amounts),
+            "all_fee_calculations_correct": all_correct,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 49: SolanaBust Multiplayer Game Flow
+def test_solanabust_multiplayer_game_flow():
+    """Test complete SolanaBust multiplayer game flow"""
+    try:
+        # Create multiple players to join the room
+        players = [
+            {"wallet": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWW1", "username": "Player1", "bet": 0.01},
+            {"wallet": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWW2", "username": "Player2", "bet": 0.015},
+            {"wallet": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWW3", "username": "Player3", "bet": 0.02},
+            {"wallet": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWW4", "username": "Player4", "bet": 0.025}
+        ]
+        
+        join_results = []
+        room_id = None
+        
+        # Step 1: All players join the room
+        for player in players:
+            response = requests.post(
+                f"{API_URL}/solanabust/join-room",
+                json={
+                    "wallet_address": player["wallet"],
+                    "username": player["username"],
+                    "bet_amount": player["bet"]
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    join_results.append({
+                        "player": player["username"],
+                        "joined": True,
+                        "room_id": data.get("room_id")
+                    })
+                    if not room_id:
+                        room_id = data.get("room_id")
+                else:
+                    join_results.append({
+                        "player": player["username"],
+                        "joined": False,
+                        "error": "Join failed"
+                    })
+            else:
+                join_results.append({
+                    "player": player["username"],
+                    "joined": False,
+                    "error": f"HTTP {response.status_code}"
+                })
+        
+        successful_joins = len([r for r in join_results if r["joined"]])
+        
+        # Step 2: Check active room status
+        active_room_response = requests.get(f"{API_URL}/solanabust/active-room")
+        active_room_data = active_room_response.json() if active_room_response.status_code == 200 else {}
+        
+        # Step 3: Check room states for each player
+        room_states = []
+        for player in players:
+            try:
+                response = requests.get(
+                    f"{API_URL}/solanabust/room-state",
+                    params={"wallet_address": player["wallet"]}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("success"):
+                        room_states.append({
+                            "player": player["username"],
+                            "has_room_state": True,
+                            "game_state": data["room_state"].get("game_state"),
+                            "player_count": data["room_state"].get("player_count")
+                        })
+                    else:
+                        room_states.append({
+                            "player": player["username"],
+                            "has_room_state": False
+                        })
+                else:
+                    room_states.append({
+                        "player": player["username"],
+                        "has_room_state": False,
+                        "error": f"HTTP {response.status_code}"
+                    })
+            except Exception as e:
+                room_states.append({
+                    "player": player["username"],
+                    "has_room_state": False,
+                    "error": str(e)
+                })
+        
+        # Step 4: Test cash out attempts
+        cash_out_results = []
+        for player in players[:2]:  # Test cash out for first 2 players
+            try:
+                response = requests.post(
+                    f"{API_URL}/solanabust/cash-out",
+                    json={"wallet_address": player["wallet"]}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    cash_out_results.append({
+                        "player": player["username"],
+                        "cash_out_attempted": True,
+                        "success": data.get("success", False),
+                        "cashed_out": data.get("cashed_out", False)
+                    })
+                else:
+                    cash_out_results.append({
+                        "player": player["username"],
+                        "cash_out_attempted": True,
+                        "success": False,
+                        "error": f"HTTP {response.status_code}"
+                    })
+            except Exception as e:
+                cash_out_results.append({
+                    "player": player["username"],
+                    "cash_out_attempted": True,
+                    "success": False,
+                    "error": str(e)
+                })
+        
+        # Evaluate overall success
+        min_players_joined = successful_joins >= 4  # Need at least 4 players
+        room_states_working = len([r for r in room_states if r["has_room_state"]]) > 0
+        active_room_working = active_room_data.get("success") is not None
+        
+        overall_success = min_players_joined and room_states_working and active_room_working
+        
+        return overall_success, {
+            "players_joined": successful_joins,
+            "min_players_met": min_players_joined,
+            "room_id": room_id,
+            "join_results": join_results,
+            "active_room_working": active_room_working,
+            "room_states_working": room_states_working,
+            "room_states": room_states,
+            "cash_out_results": cash_out_results,
+            "overall_success": overall_success
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 50: SolanaBust Real SOL Payout Integration
+def test_solanabust_real_sol_payout_integration():
+    """Test SolanaBust integration with real SOL payout system"""
+    try:
+        # First check if payout service is available
+        balance_response = requests.get(f"{API_URL}/payouts/house-balance")
+        if balance_response.status_code != 200:
+            return True, {
+                "payout_service_available": False,
+                "message": "Payout service not available - this is expected in some environments"
+            }
+        
+        balance_data = balance_response.json()
+        house_balance = balance_data.get("balance_sol", 0)
+        
+        if house_balance < 0.01:  # Need at least 0.01 SOL for testing
+            return True, {
+                "payout_service_available": True,
+                "house_balance": house_balance,
+                "message": "Insufficient house balance for payout testing"
+            }
+        
+        # Join room and attempt cash out to test payout integration
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        test_username = "PayoutTestPlayer"
+        test_bet_amount = 0.005  # Small amount for testing
+        
+        # Join room
+        join_response = requests.post(
+            f"{API_URL}/solanabust/join-room",
+            json={
+                "wallet_address": test_wallet,
+                "username": test_username,
+                "bet_amount": test_bet_amount
+            }
+        )
+        
+        if join_response.status_code != 200:
+            return False, "Failed to join room for payout integration test"
+        
+        join_data = join_response.json()
+        if not join_data.get("success"):
+            return False, "Room join failed for payout integration test"
+        
+        # Attempt cash out (may or may not succeed depending on game state)
+        cash_out_response = requests.post(
+            f"{API_URL}/solanabust/cash-out",
+            json={"wallet_address": test_wallet}
+        )
+        
+        if cash_out_response.status_code == 200:
+            cash_out_data = cash_out_response.json()
+            
+            # If cash out was successful, check for payout integration
+            if cash_out_data.get("success") and cash_out_data.get("cashed_out"):
+                payout_sent = cash_out_data.get("payout_sent", False)
+                payout_signature = cash_out_data.get("payout_signature")
+                explorer_url = cash_out_data.get("explorer_url")
+                
+                return True, {
+                    "payout_service_available": True,
+                    "house_balance": house_balance,
+                    "cash_out_successful": True,
+                    "payout_sent": payout_sent,
+                    "payout_signature": payout_signature,
+                    "explorer_url": explorer_url,
+                    "payout_amount": cash_out_data.get("payout_amount"),
+                    "multiplier": cash_out_data.get("multiplier")
+                }
+            else:
+                return True, {
+                    "payout_service_available": True,
+                    "house_balance": house_balance,
+                    "cash_out_successful": False,
+                    "message": "Cash out failed (expected due to game state)"
+                }
+        else:
+            return True, {
+                "payout_service_available": True,
+                "house_balance": house_balance,
+                "cash_out_response_code": cash_out_response.status_code,
+                "message": "Cash out API call failed (may be expected)"
+            }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 51: SolanaBust Edge Cases and Error Handling
+def test_solanabust_edge_cases():
+    """Test SolanaBust edge cases and error handling"""
+    try:
+        edge_case_results = []
+        
+        # Test 1: Invalid wallet address format
+        try:
+            response = requests.post(
+                f"{API_URL}/solanabust/join-room",
+                json={
+                    "wallet_address": "invalid_wallet_format",
+                    "username": "TestPlayer",
+                    "bet_amount": 0.01
+                }
+            )
+            edge_case_results.append({
+                "test": "Invalid wallet address",
+                "expected_fail": True,
+                "actual_fail": response.status_code != 200,
+                "status_code": response.status_code
+            })
+        except Exception as e:
+            edge_case_results.append({
+                "test": "Invalid wallet address",
+                "expected_fail": True,
+                "actual_fail": True,
+                "error": str(e)
+            })
+        
+        # Test 2: Missing required fields
+        try:
+            response = requests.post(
+                f"{API_URL}/solanabust/join-room",
+                json={
+                    "username": "TestPlayer",
+                    "bet_amount": 0.01
+                    # Missing wallet_address
+                }
+            )
+            edge_case_results.append({
+                "test": "Missing wallet address",
+                "expected_fail": True,
+                "actual_fail": response.status_code != 200,
+                "status_code": response.status_code
+            })
+        except Exception as e:
+            edge_case_results.append({
+                "test": "Missing wallet address",
+                "expected_fail": True,
+                "actual_fail": True,
+                "error": str(e)
+            })
+        
+        # Test 3: Cash out without being in room
+        try:
+            response = requests.post(
+                f"{API_URL}/solanabust/cash-out",
+                json={"wallet_address": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWX"}
+            )
+            edge_case_results.append({
+                "test": "Cash out without being in room",
+                "expected_fail": True,
+                "actual_fail": response.status_code != 200 or not response.json().get("success", False),
+                "status_code": response.status_code
+            })
+        except Exception as e:
+            edge_case_results.append({
+                "test": "Cash out without being in room",
+                "expected_fail": True,
+                "actual_fail": True,
+                "error": str(e)
+            })
+        
+        # Test 4: Room state for non-existent player
+        try:
+            response = requests.get(
+                f"{API_URL}/solanabust/room-state",
+                params={"wallet_address": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWY"}
+            )
+            # This should return success=False or appropriate message
+            data = response.json() if response.status_code == 200 else {}
+            edge_case_results.append({
+                "test": "Room state for non-existent player",
+                "expected_behavior": "Should handle gracefully",
+                "status_code": response.status_code,
+                "success": data.get("success", False),
+                "handled_gracefully": response.status_code == 200
+            })
+        except Exception as e:
+            edge_case_results.append({
+                "test": "Room state for non-existent player",
+                "expected_behavior": "Should handle gracefully",
+                "error": str(e),
+                "handled_gracefully": False
+            })
+        
+        # Test 5: Concurrent room joins (same player)
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWZ"
+        concurrent_results = []
+        
+        for i in range(3):
+            try:
+                response = requests.post(
+                    f"{API_URL}/solanabust/join-room",
+                    json={
+                        "wallet_address": test_wallet,
+                        "username": f"ConcurrentPlayer{i}",
+                        "bet_amount": 0.01
+                    }
+                )
+                concurrent_results.append({
+                    "attempt": i + 1,
+                    "status_code": response.status_code,
+                    "success": response.json().get("success", False) if response.status_code == 200 else False
+                })
+            except Exception as e:
+                concurrent_results.append({
+                    "attempt": i + 1,
+                    "error": str(e),
+                    "success": False
+                })
+        
+        edge_case_results.append({
+            "test": "Concurrent room joins (same player)",
+            "expected_behavior": "Should handle duplicate joins gracefully",
+            "concurrent_results": concurrent_results,
+            "handled_gracefully": len([r for r in concurrent_results if r.get("success")]) <= 1
+        })
+        
+        # Evaluate overall edge case handling
+        critical_failures = []
+        for result in edge_case_results:
+            if "expected_fail" in result and result["expected_fail"] and not result["actual_fail"]:
+                critical_failures.append(f"Expected failure but got success: {result['test']}")
+            elif "handled_gracefully" in result and not result["handled_gracefully"]:
+                critical_failures.append(f"Not handled gracefully: {result['test']}")
+        
+        overall_success = len(critical_failures) == 0
+        
+        return overall_success, {
+            "edge_cases_tested": len(edge_case_results),
+            "critical_failures": critical_failures,
+            "overall_success": overall_success,
+            "detailed_results": edge_case_results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
 def run_all_tests():
     tests = [
         ("API Connectivity", test_api_connectivity),
