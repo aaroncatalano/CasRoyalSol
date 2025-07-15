@@ -852,12 +852,17 @@ const CrashGame = () => {
   
   // Get backend URL from environment
   const API = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [activePlayers, setActivePlayers] = useState([]);
-  const [showChat, setShowChat] = useState(false);
+  // Generate random username for player
+  const generateUsername = () => {
+    const adjectives = ['Lucky', 'Crypto', 'Solana', 'Diamond', 'Golden', 'Silver', 'Rocket', 'Moon'];
+    const nouns = ['Trader', 'Whale', 'Bull', 'Bear', 'Hodler', 'Ape', 'Wolf', 'Lion'];
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    const number = Math.floor(Math.random() * 900) + 100;
+    return `${adjective}${noun}${number}`;
+  };
 
-  // Auto cash-out logic
+  const [username] = useState(() => generateUsername());
   useEffect(() => {
     if (autoCashOut && 
         multiplier >= autoCashOut && 
