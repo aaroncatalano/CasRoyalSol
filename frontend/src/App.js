@@ -838,21 +838,20 @@ const VideoPokerGame = () => {
   );
 };
 
-// SolanaBust Crash Game Component
+// SolanaBust Multiplayer Room Game Component
 const CrashGame = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
-  const [wagerAmount, setWagerAmount] = useState(0.01); // Updated default to 0.01
+  const [wagerAmount, setWagerAmount] = useState(0.01);
   const [loading, setLoading] = useState(false);
-  const [gameState, setGameState] = useState('waiting');
-  const [multiplier, setMultiplier] = useState(1.00);
-  const [crashPoint, setCrashPoint] = useState(0);
-  const [playerBet, setPlayerBet] = useState(null);
-  const [cashedOut, setCashedOut] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [inRoom, setInRoom] = useState(false);
+  const [roomState, setRoomState] = useState(null);
+  const [autoCashOut, setAutoCashOut] = useState(0);
+  const [playerData, setPlayerData] = useState(null);
+  const [roomPolling, setRoomPolling] = useState(null);
   
-  // Phase 2 Features
-  const [autoCashOut, setAutoCashOut] = useState(null);
+  // Get backend URL from environment
+  const API = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [activePlayers, setActivePlayers] = useState([]);
