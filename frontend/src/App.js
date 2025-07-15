@@ -875,40 +875,43 @@ const CrashGame = () => {
     }
   }, [multiplier, autoCashOut, playerBet, cashedOut, gameState]);
 
-  // Simulate WebSocket for chat and players (in production, use real WebSocket)
+  // Room state polling
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate new chat messages
-      if (Math.random() < 0.1) {
-        const sampleMessages = [
-          "🚀 Going to the moon!",
-          "💎 Diamond hands!",
-          "Cash out now!",
-          "HODL!",
-          "🔥 This is crazy!"
-        ];
-        const newMessage = {
-          id: Date.now(),
-          user: `${Math.random().toString(36).substr(2, 6)}`,
-          message: sampleMessages[Math.floor(Math.random() * sampleMessages.length)],
-          timestamp: new Date().toLocaleTimeString()
-        };
-        setChatMessages(prev => [...prev.slice(-9), newMessage]);
-      }
-
-      // Simulate active players with updated bet ranges
-      const playerCount = Math.floor(Math.random() * 8) + 3;
-      const players = Array.from({length: playerCount}, (_, i) => ({
-        id: i,
-        wallet: `${Math.random().toString(36).substr(2, 6)}`,
-        bet: (Math.random() * 0.02 + 0.005).toFixed(3), // Updated to match new bet ranges
-        status: Math.random() > 0.7 ? 'cashed_out' : 'flying'
-      }));
-      setActivePlayers(players);
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
+    if (inRoom && publicKey) {
+      const polling = setInterval(async () => {
+        try {
+          const response = await fetch(`${API}/api/solanabust/room-state?wallet_address=${publicKey.toString()}`);
+          const data = await response.json();
+          
+          if (data.success) {
+            setRoomState(data.room_state);
+            
+            // Find current player data
+            const currentPlayer = data.room_state.players.find(p => p.wallet_address === publicKey.toString());
+            setPlayerData(currentPlayer);
+            
+            // If game finished, stop polling and reset
+            if (data.room_state.game_state === 'finished') {
+              setTimeout(() => {
+                setInRoom(false);
+                setRoomState(null);
+                setPlayerData(null);
+              }, 5000);
+            }
+          } else {
+            setInRoom(false);
+            setRoomState(null);
+            setPlayerData(null);
+          }
+        } catch (error) {
+          console.error('Error polling room state:', error);
+        }
+      }, 200); // 200ms polling for smooth updates
+      
+      setRoomPolling(polling);
+      return () => clearInterval(polling);
+    }
+  }, [inRoom, publicKey, API]);
 
   const sendQuickMessage = (message) => {
     if (!publicKey) return;
