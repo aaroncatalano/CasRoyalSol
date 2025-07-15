@@ -2274,7 +2274,7 @@ def run_all_tests():
         ("Phantom Wallet Backend APIs - Wallet Connection", test_wallet_connection),
         ("Game Session Management - Blackjack", test_blackjack_session_creation),
         ("Game Session Management - Video Poker", test_video_poker_session_creation),
-        ("Wagering System with 4% Dev Fee", test_wagering_system),
+        ("Wagering System with 12% Dev Fee", test_wagering_system),
         ("Game Logic APIs - Blackjack Hit", test_blackjack_hit),
         ("Game Logic APIs - Blackjack Hit Until Bust", test_blackjack_hit_until_bust),
         ("Game Logic APIs - Blackjack Stand", test_blackjack_stand),
