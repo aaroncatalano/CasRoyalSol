@@ -1087,216 +1087,175 @@ const CrashGame = () => {
 
   return (
     <div className="bg-gray-800 rounded-lg p-6">
-      <h2 className="text-2xl font-bold text-white mb-4">🚀 SolanaBust Crash Game</h2>
-      <p className="text-green-400 text-sm mb-4">House Edge: 12% | Instant Cashout | Production Ready</p>
-      
-      {/* Multiplier Display */}
-      <div className="text-center mb-6">
-        <div className={`text-6xl md:text-8xl font-bold mb-2 ${
-          gameState === 'crashed' ? 'text-red-500' : 
-          gameState === 'flying' ? 'text-green-400' : 'text-white'
-        }`}>
-          {gameState === 'crashed' ? '💥' : `${multiplier.toFixed(2)}x`}
-        </div>
-        
-        {gameState === 'betting' && (
-          <div className="text-yellow-400 text-xl md:text-2xl">
-            Starting in {timeLeft}s...
-          </div>
-        )}
-        
-        {gameState === 'crashed' && (
-          <div className="text-red-400 text-lg md:text-xl">
-            CRASHED at {crashPoint.toFixed(2)}x
-          </div>
-        )}
-      </div>
+      <h2 className="text-2xl font-bold text-white mb-4">🚀 SolanaBust Multiplayer</h2>
+      <p className="text-green-400 text-sm mb-4">House Edge: 12% | Multiplayer Rooms | Minimum 4 Players</p>
 
-      {/* Betting Interface */}
-      {(gameState === 'betting' || gameState === 'waiting') && !playerBet && (
-        <div className="mb-6">
-          <div className="mb-4">
-            <label className="block text-white mb-2">Bet Amount (SOL):</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                max="10"
-                value={wagerAmount}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (value >= 0.01 && value <= 10) {
-                    setWagerAmount(value);
-                  }
-                }}
-                className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
-              />
-              <div className="flex gap-1">
-                <button onClick={() => setWagerAmount(0.1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.1</button>
-                <button onClick={() => setWagerAmount(0.5)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.5</button>
-                <button onClick={() => setWagerAmount(1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">1.0</button>
-              </div>
-            </div>
-          </div>
-
-          {/* Auto Cash-Out Feature */}
-          <div className="mb-4">
-            <label className="block text-white mb-2">Auto Cash-Out (Optional):</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                step="0.1"
-                min="1.1"
-                max="100"
-                value={autoCashOut || ''}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  setAutoCashOut(value >= 1.1 ? value : null);
-                }}
-                placeholder="2.0x"
-                className="bg-gray-700 text-white px-3 py-2 rounded-lg w-24"
-              />
-              <span className="text-gray-400">x</span>
-              <div className="flex gap-1">
-                <button onClick={() => setAutoCashOut(2.0)} className="bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded text-sm">2x</button>
-                <button onClick={() => setAutoCashOut(5.0)} className="bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded text-sm">5x</button>
-                <button onClick={() => setAutoCashOut(null)} className="bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded text-sm">Off</button>
-              </div>
-            </div>
-            <p className="text-gray-400 text-xs mt-1">Auto cash-out at target multiplier</p>
-          </div>
-
-          <button
-            onClick={placeBet}
-            disabled={loading || !publicKey}
-            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-8 py-4 rounded-lg font-bold text-xl w-full"
-          >
-            {loading ? 'Placing Bet...' : `BET ${wagerAmount.toFixed(3)} SOL ${autoCashOut ? `(Auto @ ${autoCashOut}x)` : ''}`}
-          </button>
-        </div>
-      )}
-
-      {/* Cash Out Button */}
-      {playerBet && !cashedOut && gameState === 'flying' && (
-        <button
-          onClick={cashOut}
-          className="bg-red-500 hover:bg-red-600 text-white px-8 py-4 rounded-lg font-bold text-xl w-full mb-4"
-        >
-          CASH OUT {(playerBet.amount * multiplier).toFixed(6)} SOL
-        </button>
-      )}
-
-      {/* Live Player List & Chat System */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        
-        {/* Active Players Panel */}
-        <div className="bg-gray-700 rounded-lg p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-white font-semibold">Live Players ({activePlayers.length})</h3>
-            <span className="text-green-400 text-sm">🟢 {activePlayers.length} online</span>
-          </div>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {activePlayers.map((player) => (
-              <div key={player.id} className="flex justify-between items-center text-sm">
-                <span className="text-gray-300">
-                  {player.wallet}...
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-yellow-400">{player.bet} SOL</span>
-                  <span className={`w-2 h-2 rounded-full ${
-                    player.status === 'cashed_out' ? 'bg-green-400' : 'bg-blue-400'
-                  }`}></span>
+      {!inRoom ? (
+        <>
+          {/* Betting Interface */}
+          <div className="mb-6">
+            <h3 className="text-white font-semibold mb-4">Place Your Bet</h3>
+            
+            {/* Wager Amount Input */}
+            <div className="mb-4">
+              <label className="block text-gray-300 text-sm mb-2">Bet Amount (SOL)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0.005"
+                  max="0.2"
+                  value={wagerAmount}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (value >= 0.005 && value <= 0.2) {
+                      setWagerAmount(value);
+                    }
+                  }}
+                  className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
+                />
+                <div className="flex gap-1">
+                  <button onClick={() => setWagerAmount(0.01)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.01</button>
+                  <button onClick={() => setWagerAmount(0.05)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.05</button>
+                  <button onClick={() => setWagerAmount(0.1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.1</button>
+                  <button onClick={() => setWagerAmount(0.2)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.2</button>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+              <p className="text-gray-400 text-xs mt-1">Min: 0.005 SOL | Max: 0.2 SOL</p>
+            </div>
 
-        {/* Live Chat */}
-        <div className="lg:col-span-2 bg-gray-700 rounded-lg p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-white font-semibold">Live Chat</h3>
+            {/* Auto Cash-Out */}
+            <div className="mb-4">
+              <label className="block text-gray-300 text-sm mb-2">Auto Cash-Out (Optional)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="1.1"
+                  max="100"
+                  value={autoCashOut}
+                  onChange={(e) => setAutoCashOut(parseFloat(e.target.value) || 0)}
+                  placeholder="1.5"
+                  className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
+                />
+                <span className="text-gray-400">x multiplier</span>
+              </div>
+              <p className="text-gray-400 text-xs mt-1">Leave empty for manual cash-out</p>
+            </div>
+
+            {/* Transaction Breakdown */}
+            <div className="bg-gray-700 p-3 rounded-lg mb-4">
+              <p className="text-gray-300 text-sm">Transaction Breakdown:</p>
+              <p className="text-white">Total Deducted: {wagerAmount.toFixed(6)} SOL</p>
+              <p className="text-yellow-400">Dev Fee (12%): {(wagerAmount * 0.12).toFixed(6)} SOL</p>
+              <p className="text-red-400">House Amount: {(wagerAmount * 0.88).toFixed(6)} SOL</p>
+              <p className="text-gray-400 text-xs mt-1">* Join multiplayer room and compete with other players</p>
+            </div>
+
+            {/* Join Room Button */}
             <button
-              onClick={() => setShowChat(!showChat)}
-              className="text-purple-400 text-sm hover:text-purple-300"
+              onClick={placeBet}
+              disabled={loading || !publicKey}
+              className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-8 py-4 rounded-lg font-bold text-xl w-full"
             >
-              {showChat ? 'Hide Chat' : 'Show Chat'}
+              {loading ? 'Joining Room...' : `JOIN ROOM & BET ${wagerAmount.toFixed(3)} SOL`}
             </button>
           </div>
-          
-          {showChat && (
-            <>
-              {/* Chat Messages */}
-              <div className="bg-gray-800 rounded p-3 h-32 overflow-y-auto mb-3 space-y-1">
-                {chatMessages.map((msg) => (
-                  <div key={msg.id} className="text-sm">
-                    <span className="text-purple-400">{msg.user}:</span>
-                    <span className="text-gray-300 ml-2">{msg.message}</span>
-                    <span className="text-gray-500 text-xs ml-2">{msg.timestamp}</span>
-                  </div>
-                ))}
-                {chatMessages.length === 0 && (
-                  <div className="text-gray-500 text-center">No messages yet. Be the first to chat!</div>
+        </>
+      ) : (
+        <>
+          {/* Room Game Interface */}
+          <div className="mb-6">
+            {/* Game State Display */}
+            <div className="bg-gray-700 p-4 rounded-lg mb-4 text-center">
+              <h3 className="text-white text-xl font-bold mb-2">{getGameStateDisplay()}</h3>
+              
+              {roomState && roomState.game_state === 'flying' && (
+                <div className="text-4xl font-bold text-green-400 mb-2">
+                  {roomState.current_multiplier.toFixed(2)}x
+                </div>
+              )}
+              
+              {roomState && roomState.game_state === 'crashed' && (
+                <div className="text-4xl font-bold text-red-400 mb-2">
+                  💥 {roomState.crash_point.toFixed(2)}x
+                </div>
+              )}
+              
+              {roomState && roomState.game_state === 'betting' && (
+                <div>
+                  <p className="text-gray-300">Players: {roomState.player_count}/{roomState.min_players}</p>
+                  {roomState.player_count < roomState.min_players && (
+                    <p className="text-yellow-400">Waiting for {roomState.min_players - roomState.player_count} more players...</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Cash Out Button */}
+            {playerData && playerData.status === 'flying' && roomState && roomState.game_state === 'flying' && (
+              <button
+                onClick={cashOut}
+                className="bg-red-500 hover:bg-red-600 text-white px-8 py-4 rounded-lg font-bold text-xl w-full mb-4"
+              >
+                CASH OUT {(playerData.bet_amount * roomState.current_multiplier).toFixed(6)} SOL
+              </button>
+            )}
+
+            {/* Player Status */}
+            {playerData && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4">
+                <h3 className="text-white font-semibold mb-2">Your Status:</h3>
+                <p className="text-gray-300">Bet: {playerData.bet_amount.toFixed(6)} SOL</p>
+                <p className={`${getPlayerStatusColor(playerData.status)} font-bold`}>
+                  {getPlayerStatusIcon(playerData.status)} {playerData.status.toUpperCase()}
+                </p>
+                {playerData.cash_out_multiplier && (
+                  <p className="text-green-400">Cashed out at {playerData.cash_out_multiplier.toFixed(2)}x</p>
+                )}
+                {playerData.payout_amount > 0 && (
+                  <p className="text-yellow-400">Payout: {playerData.payout_amount.toFixed(6)} SOL</p>
                 )}
               </div>
+            )}
 
-              {/* Quick Emoji Reactions */}
-              <div className="flex gap-2 mb-3">
-                <button onClick={() => sendQuickMessage('🚀 To the moon!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">🚀</button>
-                <button onClick={() => sendQuickMessage('💎 Diamond hands!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">💎</button>
-                <button onClick={() => sendQuickMessage('🔥 This is fire!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">🔥</button>
-                <button onClick={() => sendQuickMessage('💸 Cash out now!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">💸</button>
-                <button onClick={() => sendQuickMessage('😱 OMG!')} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-lg">😱</button>
+            {/* Room Players */}
+            {roomState && roomState.players.length > 0 && (
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <h3 className="text-white font-semibold mb-2">Room Players ({roomState.players.length}/{roomState.min_players})</h3>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {roomState.players.map((player, index) => (
+                    <div key={index} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-300">
+                        {player.username}
+                        {player.wallet_address === publicKey?.toString() && <span className="text-purple-400"> (You)</span>}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400">{player.bet_amount.toFixed(3)} SOL</span>
+                        <span className={`${getPlayerStatusColor(player.status)}`}>
+                          {getPlayerStatusIcon(player.status)}
+                        </span>
+                        {player.cash_out_multiplier && (
+                          <span className="text-green-400 text-xs">
+                            @{player.cash_out_multiplier.toFixed(2)}x
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-
-              {/* Chat Input */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
-                  placeholder={publicKey ? "Type a message..." : "Connect wallet to chat"}
-                  disabled={!publicKey}
-                  className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm"
-                  maxLength={100}
-                />
-                <button
-                  onClick={sendChatMessage}
-                  disabled={!publicKey || !chatInput.trim()}
-                  className="bg-purple-600 hover:bg-purple-500 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg text-sm"
-                >
-                  Send
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Player Status */}
-      {playerBet && playerBet.amount && (
-        <div className="bg-gray-700 p-4 rounded-lg">
-          <h3 className="text-white font-semibold mb-2">Your Bet:</h3>
-          <p className="text-gray-300">Amount: {playerBet.amount} SOL</p>
-          {cashedOut ? (
-            <p className="text-green-400 font-bold">✅ Cashed out at {multiplier.toFixed(2)}x</p>
-          ) : gameState === 'crashed' ? (
-            <p className="text-red-400 font-bold">💥 Lost - Crashed at {crashPoint.toFixed(2)}x</p>
-          ) : (
-            <p className="text-yellow-400">🚀 In flight...</p>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Game Rules */}
       <div className="mt-6 text-gray-400 text-xs">
-        <p>🎯 <strong>How to Play:</strong> Place bet → Watch multiplier rise → Cash out before crash!</p>
-        <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out</p>
-        <p>⚡ <strong>Rounds:</strong> 30s betting → Multiplier rises → Random crash → 8s pause</p>
-        <p>💸 <strong>Bet Sizes:</strong> 0.005 - 0.05 SOL | Quick bets: 0.01, 0.007, 0.005 SOL</p>
-        <p>🏦 <strong>House Wallet:</strong> {HOUSE_WALLET_ADDRESS.slice(0, 8)}...{HOUSE_WALLET_ADDRESS.slice(-8)} (USDC Payouts)</p>
+        <p>🎯 <strong>Multiplayer Crash Game:</strong> Join room with other players → Watch shared multiplier → Cash out before crash!</p>
+        <p>👥 <strong>Minimum Players:</strong> 4 players required to start each round</p>
+        <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out (real SOL transfers)</p>
+        <p>💸 <strong>Bet Limits:</strong> 0.005 - 0.2 SOL per game</p>
         <p>🔥 <strong>Dev Fee:</strong> 12% per wager → Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
       </div>
     </div>
