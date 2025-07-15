@@ -42,6 +42,16 @@ except ImportError as e:
     multiplayer_service = None
     MULTIPLAYER_AVAILABLE = False
 
+try:
+    from solanabust_rooms import room_manager, start_game_loop
+    ROOMS_AVAILABLE = True
+    print("✅ SolanaBust rooms service loaded successfully")
+except ImportError as e:
+    print(f"Warning: SolanaBust rooms service not available: {e}")
+    room_manager = None
+    ROOMS_AVAILABLE = False
+    start_game_loop = None
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
