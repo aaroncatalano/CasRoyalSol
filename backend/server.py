@@ -108,8 +108,14 @@ async def startup():
     try:
         # Disable Redis rate limiting for now to avoid compatibility issues
         logger.info("Rate limiting disabled - Redis not required for Socket.IO functionality")
+        
+        # Start SolanaBust room game loop
+        if ROOMS_AVAILABLE and start_game_loop:
+            start_game_loop()
+            logger.info("SolanaBust multiplayer rooms started successfully")
+        
     except Exception as e:
-        logger.warning(f"Rate limiting setup warning: {e}")
+        logger.warning(f"Startup configuration warning: {e}")
         # Continue without rate limiting
 
 # Models
