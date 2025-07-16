@@ -699,7 +699,7 @@ const VideoPokerGame = () => {
   return (
     <div className="bg-gray-800 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-4">🎰 Video Poker (Jacks or Better)</h2>
-      <p className="text-green-400 text-sm mb-4">Player Win Rate: 65% 🍀</p>
+
       
       {!gameSession ? (
         <div>
