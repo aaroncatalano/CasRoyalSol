@@ -3776,3 +3776,43 @@ def run_8_percent_fee_tests():
     print("=" * 80)
     
     return fee_results
+
+# Main test execution function for dev wallet fee testing
+def run_dev_wallet_fee_tests():
+    """Run comprehensive dev wallet fee tests"""
+    print("=" * 80)
+    print("DEV WALLET FEE TRANSACTION TESTING - 12% FEE SYSTEM")
+    print("=" * 80)
+    print()
+    
+    # Test list for dev wallet fee testing
+    dev_fee_tests = [
+        ("Dev Wallet Fee Calculation (12%)", test_dev_wallet_fee_calculation),
+        ("Wallet Address Verification", test_wallet_address_verification),
+        ("Game-Specific Wager Limits", test_game_specific_wager_limits),
+        ("Transaction Processing & Recording", test_transaction_processing),
+        ("SolanaBust Cash Out Mechanics", test_solanabust_cash_out),
+    ]
+    
+    passed_tests = 0
+    total_tests = len(dev_fee_tests)
+    
+    for test_name, test_func in dev_fee_tests:
+        print(f"Running: {test_name}")
+        try:
+            success, response = test_func()
+            print_test_result(test_name, success, response)
+            if success:
+                passed_tests += 1
+        except Exception as e:
+            print_test_result(test_name, False, error=str(e))
+        
+        time.sleep(0.5)  # Brief pause between tests
+    
+    print("=" * 80)
+    print(f"DEV WALLET FEE TESTING SUMMARY")
+    print(f"Tests Passed: {passed_tests}/{total_tests}")
+    print(f"Success Rate: {(passed_tests/total_tests)*100:.1f}%")
+    print("=" * 80)
+    
+    return passed_tests, total_tests
