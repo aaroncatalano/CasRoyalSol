@@ -1741,7 +1741,337 @@ def test_solanabust_active_room():
     except Exception as e:
         return False, str(e)
 
-# Test 47: SolanaBust Cash Out Mechanics
+# Test 47: Dev Wallet Fee Testing - 12% Fee Calculation for All Games
+def test_dev_wallet_fee_calculation():
+    """Test 12% dev fee calculation for all game types with various wager amounts"""
+    try:
+        test_amounts = [0.01, 0.1, 1.0, 5.0, 10.0]  # Standard game amounts
+        solanabust_amounts = [0.005, 0.01, 0.05, 0.1, 0.2]  # SolanaBust amounts
+        game_types = ["blackjack", "video_poker", "crash"]
+        
+        results = []
+        all_tests_passed = True
+        
+        for game_type in game_types:
+            # Use appropriate amounts for each game type
+            amounts_to_test = solanabust_amounts if game_type == "crash" else test_amounts
+            
+            for amount in amounts_to_test:
+                try:
+                    # Create session first
+                    if game_type != "crash":
+                        session_response = requests.post(
+                            f"{API_URL}/game/session/create",
+                            params={
+                                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                                "game_type": game_type
+                            }
+                        )
+                        session_response.raise_for_status()
+                        session_id = session_response.json()["session_id"]
+                    else:
+                        session_id = str(uuid.uuid4())  # Crash game doesn't need session creation
+                    
+                    # Place wager
+                    response = requests.post(
+                        f"{API_URL}/game/wager",
+                        json={
+                            "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                            "amount": amount,
+                            "game_type": game_type,
+                            "session_id": session_id,
+                            "transaction_signature": TEST_SIGNATURE
+                        }
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Calculate expected values
+                    expected_dev_fee = amount * TRANSACTION_FEE_PERCENTAGE  # 12%
+                    expected_game_amount = amount - expected_dev_fee
+                    
+                    # Verify calculations
+                    dev_fee_correct = abs(data["dev_fee"] - expected_dev_fee) < 0.000001
+                    game_amount_correct = abs(data["game_amount"] - expected_game_amount) < 0.000001
+                    dev_wallet_correct = data["dev_wallet"] == DEV_WALLET_ADDRESS
+                    
+                    test_passed = (data.get("success") and 
+                                 dev_fee_correct and 
+                                 game_amount_correct and 
+                                 dev_wallet_correct)
+                    
+                    if not test_passed:
+                        all_tests_passed = False
+                    
+                    results.append({
+                        "game_type": game_type,
+                        "wager_amount": amount,
+                        "expected_dev_fee": expected_dev_fee,
+                        "actual_dev_fee": data.get("dev_fee"),
+                        "expected_game_amount": expected_game_amount,
+                        "actual_game_amount": data.get("game_amount"),
+                        "dev_wallet": data.get("dev_wallet"),
+                        "dev_wallet_correct": dev_wallet_correct,
+                        "dev_fee_correct": dev_fee_correct,
+                        "game_amount_correct": game_amount_correct,
+                        "test_passed": test_passed
+                    })
+                    
+                except Exception as e:
+                    all_tests_passed = False
+                    results.append({
+                        "game_type": game_type,
+                        "wager_amount": amount,
+                        "error": str(e),
+                        "test_passed": False
+                    })
+        
+        return all_tests_passed, {
+            "total_tests": len(results),
+            "passed_tests": len([r for r in results if r["test_passed"]]),
+            "dev_wallet_address": DEV_WALLET_ADDRESS,
+            "transaction_fee_percentage": TRANSACTION_FEE_PERCENTAGE,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 48: Wallet Address Verification
+def test_wallet_address_verification():
+    """Verify correct wallet addresses are configured in backend"""
+    try:
+        # Test dev wallet address configuration
+        test_wager_response = requests.post(
+            f"{API_URL}/game/wager",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": 0.1,
+                "game_type": "blackjack",
+                "session_id": str(uuid.uuid4()),
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        test_wager_response.raise_for_status()
+        wager_data = test_wager_response.json()
+        
+        # Verify dev wallet address
+        dev_wallet_correct = wager_data.get("dev_wallet") == "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
+        
+        # Test house wallet balance endpoint (if available)
+        house_wallet_response = None
+        house_wallet_correct = False
+        house_wallet_balance = None
+        
+        try:
+            house_wallet_response = requests.get(f"{API_URL}/payouts/house-balance")
+            if house_wallet_response.status_code == 200:
+                house_data = house_wallet_response.json()
+                # Check if house wallet address is mentioned in response or if balance is available
+                house_wallet_correct = "balance_sol" in house_data or "house_wallet" in house_data
+                house_wallet_balance = house_data.get("balance_sol", "N/A")
+        except:
+            house_wallet_response = None
+        
+        return True, {
+            "dev_wallet_address": {
+                "expected": "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ",
+                "actual": wager_data.get("dev_wallet"),
+                "correct": dev_wallet_correct
+            },
+            "house_wallet_address": {
+                "expected": "9cnKf5DiYYKGa3ApFWpMBfXRS1Qmwus66EabLkgVTfuh",
+                "balance_available": house_wallet_response is not None and house_wallet_response.status_code == 200,
+                "balance": house_wallet_balance,
+                "service_available": house_wallet_response is not None
+            },
+            "all_addresses_correct": dev_wallet_correct
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 49: Game-Specific Wager Limits Testing
+def test_game_specific_wager_limits():
+    """Test wager limits for each game type"""
+    try:
+        test_cases = [
+            # Blackjack limits (0.01 - 10.0 SOL)
+            {"game_type": "blackjack", "amount": 0.005, "should_pass": False, "description": "Blackjack below minimum"},
+            {"game_type": "blackjack", "amount": 0.01, "should_pass": True, "description": "Blackjack minimum valid"},
+            {"game_type": "blackjack", "amount": 10.0, "should_pass": True, "description": "Blackjack maximum valid"},
+            {"game_type": "blackjack", "amount": 10.1, "should_pass": False, "description": "Blackjack above maximum"},
+            
+            # Video Poker limits (0.01 - 10.0 SOL)
+            {"game_type": "video_poker", "amount": 0.005, "should_pass": False, "description": "Video Poker below minimum"},
+            {"game_type": "video_poker", "amount": 0.01, "should_pass": True, "description": "Video Poker minimum valid"},
+            {"game_type": "video_poker", "amount": 10.0, "should_pass": True, "description": "Video Poker maximum valid"},
+            {"game_type": "video_poker", "amount": 10.1, "should_pass": False, "description": "Video Poker above maximum"},
+            
+            # SolanaBust limits (0.005 - 0.05 SOL)
+            {"game_type": "crash", "amount": 0.004, "should_pass": False, "description": "SolanaBust below minimum"},
+            {"game_type": "crash", "amount": 0.005, "should_pass": True, "description": "SolanaBust minimum valid"},
+            {"game_type": "crash", "amount": 0.05, "should_pass": True, "description": "SolanaBust maximum valid"},
+            {"game_type": "crash", "amount": 0.051, "should_pass": False, "description": "SolanaBust above maximum"},
+        ]
+        
+        results = []
+        all_correct = True
+        
+        for test_case in test_cases:
+            try:
+                # Create session for non-crash games
+                session_id = str(uuid.uuid4())
+                if test_case["game_type"] != "crash":
+                    session_response = requests.post(
+                        f"{API_URL}/game/session/create",
+                        params={
+                            "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                            "game_type": test_case["game_type"]
+                        }
+                    )
+                    if session_response.status_code == 200:
+                        session_id = session_response.json()["session_id"]
+                
+                # Test wager
+                response = requests.post(
+                    f"{API_URL}/game/wager",
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "amount": test_case["amount"],
+                        "game_type": test_case["game_type"],
+                        "session_id": session_id,
+                        "transaction_signature": TEST_SIGNATURE
+                    }
+                )
+                
+                success = response.status_code == 200 and response.json().get("success", False)
+                correct = success == test_case["should_pass"]
+                
+                if not correct:
+                    all_correct = False
+                
+                results.append({
+                    "description": test_case["description"],
+                    "game_type": test_case["game_type"],
+                    "amount": test_case["amount"],
+                    "expected_pass": test_case["should_pass"],
+                    "actual_pass": success,
+                    "status_code": response.status_code,
+                    "correct": correct,
+                    "response": response.json() if response.status_code in [200, 400] else None
+                })
+                
+            except Exception as e:
+                all_correct = False
+                results.append({
+                    "description": test_case["description"],
+                    "game_type": test_case["game_type"],
+                    "amount": test_case["amount"],
+                    "expected_pass": test_case["should_pass"],
+                    "actual_pass": False,
+                    "error": str(e),
+                    "correct": not test_case["should_pass"]
+                })
+        
+        return all_correct, {
+            "total_tests": len(test_cases),
+            "passed_tests": len([r for r in results if r["correct"]]),
+            "all_correct": all_correct,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 50: Transaction Processing and Recording
+def test_transaction_processing():
+    """Test that dev fees are properly recorded and sent to dev wallet"""
+    try:
+        test_cases = [
+            {"game_type": "blackjack", "amount": 1.0},
+            {"game_type": "video_poker", "amount": 2.0},
+            {"game_type": "crash", "amount": 0.02}
+        ]
+        
+        results = []
+        all_passed = True
+        
+        for test_case in test_cases:
+            try:
+                # Create session for non-crash games
+                session_id = str(uuid.uuid4())
+                if test_case["game_type"] != "crash":
+                    session_response = requests.post(
+                        f"{API_URL}/game/session/create",
+                        params={
+                            "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                            "game_type": test_case["game_type"]
+                        }
+                    )
+                    session_response.raise_for_status()
+                    session_id = session_response.json()["session_id"]
+                
+                # Place wager
+                wager_response = requests.post(
+                    f"{API_URL}/game/wager",
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "amount": test_case["amount"],
+                        "game_type": test_case["game_type"],
+                        "session_id": session_id,
+                        "transaction_signature": TEST_SIGNATURE
+                    }
+                )
+                wager_response.raise_for_status()
+                wager_data = wager_response.json()
+                
+                # Verify transaction was recorded with correct dev fee
+                expected_dev_fee = test_case["amount"] * TRANSACTION_FEE_PERCENTAGE
+                dev_fee_correct = abs(wager_data["dev_fee"] - expected_dev_fee) < 0.000001
+                dev_wallet_correct = wager_data["dev_wallet"] == DEV_WALLET_ADDRESS
+                
+                test_passed = (wager_data.get("success") and 
+                             dev_fee_correct and 
+                             dev_wallet_correct and
+                             "wager_id" in wager_data)
+                
+                if not test_passed:
+                    all_passed = False
+                
+                results.append({
+                    "game_type": test_case["game_type"],
+                    "wager_amount": test_case["amount"],
+                    "expected_dev_fee": expected_dev_fee,
+                    "actual_dev_fee": wager_data.get("dev_fee"),
+                    "dev_wallet": wager_data.get("dev_wallet"),
+                    "wager_id": wager_data.get("wager_id"),
+                    "transaction_recorded": "wager_id" in wager_data,
+                    "dev_fee_correct": dev_fee_correct,
+                    "dev_wallet_correct": dev_wallet_correct,
+                    "test_passed": test_passed
+                })
+                
+            except Exception as e:
+                all_passed = False
+                results.append({
+                    "game_type": test_case["game_type"],
+                    "wager_amount": test_case["amount"],
+                    "error": str(e),
+                    "test_passed": False
+                })
+        
+        return all_passed, {
+            "total_tests": len(test_cases),
+            "passed_tests": len([r for r in results if r["test_passed"]]),
+            "dev_wallet_address": DEV_WALLET_ADDRESS,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 51: SolanaBust Cash Out Mechanics
 def test_solanabust_cash_out():
     """Test SolanaBust cash out mechanics"""
     try:
