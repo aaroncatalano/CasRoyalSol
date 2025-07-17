@@ -51,7 +51,7 @@ class SolanaBustPlayer:
         }
 
 class SolanaBustRoom:
-    def __init__(self, room_id: str, min_players: int = 4):
+    def __init__(self, room_id: str, min_players: int = 1):  # Changed from 4 to 1 for testing
         self.room_id = room_id
         self.min_players = min_players
         self.players: Dict[str, SolanaBustPlayer] = {}
