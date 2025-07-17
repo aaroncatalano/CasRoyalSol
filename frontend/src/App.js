@@ -1089,7 +1089,7 @@ const CrashGame = () => {
   return (
     <div className="bg-gray-800 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-4">🚀 SolanaBust Multiplayer</h2>
-      <p className="text-green-400 text-sm mb-4">House Edge: 12% | Multiplayer Rooms | Minimum 4 Players</p>
+      <p className="text-green-400 text-sm mb-4">House Edge: 12% | Multiplayer Rooms | Minimum 1 Player (Testing)</p>
 
       {!inRoom ? (
         <>
