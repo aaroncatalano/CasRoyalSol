@@ -1257,7 +1257,7 @@ const CrashGame = () => {
         <p>👥 <strong>Minimum Players:</strong> 4 players required to start each round</p>
         <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out (real SOL transfers)</p>
         <p>💸 <strong>Bet Limits:</strong> 0.005 - 0.2 SOL per game</p>
-        <p>🔥 <strong>Dev Fee:</strong> 12% per wager → Dev Wallet: {DEV_WALLET_ADDRESS.slice(0, 8)}...{DEV_WALLET_ADDRESS.slice(-8)}</p>
+        <p>🔥 <strong>Dev Fee:</strong> 12% per wager</p>
       </div>
     </div>
   );
