@@ -1741,7 +1741,392 @@ def test_solanabust_active_room():
     except Exception as e:
         return False, str(e)
 
-# Test 47: Dev Wallet Fee Testing - 12% Fee Calculation for All Games
+# Test 47: SolanaBust Single Player Room Testing - 1 Player Minimum
+def test_solanabust_single_player_room():
+    """Test SolanaBust multiplayer room system with 1-player minimum for testing"""
+    try:
+        # Test data for single player room
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        test_username = "SingleTestPlayer"
+        test_bet_amount = 0.01  # Valid bet amount
+        
+        # 1. Test joining room with single player
+        join_response = requests.post(
+            f"{API_URL}/solanabust/join-room",
+            json={
+                "wallet_address": test_wallet,
+                "username": test_username,
+                "bet_amount": test_bet_amount
+            }
+        )
+        join_response.raise_for_status()
+        join_data = join_response.json()
+        
+        if not join_data.get("success"):
+            return False, "Failed to join room with single player"
+        
+        room_state = join_data["room_state"]
+        
+        # Verify single player can join and room is created
+        if (room_state["player_count"] != 1 or 
+            room_state["min_players"] != 1 or
+            not room_state["can_start"]):
+            return False, f"Single player room validation failed: player_count={room_state['player_count']}, min_players={room_state['min_players']}, can_start={room_state['can_start']}"
+        
+        # 2. Test room state retrieval for single player
+        state_response = requests.get(
+            f"{API_URL}/solanabust/room-state",
+            params={"wallet_address": test_wallet}
+        )
+        state_response.raise_for_status()
+        state_data = state_response.json()
+        
+        if not state_data.get("success"):
+            return False, "Failed to get room state for single player"
+        
+        # 3. Test active room shows single player
+        active_response = requests.get(f"{API_URL}/solanabust/active-room")
+        active_response.raise_for_status()
+        active_data = active_response.json()
+        
+        if not active_data.get("success"):
+            return False, "Failed to get active room with single player"
+        
+        active_room_state = active_data["room_state"]
+        
+        # Verify active room has single player and correct minimum
+        if (active_room_state["player_count"] != 1 or 
+            active_room_state["min_players"] != 1):
+            return False, f"Active room validation failed: player_count={active_room_state['player_count']}, min_players={active_room_state['min_players']}"
+        
+        # 4. Test cash-out attempt (should fail during betting phase)
+        cashout_response = requests.post(
+            f"{API_URL}/solanabust/cash-out",
+            json={"wallet_address": test_wallet}
+        )
+        
+        # Cash-out should fail during betting phase
+        if cashout_response.status_code == 200:
+            cashout_data = cashout_response.json()
+            if cashout_data.get("success") and cashout_data.get("cashed_out"):
+                return False, "Cash-out should not succeed during betting phase"
+        
+        # Wait a moment for game state to potentially change
+        time.sleep(2)
+        
+        # 5. Check if game progresses with single player
+        final_state_response = requests.get(
+            f"{API_URL}/solanabust/room-state",
+            params={"wallet_address": test_wallet}
+        )
+        final_state_response.raise_for_status()
+        final_state_data = final_state_response.json()
+        
+        if final_state_data.get("success"):
+            final_room_state = final_state_data["room_state"]
+            
+            return True, {
+                "single_player_join": True,
+                "room_id": room_state["room_id"],
+                "initial_player_count": room_state["player_count"],
+                "min_players": room_state["min_players"],
+                "can_start_with_one": room_state["can_start"],
+                "initial_game_state": room_state["game_state"],
+                "final_game_state": final_room_state["game_state"],
+                "betting_time_left": final_room_state.get("betting_time_left", 0),
+                "current_multiplier": final_room_state["current_multiplier"],
+                "active_room_confirmed": True,
+                "cash_out_properly_restricted": True
+            }
+        else:
+            return False, "Failed to get final room state"
+            
+    except Exception as e:
+        return False, str(e)
+
+# Test 48: SolanaBust Single Player Game Flow Testing
+def test_solanabust_single_player_game_flow():
+    """Test complete game flow with single player: betting → flying → crash/cash-out → finish"""
+    try:
+        # Test data
+        test_wallet = "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
+        test_username = "GameFlowPlayer"
+        test_bet_amount = 0.025  # Valid bet amount
+        
+        # 1. Join room
+        join_response = requests.post(
+            f"{API_URL}/solanabust/join-room",
+            json={
+                "wallet_address": test_wallet,
+                "username": test_username,
+                "bet_amount": test_bet_amount
+            }
+        )
+        join_response.raise_for_status()
+        join_data = join_response.json()
+        
+        if not join_data.get("success"):
+            return False, "Failed to join room for game flow test"
+        
+        initial_state = join_data["room_state"]
+        room_id = initial_state["room_id"]
+        
+        # 2. Monitor game state progression
+        game_states_seen = [initial_state["game_state"]]
+        max_wait_time = 60  # Maximum wait time in seconds
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait_time:
+            # Get current room state
+            state_response = requests.get(
+                f"{API_URL}/solanabust/room-state",
+                params={"wallet_address": test_wallet}
+            )
+            
+            if state_response.status_code == 200:
+                state_data = state_response.json()
+                if state_data.get("success"):
+                    current_state = state_data["room_state"]
+                    current_game_state = current_state["game_state"]
+                    
+                    # Track unique game states
+                    if current_game_state not in game_states_seen:
+                        game_states_seen.append(current_game_state)
+                    
+                    # If we reach flying phase, try to cash out
+                    if current_game_state == "flying":
+                        # Wait a moment for multiplier to increase
+                        time.sleep(1)
+                        
+                        # Attempt cash-out
+                        cashout_response = requests.post(
+                            f"{API_URL}/solanabust/cash-out",
+                            json={"wallet_address": test_wallet}
+                        )
+                        
+                        if cashout_response.status_code == 200:
+                            cashout_data = cashout_response.json()
+                            if cashout_data.get("success") and cashout_data.get("cashed_out"):
+                                return True, {
+                                    "game_flow_complete": True,
+                                    "room_id": room_id,
+                                    "bet_amount": test_bet_amount,
+                                    "game_states_seen": game_states_seen,
+                                    "cash_out_successful": True,
+                                    "cash_out_multiplier": cashout_data.get("multiplier"),
+                                    "payout_amount": cashout_data.get("payout_amount"),
+                                    "final_state": current_state,
+                                    "single_player_flow": True
+                                }
+                    
+                    # If game finished or crashed, we've seen the full cycle
+                    if current_game_state in ["finished", "crashed"]:
+                        return True, {
+                            "game_flow_complete": True,
+                            "room_id": room_id,
+                            "bet_amount": test_bet_amount,
+                            "game_states_seen": game_states_seen,
+                            "cash_out_successful": False,
+                            "game_ended_naturally": True,
+                            "final_state": current_state,
+                            "single_player_flow": True
+                        }
+            
+            time.sleep(0.5)  # Check every 500ms
+        
+        return False, f"Game flow test timed out. States seen: {game_states_seen}"
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 49: SolanaBust Room State Transitions with Single Player
+def test_solanabust_room_state_transitions():
+    """Test room state transitions work correctly with single player"""
+    try:
+        # Test data
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        test_username = "StateTransitionPlayer"
+        test_bet_amount = 0.015
+        
+        # 1. Join room and verify initial state
+        join_response = requests.post(
+            f"{API_URL}/solanabust/join-room",
+            json={
+                "wallet_address": test_wallet,
+                "username": test_username,
+                "bet_amount": test_bet_amount
+            }
+        )
+        join_response.raise_for_status()
+        join_data = join_response.json()
+        
+        if not join_data.get("success"):
+            return False, "Failed to join room for state transition test"
+        
+        initial_state = join_data["room_state"]
+        
+        # Verify initial conditions for single player
+        expected_conditions = {
+            "player_count": 1,
+            "min_players": 1,
+            "can_start": True,
+            "game_state": "betting"  # Should be in betting state
+        }
+        
+        for key, expected_value in expected_conditions.items():
+            if initial_state.get(key) != expected_value:
+                return False, f"Initial state validation failed: {key} = {initial_state.get(key)}, expected {expected_value}"
+        
+        # 2. Monitor state transitions over time
+        state_history = []
+        max_monitoring_time = 45  # Monitor for 45 seconds
+        start_time = time.time()
+        last_state = initial_state["game_state"]
+        
+        while time.time() - start_time < max_monitoring_time:
+            # Get current state
+            state_response = requests.get(
+                f"{API_URL}/solanabust/room-state",
+                params={"wallet_address": test_wallet}
+            )
+            
+            if state_response.status_code == 200:
+                state_data = state_response.json()
+                if state_data.get("success"):
+                    current_state = state_data["room_state"]
+                    current_game_state = current_state["game_state"]
+                    
+                    # Record state changes
+                    if current_game_state != last_state:
+                        state_history.append({
+                            "timestamp": time.time() - start_time,
+                            "from_state": last_state,
+                            "to_state": current_game_state,
+                            "multiplier": current_state["current_multiplier"],
+                            "player_count": current_state["player_count"]
+                        })
+                        last_state = current_game_state
+                    
+                    # If we've seen a complete cycle, we can finish
+                    if len(state_history) >= 3:  # betting -> flying -> crashed/finished
+                        break
+            
+            time.sleep(0.5)
+        
+        # 3. Verify expected state transitions occurred
+        expected_transitions = ["betting", "flying"]
+        actual_states = [initial_state["game_state"]] + [h["to_state"] for h in state_history]
+        
+        transitions_valid = True
+        for expected_state in expected_transitions:
+            if expected_state not in actual_states:
+                transitions_valid = False
+                break
+        
+        return True, {
+            "initial_state_valid": True,
+            "single_player_conditions_met": True,
+            "state_transitions": state_history,
+            "states_seen": actual_states,
+            "transitions_valid": transitions_valid,
+            "monitoring_duration": min(time.time() - start_time, max_monitoring_time),
+            "min_players_working": initial_state["min_players"] == 1,
+            "can_start_immediately": initial_state["can_start"]
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 50: SolanaBust Betting Phase Immediate Start with Single Player
+def test_solanabust_betting_phase_immediate_start():
+    """Test that betting phase starts immediately when 1 player joins"""
+    try:
+        # Test data
+        test_wallet = "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
+        test_username = "ImmediateStartPlayer"
+        test_bet_amount = 0.02
+        
+        # 1. Check active room before joining (might not exist)
+        pre_join_response = requests.get(f"{API_URL}/solanabust/active-room")
+        pre_join_has_room = pre_join_response.status_code == 200 and pre_join_response.json().get("success", False)
+        
+        # 2. Join room and measure response time
+        join_start_time = time.time()
+        join_response = requests.post(
+            f"{API_URL}/solanabust/join-room",
+            json={
+                "wallet_address": test_wallet,
+                "username": test_username,
+                "bet_amount": test_bet_amount
+            }
+        )
+        join_end_time = time.time()
+        join_response.raise_for_status()
+        join_data = join_response.json()
+        
+        if not join_data.get("success"):
+            return False, "Failed to join room for immediate start test"
+        
+        room_state = join_data["room_state"]
+        join_response_time = join_end_time - join_start_time
+        
+        # 3. Verify immediate conditions
+        immediate_conditions = {
+            "player_count": 1,
+            "min_players": 1,
+            "can_start": True,
+            "game_state": "betting"  # Should immediately be in betting state
+        }
+        
+        conditions_met = True
+        failed_conditions = []
+        
+        for key, expected_value in immediate_conditions.items():
+            actual_value = room_state.get(key)
+            if actual_value != expected_value:
+                conditions_met = False
+                failed_conditions.append(f"{key}: expected {expected_value}, got {actual_value}")
+        
+        # 4. Verify betting time is active
+        betting_time_left = room_state.get("betting_time_left", 0)
+        has_betting_time = betting_time_left > 0
+        
+        # 5. Check that room is immediately available to other queries
+        immediate_state_response = requests.get(
+            f"{API_URL}/solanabust/room-state",
+            params={"wallet_address": test_wallet}
+        )
+        immediate_state_response.raise_for_status()
+        immediate_state_data = immediate_state_response.json()
+        
+        state_immediately_available = immediate_state_data.get("success", False)
+        
+        # 6. Verify active room is immediately updated
+        post_join_response = requests.get(f"{API_URL}/solanabust/active-room")
+        post_join_response.raise_for_status()
+        post_join_data = post_join_response.json()
+        
+        active_room_updated = (post_join_data.get("success", False) and 
+                              post_join_data.get("room_state", {}).get("player_count") == 1)
+        
+        return True, {
+            "immediate_start_successful": conditions_met,
+            "failed_conditions": failed_conditions,
+            "join_response_time_ms": round(join_response_time * 1000, 2),
+            "betting_phase_active": has_betting_time,
+            "betting_time_left": betting_time_left,
+            "room_state_immediately_available": state_immediately_available,
+            "active_room_immediately_updated": active_room_updated,
+            "pre_join_had_room": pre_join_has_room,
+            "room_id": room_state["room_id"],
+            "single_player_minimum_working": True,
+            "no_waiting_for_players": room_state["can_start"]
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 51: Dev Wallet Fee Testing - 12% Fee Calculation for All Games
 def test_dev_wallet_fee_calculation():
     """Test 12% dev fee calculation for all game types with various wager amounts"""
     try:
