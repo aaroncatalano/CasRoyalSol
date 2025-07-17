@@ -1254,7 +1254,7 @@ const CrashGame = () => {
       {/* Game Rules */}
       <div className="mt-6 text-gray-400 text-xs">
         <p>🎯 <strong>Multiplayer Crash Game:</strong> Join room with other players → Watch shared multiplier → Cash out before crash!</p>
-        <p>👥 <strong>Minimum Players:</strong> 4 players required to start each round</p>
+        <p>👥 <strong>Minimum Players:</strong> 1 player required to start each round (Testing Mode)</p>
         <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out (real SOL transfers)</p>
         <p>💸 <strong>Bet Limits:</strong> 0.005 - 0.2 SOL per game</p>
         <p>🔥 <strong>Dev Fee:</strong> 12% per wager</p>
