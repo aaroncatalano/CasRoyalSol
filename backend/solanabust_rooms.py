@@ -232,7 +232,7 @@ class SolanaBustRoomManager:
         self.rooms: Dict[str, SolanaBustRoom] = {}
         self.player_to_room: Dict[str, str] = {}  # wallet_address -> room_id
         self.active_room_id = None
-        self.min_players = 4  # Minimum players for mainnet
+        self.min_players = 1  # Minimum players for testing (was 4 for mainnet)
 
     def create_room(self) -> str:
         """Create a new room"""
