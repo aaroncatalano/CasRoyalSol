@@ -71,8 +71,10 @@ db = client[os.environ['DB_NAME']]
 # Initialize Solana payout service
 if SOLANA_PAYOUT_AVAILABLE:
     try:
-        solana_payout_service = SolanaPayoutService()
-        logger.info("Solana payout service initialized successfully")
+        # Use secure key manager
+        house_private_key = key_manager.get_house_private_key()
+        solana_payout_service = SolanaPayoutService(house_private_key)
+        logger.info("Solana payout service initialized with secure key management")
     except Exception as e:
         logger.error(f"Failed to initialize Solana payout service: {e}")
         solana_payout_service = None
