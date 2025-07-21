@@ -522,63 +522,63 @@ const VideoPokerGame = () => {
       return;
     }
     
-    // Place wager first, then start game
     setLoading(true);
     
     try {
-      // 1. Place wager first - Send full amount to dev wallet (temporary house wallet)
-      const totalWager = wagerAmount;
-      const devFee = totalWager * 0.04; // 4% dev fee
-      const houseAmount = totalWager - devFee;
+      // Step 1: Record wager in backend (no blockchain transaction yet)
+      console.log(`Recording wager: ${wagerAmount} SOL for video_poker`);
       
-      console.log(`Transaction: Total=${totalWager}, DevFee=${devFee}, House=${houseAmount}`);
-      
-      const transaction = new Transaction();
-      
-      // For now, send full amount to dev wallet (acts as house wallet)
-      // In production, would split between dev wallet (12%) and house wallet (88%)
-      const lamportsToSend = Math.floor(totalWager * LAMPORTS_PER_SOL);
-      
-      console.log(`LAMPORTS DEBUG: totalWager=${totalWager}, LAMPORTS_PER_SOL=${LAMPORTS_PER_SOL}`);
-      console.log(`LAMPORTS DEBUG: calculated=${totalWager * LAMPORTS_PER_SOL}, floored=${lamportsToSend}`);
-      
-      transaction.add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
-          lamports: lamportsToSend // Full wager amount
-        })
-      );
-      
-      const signature = await sendTransaction(transaction, connection);
-      await connection.confirmTransaction(signature, 'confirmed');
-      
-      await axios.post(`${API}/game/wager`, {
-        player_wallet: publicKey.toString(),
-        amount: totalWager,
-        game_type: 'video_poker',
-        session_id: 'temp',
-        transaction_signature: signature
-      });
-      
-      // 2. Then create game session and deal cards
-      const response = await axios.post(`${API}/game/session/create`, null, {
-        params: {
+      const wagerResponse = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/game/wager`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           player_wallet: publicKey.toString(),
-          game_type: 'video_poker'
-        }
+          amount: wagerAmount,
+          game_type: 'video_poker',
+          session_id: Date.now().toString(),
+        })
       });
       
-      setGameSession(response.data.session_id);
-      setGameState(response.data.game_data);
+      const wagerData = await wagerResponse.json();
+      if (!wagerData.success) {
+        throw new Error(wagerData.error || 'Failed to record wager');
+      }
+      
+      console.log('Wager recorded:', wagerData);
+      
+      // Step 2: Start video poker game
+      const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/video_poker/new`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          player_wallet: publicKey.toString(),
+          wager: wagerAmount
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to start game');
+      }
+      
+      setGameSession(data.session_id);
+      setGameState(data.game_state);
       setGameComplete(false);
       setFinalResult(null);
       setHeldCards([]);
       
+      console.log('Video Poker game started:', data);
+      
     } catch (error) {
-      console.error('Error starting game:', error);
+      console.error('Error starting video poker game:', error);
       alert(`Failed to start game: ${error.message}`);
     }
+    
     setLoading(false);
   };
 
