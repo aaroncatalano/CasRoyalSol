@@ -484,6 +484,17 @@ class VideoPokerGame:
         }
         return payout_table.get(hand_rank, 0)
 
+# Helper functions for game creation
+def create_blackjack_game():
+    """Create a new blackjack game and return initial game state"""
+    game = BlackjackGame()
+    return game.start_game(1)
+
+def create_video_poker_game():
+    """Create a new video poker game and return initial game state"""
+    game = VideoPokerGame()
+    return game.deal_initial_hand()
+
 # API Routes
 @api_router.get("/")
 async def root():
