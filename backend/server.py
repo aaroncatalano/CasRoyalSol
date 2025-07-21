@@ -26,6 +26,7 @@ import uvicorn
 sys.path.append(str(Path(__file__).parent))
 
 try:
+    from solana_payout import SolanaPayoutService
     from security.key_manager import key_manager
     SOLANA_PAYOUT_AVAILABLE = True
 except ImportError as e:
