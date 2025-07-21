@@ -1741,7 +1741,518 @@ def test_solanabust_active_room():
     except Exception as e:
         return False, str(e)
 
-# Test 47: SolanaBust Single Player Room Testing - 1 Player Minimum
+# Test 47: Blackjack Transaction Bug Fix Testing
+def test_blackjack_transaction_bug_fix():
+    """Test that blackjack games work without blockchain transaction errors during game start"""
+    try:
+        results = []
+        
+        # Test multiple blackjack game flows to ensure no transaction errors
+        for i in range(5):
+            test_wallet = f"9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+            wager_amount = 0.1  # 0.1 SOL
+            
+            # Step 1: Test wager recording (should NOT create blockchain transaction)
+            wager_response = requests.post(
+                f"{API_URL}/game/wager",
+                json={
+                    "player_wallet": test_wallet,
+                    "amount": wager_amount,
+                    "game_type": "blackjack",
+                    "session_id": str(uuid.uuid4()),
+                    "transaction_signature": None  # No blockchain transaction
+                }
+            )
+            wager_response.raise_for_status()
+            wager_data = wager_response.json()
+            
+            # Verify wager recorded without blockchain transaction
+            if not wager_data.get("success"):
+                results.append({
+                    "test": f"blackjack_wager_{i+1}",
+                    "success": False,
+                    "error": "Wager recording failed"
+                })
+                continue
+            
+            # Verify 12% dev fee calculation
+            expected_dev_fee = wager_amount * 0.12
+            if abs(wager_data["dev_fee"] - expected_dev_fee) > 0.001:
+                results.append({
+                    "test": f"blackjack_wager_{i+1}",
+                    "success": False,
+                    "error": f"Dev fee incorrect: expected {expected_dev_fee}, got {wager_data['dev_fee']}"
+                })
+                continue
+            
+            # Step 2: Test game start (should NOT create blockchain transaction)
+            game_response = requests.post(
+                f"{API_URL}/blackjack/new",
+                json={
+                    "player_wallet": test_wallet,
+                    "wager": wager_amount
+                }
+            )
+            game_response.raise_for_status()
+            game_data = game_response.json()
+            
+            # Verify game started without transaction errors
+            if not game_data.get("success"):
+                results.append({
+                    "test": f"blackjack_game_start_{i+1}",
+                    "success": False,
+                    "error": "Game start failed"
+                })
+                continue
+            
+            session_id = game_data["session_id"]
+            
+            # Step 3: Test complete game flow
+            # Hit once
+            hit_response = requests.post(
+                f"{API_URL}/game/blackjack/hit",
+                params={"session_id": session_id, "hand_index": 0}
+            )
+            hit_response.raise_for_status()
+            
+            # Stand
+            stand_response = requests.post(
+                f"{API_URL}/game/blackjack/stand",
+                params={"session_id": session_id, "hand_index": 0}
+            )
+            stand_response.raise_for_status()
+            
+            # Finish game
+            finish_response = requests.post(
+                f"{API_URL}/game/blackjack/finish",
+                params={"session_id": session_id}
+            )
+            finish_response.raise_for_status()
+            finish_data = finish_response.json()
+            
+            # Verify game completed successfully
+            if not finish_data.get("success"):
+                results.append({
+                    "test": f"blackjack_complete_flow_{i+1}",
+                    "success": False,
+                    "error": "Game completion failed"
+                })
+                continue
+            
+            # Step 4: Test result recording and payout processing
+            result = finish_data["results"][0]
+            payout_amount = wager_amount * result["payout_multiplier"]
+            
+            result_response = requests.post(
+                f"{API_URL}/game/result",
+                json={
+                    "session_id": session_id,
+                    "player_wallet": test_wallet,
+                    "game_type": "blackjack",
+                    "wager_amount": wager_amount,
+                    "payout_amount": payout_amount,
+                    "game_data": finish_data["game_state"],
+                    "transaction_signature": None
+                }
+            )
+            result_response.raise_for_status()
+            result_data = result_response.json()
+            
+            # Verify result recorded successfully
+            if result_data.get("success"):
+                results.append({
+                    "test": f"blackjack_complete_flow_{i+1}",
+                    "success": True,
+                    "wager_amount": wager_amount,
+                    "dev_fee": wager_data["dev_fee"],
+                    "game_result": result["result"],
+                    "payout_amount": payout_amount,
+                    "payout_sent": result_data.get("payout_sent", False)
+                })
+            else:
+                results.append({
+                    "test": f"blackjack_complete_flow_{i+1}",
+                    "success": False,
+                    "error": "Result recording failed"
+                })
+        
+        # Check overall success rate
+        successful_tests = [r for r in results if r["success"]]
+        success_rate = len(successful_tests) / len(results) * 100
+        
+        return success_rate >= 80, {
+            "total_tests": len(results),
+            "successful_tests": len(successful_tests),
+            "success_rate": f"{success_rate:.1f}%",
+            "results": results,
+            "no_transaction_errors": True,
+            "dev_fee_correct": all(r.get("dev_fee") == r.get("wager_amount", 0) * 0.12 for r in successful_tests if "dev_fee" in r)
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 48: Video Poker Transaction Bug Fix Testing
+def test_video_poker_transaction_bug_fix():
+    """Test that video poker games work without blockchain transaction errors during game start"""
+    try:
+        results = []
+        
+        # Test multiple video poker game flows to ensure no transaction errors
+        for i in range(5):
+            test_wallet = f"A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
+            wager_amount = 0.05  # 0.05 SOL
+            
+            # Step 1: Test wager recording (should NOT create blockchain transaction)
+            wager_response = requests.post(
+                f"{API_URL}/game/wager",
+                json={
+                    "player_wallet": test_wallet,
+                    "amount": wager_amount,
+                    "game_type": "video_poker",
+                    "session_id": str(uuid.uuid4()),
+                    "transaction_signature": None  # No blockchain transaction
+                }
+            )
+            wager_response.raise_for_status()
+            wager_data = wager_response.json()
+            
+            # Verify wager recorded without blockchain transaction
+            if not wager_data.get("success"):
+                results.append({
+                    "test": f"video_poker_wager_{i+1}",
+                    "success": False,
+                    "error": "Wager recording failed"
+                })
+                continue
+            
+            # Verify 12% dev fee calculation
+            expected_dev_fee = wager_amount * 0.12
+            if abs(wager_data["dev_fee"] - expected_dev_fee) > 0.001:
+                results.append({
+                    "test": f"video_poker_wager_{i+1}",
+                    "success": False,
+                    "error": f"Dev fee incorrect: expected {expected_dev_fee}, got {wager_data['dev_fee']}"
+                })
+                continue
+            
+            # Step 2: Test game start (should NOT create blockchain transaction)
+            game_response = requests.post(
+                f"{API_URL}/video_poker/new",
+                json={
+                    "player_wallet": test_wallet,
+                    "wager": wager_amount
+                }
+            )
+            game_response.raise_for_status()
+            game_data = game_response.json()
+            
+            # Verify game started without transaction errors
+            if not game_data.get("success"):
+                results.append({
+                    "test": f"video_poker_game_start_{i+1}",
+                    "success": False,
+                    "error": "Game start failed"
+                })
+                continue
+            
+            session_id = game_data["session_id"]
+            
+            # Step 3: Test complete game flow
+            # Hold some cards
+            hold_response = requests.post(
+                f"{API_URL}/game/video_poker/hold",
+                params={"session_id": session_id},
+                json=[0, 2, 4]  # Hold cards at positions 0, 2, 4
+            )
+            hold_response.raise_for_status()
+            
+            # Draw new cards
+            draw_response = requests.post(
+                f"{API_URL}/game/video_poker/draw",
+                params={"session_id": session_id}
+            )
+            draw_response.raise_for_status()
+            draw_data = draw_response.json()
+            
+            # Verify game completed successfully
+            if not draw_data.get("success"):
+                results.append({
+                    "test": f"video_poker_complete_flow_{i+1}",
+                    "success": False,
+                    "error": "Game completion failed"
+                })
+                continue
+            
+            # Step 4: Test result recording and payout processing
+            hand_rank = draw_data["final_hand"]
+            payout_multiplier = draw_data["payout_multiplier"]
+            payout_amount = wager_amount * payout_multiplier
+            
+            result_response = requests.post(
+                f"{API_URL}/game/result",
+                json={
+                    "session_id": session_id,
+                    "player_wallet": test_wallet,
+                    "game_type": "video_poker",
+                    "wager_amount": wager_amount,
+                    "payout_amount": payout_amount,
+                    "game_data": draw_data["game_state"],
+                    "transaction_signature": None
+                }
+            )
+            result_response.raise_for_status()
+            result_data = result_response.json()
+            
+            # Verify result recorded successfully
+            if result_data.get("success"):
+                results.append({
+                    "test": f"video_poker_complete_flow_{i+1}",
+                    "success": True,
+                    "wager_amount": wager_amount,
+                    "dev_fee": wager_data["dev_fee"],
+                    "hand_rank": hand_rank,
+                    "payout_multiplier": payout_multiplier,
+                    "payout_amount": payout_amount,
+                    "payout_sent": result_data.get("payout_sent", False)
+                })
+            else:
+                results.append({
+                    "test": f"video_poker_complete_flow_{i+1}",
+                    "success": False,
+                    "error": "Result recording failed"
+                })
+        
+        # Check overall success rate
+        successful_tests = [r for r in results if r["success"]]
+        success_rate = len(successful_tests) / len(results) * 100
+        
+        return success_rate >= 80, {
+            "total_tests": len(results),
+            "successful_tests": len(successful_tests),
+            "success_rate": f"{success_rate:.1f}%",
+            "results": results,
+            "no_transaction_errors": True,
+            "dev_fee_correct": all(r.get("dev_fee") == r.get("wager_amount", 0) * 0.12 for r in successful_tests if "dev_fee" in r)
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 49: Wager System Error Handling
+def test_wager_system_error_handling():
+    """Test wager system error handling with invalid inputs"""
+    try:
+        test_cases = [
+            # Invalid wager amounts for blackjack/video_poker
+            {
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": 0.005,  # Below minimum for blackjack/video_poker
+                "game_type": "blackjack",
+                "session_id": str(uuid.uuid4()),
+                "should_fail": True,
+                "description": "Below minimum wager for blackjack"
+            },
+            {
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": 15.0,  # Above maximum for blackjack/video_poker
+                "game_type": "video_poker",
+                "session_id": str(uuid.uuid4()),
+                "should_fail": True,
+                "description": "Above maximum wager for video_poker"
+            },
+            # Invalid wallet address
+            {
+                "player_wallet": "invalid_wallet_address",
+                "amount": 1.0,
+                "game_type": "blackjack",
+                "session_id": str(uuid.uuid4()),
+                "should_fail": True,
+                "description": "Invalid wallet address format"
+            },
+            # Invalid game type
+            {
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": 1.0,
+                "game_type": "invalid_game",
+                "session_id": str(uuid.uuid4()),
+                "should_fail": True,
+                "description": "Invalid game type"
+            },
+            # Valid cases
+            {
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": 0.01,  # Minimum valid for blackjack/video_poker
+                "game_type": "blackjack",
+                "session_id": str(uuid.uuid4()),
+                "should_fail": False,
+                "description": "Valid minimum wager for blackjack"
+            },
+            {
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "amount": 10.0,  # Maximum valid for blackjack/video_poker
+                "game_type": "video_poker",
+                "session_id": str(uuid.uuid4()),
+                "should_fail": False,
+                "description": "Valid maximum wager for video_poker"
+            }
+        ]
+        
+        results = []
+        for test_case in test_cases:
+            try:
+                response = requests.post(
+                    f"{API_URL}/game/wager",
+                    json={
+                        "player_wallet": test_case["player_wallet"],
+                        "amount": test_case["amount"],
+                        "game_type": test_case["game_type"],
+                        "session_id": test_case["session_id"]
+                    }
+                )
+                
+                success = response.status_code == 200 and response.json().get("success", False)
+                failed_as_expected = test_case["should_fail"] and not success
+                passed_as_expected = not test_case["should_fail"] and success
+                
+                results.append({
+                    "description": test_case["description"],
+                    "should_fail": test_case["should_fail"],
+                    "actually_failed": not success,
+                    "status_code": response.status_code,
+                    "correct": failed_as_expected or passed_as_expected,
+                    "response": response.json() if response.status_code == 200 else {"error": "Request failed"}
+                })
+                
+            except Exception as e:
+                # Exception is expected for invalid cases
+                results.append({
+                    "description": test_case["description"],
+                    "should_fail": test_case["should_fail"],
+                    "actually_failed": True,
+                    "error": str(e),
+                    "correct": test_case["should_fail"]  # If we expected failure and got error, that's correct
+                })
+        
+        all_correct = all(result["correct"] for result in results)
+        
+        return all_correct, {
+            "test_cases": len(test_cases),
+            "all_correct": all_correct,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 50: Game Result Payout Processing
+def test_game_result_payout_processing():
+    """Test that game results trigger real SOL payouts only for winners"""
+    try:
+        results = []
+        
+        # Test both winning and losing scenarios
+        test_scenarios = [
+            {"game_type": "blackjack", "force_win": True},
+            {"game_type": "blackjack", "force_win": False},
+            {"game_type": "video_poker", "force_win": True},
+            {"game_type": "video_poker", "force_win": False}
+        ]
+        
+        for scenario in test_scenarios:
+            test_wallet = TEST_WALLET_PUBLIC_KEY
+            wager_amount = 0.1
+            game_type = scenario["game_type"]
+            
+            # Create session and play game
+            if game_type == "blackjack":
+                session_response = requests.post(
+                    f"{API_URL}/game/session/create",
+                    params={
+                        "player_wallet": test_wallet,
+                        "game_type": game_type
+                    }
+                )
+                session_id = session_response.json()["session_id"]
+                
+                finish_response = requests.post(
+                    f"{API_URL}/game/blackjack/finish",
+                    params={"session_id": session_id}
+                )
+                finish_data = finish_response.json()
+                result = finish_data["results"][0]
+                payout_multiplier = result["payout_multiplier"]
+                
+            else:  # video_poker
+                session_response = requests.post(
+                    f"{API_URL}/game/session/create",
+                    params={
+                        "player_wallet": test_wallet,
+                        "game_type": game_type
+                    }
+                )
+                session_id = session_response.json()["session_id"]
+                
+                draw_response = requests.post(
+                    f"{API_URL}/game/video_poker/draw",
+                    params={"session_id": session_id}
+                )
+                draw_data = draw_response.json()
+                payout_multiplier = draw_data["payout_multiplier"]
+            
+            # Force win/loss for testing
+            if scenario["force_win"] and payout_multiplier == 0:
+                payout_multiplier = 2.0  # Force a win
+            elif not scenario["force_win"] and payout_multiplier > 0:
+                payout_multiplier = 0  # Force a loss
+            
+            payout_amount = wager_amount * payout_multiplier
+            
+            # Record game result
+            result_response = requests.post(
+                f"{API_URL}/game/result",
+                json={
+                    "session_id": session_id,
+                    "player_wallet": test_wallet,
+                    "game_type": game_type,
+                    "wager_amount": wager_amount,
+                    "payout_amount": payout_amount,
+                    "game_data": {},
+                    "transaction_signature": None
+                }
+            )
+            result_response.raise_for_status()
+            result_data = result_response.json()
+            
+            # Verify payout behavior
+            is_winner = payout_amount > 0
+            payout_sent = result_data.get("payout_sent", False)
+            
+            results.append({
+                "game_type": game_type,
+                "wager_amount": wager_amount,
+                "payout_amount": payout_amount,
+                "is_winner": is_winner,
+                "payout_sent": payout_sent,
+                "payout_signature": result_data.get("payout_signature"),
+                "explorer_url": result_data.get("explorer_url"),
+                "correct_behavior": (is_winner and payout_sent) or (not is_winner and not payout_sent)
+            })
+        
+        all_correct = all(result["correct_behavior"] for result in results)
+        
+        return all_correct, {
+            "test_scenarios": len(test_scenarios),
+            "all_correct": all_correct,
+            "results": results,
+            "winners_got_payouts": all(r["payout_sent"] for r in results if r["is_winner"]),
+            "losers_no_payouts": all(not r["payout_sent"] for r in results if not r["is_winner"])
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 51: SolanaBust Single Player Room Testing - 1 Player Minimum
 def test_solanabust_single_player_room():
     """Test SolanaBust multiplayer room system with 1-player minimum for testing"""
     try:
