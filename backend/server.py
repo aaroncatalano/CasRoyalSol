@@ -587,6 +587,89 @@ async def create_game_session(player_wallet: str, game_type: str, num_hands: int
         logger.error(f"Error creating game session: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create game session: {str(e)}")
 
+@api_router.post("/blackjack/new")
+async def start_blackjack_game(request: dict):
+    """Start a new blackjack game"""
+    try:
+        player_wallet = request.get("player_wallet")
+        wager = request.get("wager")
+        
+        if not player_wallet or not wager:
+            raise HTTPException(status_code=400, detail="Missing player_wallet or wager")
+        
+        # Create new game session
+        session_id = str(uuid.uuid4())
+        
+        # Initialize blackjack game
+        game_data = create_blackjack_game()
+        
+        session_record = {
+            "id": session_id,
+            "player_wallet": player_wallet,
+            "game_type": "blackjack",
+            "wager": wager,
+            "status": "active",
+            "session_data": game_data,
+            "created_at": datetime.utcnow(),
+            "num_hands": 1
+        }
+        
+        await db.game_sessions.insert_one(session_record)
+        
+        logger.info(f"Blackjack game created: {session_id}")
+        
+        return {
+            "success": True,
+            "session_id": session_id,
+            "game_state": game_data,
+            "message": "Blackjack game started successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error starting blackjack game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start blackjack game: {str(e)}")
+
+@api_router.post("/video_poker/new")
+async def start_video_poker_game(request: dict):
+    """Start a new video poker game"""
+    try:
+        player_wallet = request.get("player_wallet")
+        wager = request.get("wager")
+        
+        if not player_wallet or not wager:
+            raise HTTPException(status_code=400, detail="Missing player_wallet or wager")
+        
+        # Create new game session
+        session_id = str(uuid.uuid4())
+        
+        # Initialize video poker game
+        game_data = create_video_poker_game()
+        
+        session_record = {
+            "id": session_id,
+            "player_wallet": player_wallet,
+            "game_type": "video_poker",
+            "wager": wager,
+            "status": "active",
+            "session_data": game_data,
+            "created_at": datetime.utcnow()
+        }
+        
+        await db.game_sessions.insert_one(session_record)
+        
+        logger.info(f"Video poker game created: {session_id}")
+        
+        return {
+            "success": True,
+            "session_id": session_id,
+            "game_state": game_data,
+            "message": "Video poker game started successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error starting video poker game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start video poker game: {str(e)}")
+
 @api_router.post("/game/blackjack/hit")
 async def blackjack_hit(session_id: str, hand_index: int = 0):
     """Hit in blackjack"""
