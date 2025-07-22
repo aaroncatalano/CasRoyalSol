@@ -1334,6 +1334,155 @@ async def get_payout_history(limit: int = 50):
     return result
 
 # SolanaBust Room Endpoints
+@api_router.post("/solanabust/start")
+async def start_solanabust_game(request: dict):
+    """Start a new single player SolanaBust game"""
+    try:
+        player_wallet = request.get("player_wallet")
+        wager_amount = request.get("wager_amount")
+        auto_cash_out = request.get("auto_cash_out")
+        transaction_signature = request.get("transaction_signature")
+        
+        if not player_wallet or not wager_amount:
+            raise HTTPException(status_code=400, detail="Missing player_wallet or wager_amount")
+        
+        # Create new game session
+        session_id = str(uuid.uuid4())
+        
+        # Generate crash point (house edge built in)
+        import random
+        crash_point = random.uniform(1.01, 50.0)  # Random crash between 1.01x and 50x
+        
+        # Record wager
+        wager_record = {
+            "id": str(uuid.uuid4()),
+            "player_wallet": player_wallet,
+            "amount": wager_amount,
+            "game_type": "crash",
+            "session_id": session_id,
+            "dev_fee": wager_amount * TRANSACTION_FEE_PERCENTAGE,
+            "game_amount": wager_amount * (1 - TRANSACTION_FEE_PERCENTAGE),
+            "dev_wallet": DEV_WALLET_ADDRESS,
+            "transaction_signature": transaction_signature,
+            "timestamp": datetime.utcnow()
+        }
+        
+        await db.wagers.insert_one(wager_record)
+        
+        # Create game session
+        game_record = {
+            "id": session_id,
+            "player_wallet": player_wallet,
+            "game_type": "crash",
+            "wager_amount": wager_amount,
+            "auto_cash_out": auto_cash_out,
+            "crash_point": crash_point,
+            "status": "active",
+            "created_at": datetime.utcnow()
+        }
+        
+        await db.game_sessions.insert_one(game_record)
+        
+        logger.info(f"SolanaBust single player game started: {session_id}, crash point: {crash_point}")
+        
+        return {
+            "success": True,
+            "session_id": session_id,
+            "crash_point": crash_point,
+            "game_state": {
+                "status": "flying",
+                "wager_amount": wager_amount,
+                "auto_cash_out": auto_cash_out
+            },
+            "message": "SolanaBust game started successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error starting SolanaBust game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start SolanaBust game: {str(e)}")
+
+@api_router.post("/solanabust/cash-out")
+async def cash_out_solanabust(request: dict):
+    """Cash out from SolanaBust game"""
+    try:
+        session_id = request.get("session_id")
+        player_wallet = request.get("player_wallet")
+        cash_out_multiplier = request.get("cash_out_multiplier")
+        payout_amount = request.get("payout_amount")
+        
+        if not all([session_id, player_wallet, cash_out_multiplier, payout_amount]):
+            raise HTTPException(status_code=400, detail="Missing required parameters")
+        
+        # Get game session
+        session = await db.game_sessions.find_one({"id": session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail="Game session not found")
+        
+        # Update session status
+        await db.game_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"status": "completed", "cash_out_multiplier": cash_out_multiplier, "payout_amount": payout_amount}}
+        )
+        
+        # Record game result
+        result_record = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "player_wallet": player_wallet,
+            "game_type": "crash",
+            "wager_amount": session["wager_amount"],
+            "payout_amount": payout_amount,
+            "multiplier": cash_out_multiplier,
+            "result": "win",
+            "timestamp": datetime.utcnow()
+        }
+        
+        await db.game_results.insert_one(result_record)
+        
+        # Process real SOL payout if service available
+        payout_sent = False
+        transaction_signature = None
+        
+        if SOLANA_PAYOUT_AVAILABLE and solana_payout_service and payout_amount > 0:
+            try:
+                payout_result = await solana_payout_service.send_payout(
+                    player_wallet, 
+                    payout_amount,
+                    f"SolanaBust win payout - {cash_out_multiplier:.2f}x multiplier"
+                )
+                
+                if payout_result["success"]:
+                    payout_sent = True
+                    transaction_signature = payout_result.get("signature")
+                    logger.info(f"SOL payout sent: {payout_amount} SOL to {player_wallet}")
+                    
+                    # Update result record with payout info
+                    await db.game_results.update_one(
+                        {"id": result_record["id"]},
+                        {"$set": {"payout_sent": True, "payout_signature": transaction_signature}}
+                    )
+                else:
+                    logger.error(f"Failed to send SOL payout: {payout_result.get('error')}")
+                    
+            except Exception as payout_error:
+                logger.error(f"Error processing SOL payout: {str(payout_error)}")
+        
+        logger.info(f"SolanaBust cash out successful: {session_id}, payout: {payout_amount} SOL")
+        
+        return {
+            "success": True,
+            "cashed_out": True,
+            "multiplier": cash_out_multiplier,
+            "payout_amount": payout_amount,
+            "payout_sent": payout_sent,
+            "transaction_signature": transaction_signature,
+            "message": "Cash out successful"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error cashing out SolanaBust: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to cash out: {str(e)}")
+
 @api_router.post("/solanabust/join-room")
 async def join_solanabust_room(data: dict):
     """Join a SolanaBust multiplayer room"""
