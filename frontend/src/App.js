@@ -889,6 +889,45 @@ const SolanaBustGame = () => {
   const [gameResult, setGameResult] = useState(null);
   const [cashedOut, setCashedOut] = useState(false);
   const [cashOutMultiplier, setCashOutMultiplier] = useState(null);
+  const [gameStartTime, setGameStartTime] = useState(null);
+
+  // Start multiplier animation when game starts flying
+  useEffect(() => {
+    if (gamePhase === 'flying' && gameStartTime && !cashedOut) {
+      const interval = setInterval(() => {
+        const elapsed = (Date.now() - gameStartTime) / 1000;
+        const newMultiplier = 1.00 + (elapsed * 0.2); // Increases by 0.2x per second
+        
+        setCurrentMultiplier(newMultiplier);
+        
+        // Check if we've reached crash point
+        if (newMultiplier >= crashPoint) {
+          setGamePhase('crashed');
+          setCurrentMultiplier(crashPoint);
+          
+          if (!cashedOut) {
+            // Player lost
+            setGameResult({
+              result: 'loss',
+              multiplier: crashPoint,
+              payout: 0
+            });
+          }
+          
+          clearInterval(interval);
+        }
+        
+        // Check auto cash out
+        if (autoCashOut && newMultiplier >= parseFloat(autoCashOut) && !cashedOut) {
+          console.log(`Auto cash-out triggered at ${newMultiplier.toFixed(2)}x`);
+          handleCashOut(newMultiplier);
+          clearInterval(interval);
+        }
+      }, 50); // Update every 50ms for smooth animation
+      
+      return () => clearInterval(interval);
+    }
+  }, [gamePhase, gameStartTime, crashPoint, cashedOut, autoCashOut]);
 
   const startGame = async () => {
     if (!publicKey) {
@@ -943,18 +982,23 @@ const SolanaBustGame = () => {
         throw new Error(data.error || 'Failed to start game');
       }
       
+      // Initialize game state
       setGameSession(data.session_id);
       setGameState(data.game_state);
-      setGamePhase('flying');
       setCrashPoint(data.crash_point);
       setCashedOut(false);
       setCashOutMultiplier(null);
       setGameResult(null);
+      setCurrentMultiplier(1.00);
       
-      // Start multiplier animation
-      startMultiplierUpdate();
+      // Start the game with a slight delay to ensure all state is set
+      setTimeout(() => {
+        setGameStartTime(Date.now());
+        setGamePhase('flying');
+      }, 100);
       
       console.log('SolanaBust game started:', data);
+      console.log('Crash point:', data.crash_point);
       
     } catch (error) {
       console.error('Error starting SolanaBust game:', error);
@@ -964,49 +1008,17 @@ const SolanaBustGame = () => {
     setLoading(false);
   };
 
-  const startMultiplierUpdate = () => {
-    const startTime = Date.now();
+  const handleCashOut = async (multiplier = null) => {
+    const cashOutAt = multiplier || currentMultiplier;
     
-    const updateMultiplier = () => {
-      if (gamePhase !== 'flying') return;
-      
-      const elapsed = (Date.now() - startTime) / 1000;
-      const newMultiplier = 1.00 + (elapsed * 0.1); // Increases by 0.1x per second
-      
-      setCurrentMultiplier(newMultiplier);
-      
-      // Check if we've reached crash point
-      if (newMultiplier >= crashPoint) {
-        setGamePhase('crashed');
-        setCurrentMultiplier(crashPoint);
-        
-        if (!cashedOut) {
-          // Player lost
-          setGameResult({
-            result: 'loss',
-            multiplier: crashPoint,
-            payout: 0
-          });
-        }
-        return;
-      }
-      
-      // Continue updating
-      setTimeout(updateMultiplier, 100);
-    };
-    
-    updateMultiplier();
-  };
-
-  const cashOut = async () => {
-    if (gamePhase !== 'flying' || cashedOut) return;
+    if (cashedOut) return;
     
     try {
       setCashedOut(true);
-      setCashOutMultiplier(currentMultiplier);
+      setCashOutMultiplier(cashOutAt);
       setGamePhase('finished');
       
-      const payout = wagerAmount * currentMultiplier;
+      const payout = wagerAmount * cashOutAt;
       
       // Record game result and trigger payout
       const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/solanabust/cash-out`, {
@@ -1017,7 +1029,7 @@ const SolanaBustGame = () => {
         body: JSON.stringify({
           session_id: gameSession,
           player_wallet: publicKey.toString(),
-          cash_out_multiplier: currentMultiplier,
+          cash_out_multiplier: cashOutAt,
           payout_amount: payout
         })
       });
@@ -1027,7 +1039,7 @@ const SolanaBustGame = () => {
       if (data.success) {
         setGameResult({
           result: 'win',
-          multiplier: currentMultiplier,
+          multiplier: cashOutAt,
           payout: payout,
           payout_sent: data.payout_sent || false,
           transaction_signature: data.transaction_signature
@@ -1050,6 +1062,7 @@ const SolanaBustGame = () => {
     setGameResult(null);
     setCashedOut(false);
     setCashOutMultiplier(null);
+    setGameStartTime(null);
   };
 
   return (
@@ -1121,28 +1134,39 @@ const SolanaBustGame = () => {
       ) : (
         <div>
           <div className="text-center mb-6">
-            <div className={`text-6xl font-bold mb-2 ${gamePhase === 'crashed' ? 'text-red-400' : 'text-green-400'}`}>
+            <div className={`text-6xl font-bold mb-4 ${
+              gamePhase === 'crashed' ? 'text-red-400' : 
+              gamePhase === 'finished' && cashedOut ? 'text-green-400' : 
+              'text-yellow-400'
+            }`}>
               {currentMultiplier.toFixed(2)}x
             </div>
             
             {gamePhase === 'flying' && !cashedOut && (
               <div>
-                <p className="text-white mb-4">🚀 Flying! Click to cash out!</p>
+                <p className="text-white mb-4 text-xl">🚀 FLYING! Cash out anytime!</p>
                 <button
-                  onClick={cashOut}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-4 rounded-lg font-bold text-lg"
+                  onClick={() => handleCashOut()}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg font-bold text-xl shadow-lg transform hover:scale-105"
                 >
                   💰 CASH OUT: {(wagerAmount * currentMultiplier).toFixed(4)} SOL
                 </button>
+                <p className="text-gray-400 text-sm mt-2">Crash point: ???</p>
               </div>
             )}
             
-            {gamePhase === 'crashed' && (
-              <p className="text-red-400 text-xl">💥 CRASHED at {crashPoint.toFixed(2)}x</p>
+            {gamePhase === 'crashed' && !cashedOut && (
+              <div>
+                <p className="text-red-400 text-2xl mb-2">💥 CRASHED!</p>
+                <p className="text-white">You lost {wagerAmount} SOL</p>
+              </div>
             )}
             
             {cashedOut && (
-              <p className="text-green-400 text-xl">✅ Cashed out at {cashOutMultiplier.toFixed(2)}x</p>
+              <div>
+                <p className="text-green-400 text-2xl mb-2">✅ SUCCESS!</p>
+                <p className="text-white">Cashed out at {cashOutMultiplier.toFixed(2)}x</p>
+              </div>
             )}
           </div>
 
@@ -1157,6 +1181,9 @@ const SolanaBustGame = () => {
                   Net: {(gameResult.payout - wagerAmount).toFixed(6)} SOL
                 </p>
               )}
+              {gameResult.payout_sent && gameResult.transaction_signature && (
+                <p className="text-green-400 text-sm">✅ Payout sent! Signature: {gameResult.transaction_signature.slice(0, 8)}...</p>
+              )}
             </div>
           )}
 
@@ -1166,6 +1193,13 @@ const SolanaBustGame = () => {
           >
             New Game
           </button>
+          
+          {gamePhase === 'flying' && (
+            <div className="mt-4 text-center">
+              <p className="text-gray-400 text-sm">Current potential payout: {(wagerAmount * currentMultiplier).toFixed(4)} SOL</p>
+              {autoCashOut && <p className="text-yellow-400 text-sm">Auto cash-out at: {autoCashOut}x</p>}
+            </div>
+          )}
         </div>
       )}
       
@@ -1173,6 +1207,7 @@ const SolanaBustGame = () => {
         <p>🎮 <strong>How to play:</strong> Click START GAME, watch multiplier rise, cash out before it crashes!</p>
         <p>💰 <strong>Payouts:</strong> Your wager × multiplier when you cash out</p>
         <p>⚡ <strong>Auto Cash Out:</strong> Set multiplier to automatically cash out</p>
+        <p>🎲 <strong>Crash Point:</strong> Random between 1.01x - 50x (house edge built in)</p>
       </div>
     </div>
   );
