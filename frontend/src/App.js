@@ -889,6 +889,93 @@ const SolanaBustGame = () => {
   const [cashedOut, setCashedOut] = useState(false);
   const [cashOutMultiplier, setCashOutMultiplier] = useState(null);
 
+  const startGameNoConfirm = async () => {
+    if (!publicKey) {
+      alert('Please connect your wallet first!');
+      return;
+    }
+    
+    setLoading(true);
+    console.log('⚡ FAST START - Skipping transaction confirmation...');
+    
+    try {
+      // Step 1: Create Solana transaction to deduct wager from wallet
+      console.log(`💰 Creating transaction to deduct ${wagerAmount} SOL for SolanaBust`);
+      
+      const transaction = new Transaction();
+      const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
+      
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
+          lamports: lamportsToSend
+        })
+      );
+      
+      // Send transaction through Phantom wallet
+      console.log('📱 Sending transaction through Phantom wallet...');
+      const signature = await sendTransaction(transaction, connection);
+      console.log('✅ Transaction signature:', signature);
+      
+      // Skip confirmation - proceed immediately
+      console.log('⚡ Skipping confirmation, proceeding to backend call...');
+      
+      // Step 2: Call backend to start game immediately
+      const backendUrl = import.meta.env.REACT_APP_BACKEND_URL;
+      console.log('🔗 Backend URL:', backendUrl);
+      
+      const requestBody = {
+        player_wallet: publicKey.toString(),
+        wager_amount: wagerAmount,
+        auto_cash_out: autoCashOut ? parseFloat(autoCashOut) : null,
+        transaction_signature: signature
+      };
+      console.log('📤 Request body:', requestBody);
+      
+      const response = await fetch(`${backendUrl}/api/solanabust/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      console.log('📡 Response status:', response.status);
+      const data = await response.json();
+      console.log('📥 Response data:', data);
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Backend returned success: false');
+      }
+      
+      // Step 3: Initialize game state
+      console.log('🎯 Initializing game state...');
+      setGameSession(data.session_id);
+      setCrashPoint(data.crash_point);
+      setCashedOut(false);
+      setCashOutMultiplier(null);
+      setGameResult(null);
+      setCurrentMultiplier(1.00);
+      setGamePhase('flying');
+      
+      console.log('🚀 Game initialized! Crash point:', data.crash_point);
+      console.log('🎬 Starting animation...');
+      
+      // Start animation immediately
+      setTimeout(() => {
+        console.log('🎭 Animation timeout triggered');
+        startMultiplierAnimation(data.crash_point);
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ Error in fast start:', error);
+      alert(`Fast start failed: ${error.message}`);
+    }
+    
+    setLoading(false);
+  };
+
   const testGame = async () => {
     console.log('🧪 TEST GAME - Bypassing wallet transaction');
     
