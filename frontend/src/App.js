@@ -874,426 +874,305 @@ const VideoPokerGame = () => {
   );
 };
 
-// SolanaBust Multiplayer Room Game Component
-const CrashGame = () => {
+// SolanaBust Game Component (Single Player)
+const SolanaBustGame = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
+  const [gameSession, setGameSession] = useState(null);
   const [wagerAmount, setWagerAmount] = useState(0.01);
+  const [autoCashOut, setAutoCashOut] = useState('');
+  const [gameState, setGameState] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [inRoom, setInRoom] = useState(false);
-  const [roomState, setRoomState] = useState(null);
-  const [autoCashOut, setAutoCashOut] = useState(0);
-  const [playerData, setPlayerData] = useState(null);
-  const [roomPolling, setRoomPolling] = useState(null);
-  
-  // Get backend URL from environment
-  const API = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-  // Generate random username for player
-  const generateUsername = () => {
-    const adjectives = ['Lucky', 'Crypto', 'Solana', 'Diamond', 'Golden', 'Silver', 'Rocket', 'Moon'];
-    const nouns = ['Trader', 'Whale', 'Bull', 'Bear', 'Hodler', 'Ape', 'Wolf', 'Lion'];
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const number = Math.floor(Math.random() * 900) + 100;
-    return `${adjective}${noun}${number}`;
-  };
+  const [gamePhase, setGamePhase] = useState('waiting'); // waiting, flying, crashed, finished
+  const [currentMultiplier, setCurrentMultiplier] = useState(1.00);
+  const [crashPoint, setCrashPoint] = useState(null);
+  const [gameResult, setGameResult] = useState(null);
+  const [cashedOut, setCashedOut] = useState(false);
+  const [cashOutMultiplier, setCashOutMultiplier] = useState(null);
 
-  const [username] = useState(() => generateUsername());
-  // Auto cash-out logic
-  useEffect(() => {
-    if (autoCashOut && 
-        roomState && 
-        roomState.current_multiplier >= autoCashOut && 
-        playerData && 
-        playerData.status === 'flying' &&
-        roomState.game_state === 'flying') {
-      console.log(`Auto cash-out triggered at ${roomState.current_multiplier.toFixed(2)}x`);
-      cashOut();
-    }
-  }, [roomState, autoCashOut, playerData]);
-
-  // Room state polling
-  useEffect(() => {
-    if (inRoom && publicKey) {
-      const polling = setInterval(async () => {
-        try {
-          const response = await fetch(`${API}/api/solanabust/room-state?wallet_address=${publicKey.toString()}`);
-          const data = await response.json();
-          
-          if (data.success) {
-            setRoomState(data.room_state);
-            
-            // Find current player data
-            const currentPlayer = data.room_state.players.find(p => p.wallet_address === publicKey.toString());
-            setPlayerData(currentPlayer);
-            
-            // If game finished, stop polling and reset
-            if (data.room_state.game_state === 'finished') {
-              setTimeout(() => {
-                setInRoom(false);
-                setRoomState(null);
-                setPlayerData(null);
-              }, 5000);
-            }
-          } else {
-            setInRoom(false);
-            setRoomState(null);
-            setPlayerData(null);
-          }
-        } catch (error) {
-          console.error('Error polling room state:', error);
-        }
-      }, 200); // 200ms polling for smooth updates
-      
-      setRoomPolling(polling);
-      return () => clearInterval(polling);
-    }
-  }, [inRoom, publicKey, API]);
-
-  const placeBet = async () => {
+  const startGame = async () => {
     if (!publicKey) {
-      alert('Please connect your wallet first');
+      alert('Please connect your wallet first!');
       return;
     }
     
     setLoading(true);
+    
     try {
-      // Create Solana transaction for wager
-      const totalWager = wagerAmount;
-      const transaction = new Transaction();
+      // Step 1: Create Solana transaction to deduct wager from wallet
+      console.log(`Creating transaction to deduct ${wagerAmount} SOL for SolanaBust`);
       
+      const transaction = new Transaction();
+      const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
+      
+      // Send full wager to dev wallet (12% fee + 88% house amount)
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
-          lamports: Math.floor(totalWager * LAMPORTS_PER_SOL)
+          lamports: lamportsToSend
         })
       );
       
+      // Send transaction through Phantom wallet
+      console.log('Sending transaction through Phantom wallet...');
       const signature = await sendTransaction(transaction, connection);
+      console.log('Transaction signature:', signature);
+      
+      // Wait for confirmation
+      console.log('Waiting for transaction confirmation...');
       await connection.confirmTransaction(signature, 'confirmed');
       
-      // Record wager
-      await axios.post(`${API}/api/game/wager`, {
-        player_wallet: publicKey.toString(),
-        amount: totalWager,
-        game_type: 'crash',
-        session_id: 'crash-room-' + Date.now(),
-        transaction_signature: signature
-      });
-      
-      // Join multiplayer room
-      const response = await fetch(`${API}/api/solanabust/join-room`, {
+      // Step 2: Record wager and start game
+      const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/solanabust/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          wallet_address: publicKey.toString(),
-          username: username,
-          bet_amount: totalWager
+          player_wallet: publicKey.toString(),
+          wager_amount: wagerAmount,
+          auto_cash_out: autoCashOut ? parseFloat(autoCashOut) : null,
+          transaction_signature: signature
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to start game');
+      }
+      
+      setGameSession(data.session_id);
+      setGameState(data.game_state);
+      setGamePhase('flying');
+      setCrashPoint(data.crash_point);
+      setCashedOut(false);
+      setCashOutMultiplier(null);
+      setGameResult(null);
+      
+      // Start multiplier animation
+      startMultiplierUpdate();
+      
+      console.log('SolanaBust game started:', data);
+      
+    } catch (error) {
+      console.error('Error starting SolanaBust game:', error);
+      alert(`Failed to start game: ${error.message}`);
+    }
+    
+    setLoading(false);
+  };
+
+  const startMultiplierUpdate = () => {
+    const startTime = Date.now();
+    
+    const updateMultiplier = () => {
+      if (gamePhase !== 'flying') return;
+      
+      const elapsed = (Date.now() - startTime) / 1000;
+      const newMultiplier = 1.00 + (elapsed * 0.1); // Increases by 0.1x per second
+      
+      setCurrentMultiplier(newMultiplier);
+      
+      // Check if we've reached crash point
+      if (newMultiplier >= crashPoint) {
+        setGamePhase('crashed');
+        setCurrentMultiplier(crashPoint);
+        
+        if (!cashedOut) {
+          // Player lost
+          setGameResult({
+            result: 'loss',
+            multiplier: crashPoint,
+            payout: 0
+          });
+        }
+        return;
+      }
+      
+      // Continue updating
+      setTimeout(updateMultiplier, 100);
+    };
+    
+    updateMultiplier();
+  };
+
+  const cashOut = async () => {
+    if (gamePhase !== 'flying' || cashedOut) return;
+    
+    try {
+      setCashedOut(true);
+      setCashOutMultiplier(currentMultiplier);
+      setGamePhase('finished');
+      
+      const payout = wagerAmount * currentMultiplier;
+      
+      // Record game result and trigger payout
+      const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/solanabust/cash-out`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: gameSession,
+          player_wallet: publicKey.toString(),
+          cash_out_multiplier: currentMultiplier,
+          payout_amount: payout
         })
       });
       
       const data = await response.json();
       
       if (data.success) {
-        setInRoom(true);
-        setRoomState(data.room_state);
+        setGameResult({
+          result: 'win',
+          multiplier: currentMultiplier,
+          payout: payout,
+          payout_sent: data.payout_sent || false,
+          transaction_signature: data.transaction_signature
+        });
         
-        // Find current player data
-        const currentPlayer = data.room_state.players.find(p => p.wallet_address === publicKey.toString());
-        setPlayerData(currentPlayer);
-        
-        // Report bet to multiplayer service
-        if (window.multiplayerActions) {
-          window.multiplayerActions.reportBet(totalWager, 'crash');
-        }
-        
-        console.log('Successfully joined room:', data.room_id);
-      } else {
-        alert('Failed to join game room');
-      }
-      
-    } catch (error) {
-      console.error('Error placing bet:', error);
-      alert(`Failed to place bet: ${error.message}`);
-    }
-    setLoading(false);
-  };
-
-  const cashOut = async () => {
-    if (!publicKey || !playerData || playerData.status !== 'flying') {
-      console.log('Cash out conditions not met');
-      return;
-    }
-    
-    try {
-      const response = await fetch(`${API}/api/solanabust/cash-out`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          wallet_address: publicKey.toString()
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.cashed_out) {
-        // Report cash out to multiplayer service
-        if (window.multiplayerActions) {
-          window.multiplayerActions.reportCashOut(data.payout_amount, data.multiplier, 'crash');
-        }
-        
-        // Show payout result
-        if (data.payout_sent && data.payout_signature) {
-          alert(`🎉 CASHED OUT at ${data.multiplier.toFixed(2)}x!\n` +
-                `Winnings: ${data.payout_amount.toFixed(6)} SOL\n` +
-                `✅ Real SOL transfer sent!\n` +
-                `Transaction: ${data.payout_signature}\n` +
-                `View on Explorer: ${data.explorer_url || 'Solana Explorer'}`);
-        } else if (data.payout_error) {
-          alert(`🎉 CASHED OUT at ${data.multiplier.toFixed(2)}x!\n` +
-                `Winnings: ${data.payout_amount.toFixed(6)} SOL\n` +
-                `⚠️ Payout failed: ${data.payout_error}`);
-        } else {
-          alert(`🎉 CASHED OUT at ${data.multiplier.toFixed(2)}x!\n` +
-                `Winnings: ${data.payout_amount.toFixed(6)} SOL\n` +
-                `💰 Payout processing...`);
-        }
-      } else {
-        alert('Failed to cash out');
+        console.log('Cash out successful:', data);
       }
       
     } catch (error) {
       console.error('Error cashing out:', error);
-      alert('Error cashing out. Please try again.');
     }
   };
 
-  const getGameStateDisplay = () => {
-    if (!roomState) return 'Loading...';
-    
-    switch (roomState.game_state) {
-      case 'waiting':
-        return 'Waiting for players...';
-      case 'betting':
-        return `Betting Phase (${Math.ceil(roomState.betting_time_left)}s left)`;
-      case 'flying':
-        return `Flying at ${roomState.current_multiplier.toFixed(2)}x`;
-      case 'crashed':
-        return `Crashed at ${roomState.crash_point}x`;
-      case 'finished':
-        return 'Game finished, preparing next round...';
-      default:
-        return 'Unknown state';
-    }
-  };
-
-  const getPlayerStatusColor = (status) => {
-    switch (status) {
-      case 'betting':
-        return 'text-blue-400';
-      case 'flying':
-        return 'text-green-400';
-      case 'cashed_out':
-        return 'text-yellow-400';
-      case 'crashed':
-        return 'text-red-400';
-      default:
-        return 'text-gray-400';
-    }
-  };
-
-  const getPlayerStatusIcon = (status) => {
-    switch (status) {
-      case 'betting':
-        return '💰';
-      case 'flying':
-        return '🚀';
-      case 'cashed_out':
-        return '✅';
-      case 'crashed':
-        return '💥';
-      default:
-        return '❓';
-    }
+  const newGame = () => {
+    setGameSession(null);
+    setGameState(null);
+    setGamePhase('waiting');
+    setCurrentMultiplier(1.00);
+    setCrashPoint(null);
+    setGameResult(null);
+    setCashedOut(false);
+    setCashOutMultiplier(null);
   };
 
   return (
     <div className="bg-gray-800 rounded-lg p-6">
-      <h2 className="text-2xl font-bold text-white mb-4">🚀 SolanaBust Multiplayer</h2>
-      <p className="text-green-400 text-sm mb-4">House Edge: 12% | Multiplayer Rooms | Minimum 1 Player (Testing)</p>
-
-      {!inRoom ? (
-        <>
-          {/* Betting Interface */}
-          <div className="mb-6">
-            <h3 className="text-white font-semibold mb-4">Place Your Bet</h3>
-            
-            {/* Wager Amount Input */}
-            <div className="mb-4">
-              <label className="block text-gray-300 text-sm mb-2">Bet Amount (SOL)</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0.005"
-                  max="0.2"
-                  value={wagerAmount}
-                  onChange={(e) => {
-                    const value = parseFloat(e.target.value);
-                    if (value >= 0.005 && value <= 0.2) {
-                      setWagerAmount(value);
-                    }
-                  }}
-                  className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
-                />
-                <div className="flex gap-1">
-                  <button onClick={() => setWagerAmount(0.01)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.01</button>
-                  <button onClick={() => setWagerAmount(0.05)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.05</button>
-                  <button onClick={() => setWagerAmount(0.1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.1</button>
-                  <button onClick={() => setWagerAmount(0.2)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.2</button>
-                </div>
+      <h2 className="text-2xl font-bold text-white mb-4">🚀 SolanaBust</h2>
+      <p className="text-green-400 text-sm mb-4">House Edge: 12% | Single Player Crash Game</p>
+      
+      {!gameSession ? (
+        <div>
+          <div className="mb-4">
+            <label className="block text-white text-sm font-medium mb-2">Wager Amount (SOL):</label>
+            <div className="flex items-center gap-4 mb-2">
+              <input
+                type="number"
+                step="0.005"
+                min="0.005"
+                max="0.2"
+                value={wagerAmount}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (value >= 0.005 && value <= 0.2) {
+                    setWagerAmount(value);
+                  }
+                }}
+                className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
+                placeholder="0.005 - 0.2"
+              />
+              <div className="flex gap-1">
+                <button onClick={() => setWagerAmount(0.01)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.01</button>
+                <button onClick={() => setWagerAmount(0.05)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.05</button>
+                <button onClick={() => setWagerAmount(0.1)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.1</button>
+                <button onClick={() => setWagerAmount(0.2)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-sm">0.2</button>
               </div>
-              <p className="text-gray-400 text-xs mt-1">Min: 0.005 SOL | Max: 0.2 SOL</p>
             </div>
-
-            {/* Auto Cash-Out */}
-            <div className="mb-4">
-              <label className="block text-gray-300 text-sm mb-2">Auto Cash-Out (Optional)</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="1.1"
-                  max="100"
-                  value={autoCashOut}
-                  onChange={(e) => setAutoCashOut(parseFloat(e.target.value) || 0)}
-                  placeholder="1.5"
-                  className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
-                />
-                <span className="text-gray-400">x multiplier</span>
-              </div>
-              <p className="text-gray-400 text-xs mt-1">Leave empty for manual cash-out</p>
-            </div>
-
-            {/* Transaction Breakdown */}
-            <div className="bg-gray-700 p-3 rounded-lg mb-4">
-              <p className="text-gray-300 text-sm">Transaction Breakdown:</p>
-              <p className="text-white">Total Deducted: {wagerAmount.toFixed(6)} SOL</p>
-              <p className="text-yellow-400">Dev Fee (12%): {(wagerAmount * 0.12).toFixed(6)} SOL</p>
-              <p className="text-red-400">House Amount: {(wagerAmount * 0.88).toFixed(6)} SOL</p>
-              <p className="text-gray-400 text-xs mt-1">* Join multiplayer room and compete with other players</p>
-            </div>
-
-            {/* Join Room Button */}
-            <button
-              onClick={placeBet}
-              disabled={loading || !publicKey}
-              className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-8 py-4 rounded-lg font-bold text-xl w-full"
-            >
-              {loading ? 'Joining Room...' : `JOIN ROOM & BET ${wagerAmount.toFixed(3)} SOL`}
-            </button>
+            <p className="text-gray-400 text-xs mt-1">Min: 0.005 SOL | Max: 0.2 SOL</p>
           </div>
-        </>
+
+          <div className="mb-4">
+            <label className="block text-white text-sm font-medium mb-2">Auto Cash Out Multiplier (Optional):</label>
+            <input
+              type="number"
+              step="0.1"
+              min="1.1"
+              max="10.0"
+              value={autoCashOut}
+              onChange={(e) => setAutoCashOut(e.target.value)}
+              className="bg-gray-700 text-white px-3 py-2 rounded-lg w-32"
+              placeholder="e.g., 2.0"
+            />
+            <p className="text-gray-400 text-xs mt-1">Leave empty to cash out manually</p>
+          </div>
+
+          <div className="bg-gray-700 p-3 rounded-lg mb-4">
+            <p className="text-gray-300 text-sm">Transaction Breakdown:</p>
+            <p className="text-white">Total Deducted: {wagerAmount} SOL</p>
+            <p className="text-yellow-400">Dev Fee (12%): {(wagerAmount * 0.12).toFixed(6)} SOL</p>
+            <p className="text-red-400">House Amount: {(wagerAmount * 0.88).toFixed(6)} SOL</p>
+            <p className="text-gray-400 text-xs mt-1">* Full amount deducted upfront, winnings paid separately</p>
+          </div>
+
+          <button
+            onClick={startGame}
+            disabled={loading}
+            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold"
+          >
+            {loading ? 'Starting...' : '🚀 START GAME'}
+          </button>
+        </div>
       ) : (
-        <>
-          {/* Room Game Interface */}
-          <div className="mb-6">
-            {/* Game State Display */}
-            <div className="bg-gray-700 p-4 rounded-lg mb-4 text-center">
-              <h3 className="text-white text-xl font-bold mb-2">{getGameStateDisplay()}</h3>
-              
-              {roomState && roomState.game_state === 'flying' && (
-                <div className="text-4xl font-bold text-green-400 mb-2">
-                  {roomState.current_multiplier.toFixed(2)}x
-                </div>
-              )}
-              
-              {roomState && roomState.game_state === 'crashed' && (
-                <div className="text-4xl font-bold text-red-400 mb-2">
-                  💥 {roomState.crash_point.toFixed(2)}x
-                </div>
-              )}
-              
-              {roomState && roomState.game_state === 'betting' && (
-                <div>
-                  <p className="text-gray-300">Players: {roomState.player_count}/{roomState.min_players}</p>
-                  {roomState.player_count < roomState.min_players && (
-                    <p className="text-yellow-400">Waiting for {roomState.min_players - roomState.player_count} more players...</p>
-                  )}
-                </div>
-              )}
+        <div>
+          <div className="text-center mb-6">
+            <div className={`text-6xl font-bold mb-2 ${gamePhase === 'crashed' ? 'text-red-400' : 'text-green-400'}`}>
+              {currentMultiplier.toFixed(2)}x
             </div>
-
-            {/* Cash Out Button */}
-            {playerData && playerData.status === 'flying' && roomState && roomState.game_state === 'flying' && (
-              <button
-                onClick={cashOut}
-                className="bg-red-500 hover:bg-red-600 text-white px-8 py-4 rounded-lg font-bold text-xl w-full mb-4"
-              >
-                CASH OUT {(playerData.bet_amount * roomState.current_multiplier).toFixed(6)} SOL
-              </button>
-            )}
-
-            {/* Player Status */}
-            {playerData && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4">
-                <h3 className="text-white font-semibold mb-2">Your Status:</h3>
-                <p className="text-gray-300">Bet: {playerData.bet_amount.toFixed(6)} SOL</p>
-                <p className={`${getPlayerStatusColor(playerData.status)} font-bold`}>
-                  {getPlayerStatusIcon(playerData.status)} {playerData.status.toUpperCase()}
-                </p>
-                {playerData.cash_out_multiplier && (
-                  <p className="text-green-400">Cashed out at {playerData.cash_out_multiplier.toFixed(2)}x</p>
-                )}
-                {playerData.payout_amount > 0 && (
-                  <p className="text-yellow-400">Payout: {playerData.payout_amount.toFixed(6)} SOL</p>
-                )}
+            
+            {gamePhase === 'flying' && !cashedOut && (
+              <div>
+                <p className="text-white mb-4">🚀 Flying! Click to cash out!</p>
+                <button
+                  onClick={cashOut}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-4 rounded-lg font-bold text-lg"
+                >
+                  💰 CASH OUT: {(wagerAmount * currentMultiplier).toFixed(4)} SOL
+                </button>
               </div>
             )}
-
-            {/* Room Players */}
-            {roomState && roomState.players.length > 0 && (
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <h3 className="text-white font-semibold mb-2">Room Players ({roomState.players.length}/{roomState.min_players})</h3>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {roomState.players.map((player, index) => (
-                    <div key={index} className="flex justify-between items-center text-sm">
-                      <span className="text-gray-300">
-                        {player.username}
-                        {player.wallet_address === publicKey?.toString() && <span className="text-purple-400"> (You)</span>}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-yellow-400">{player.bet_amount.toFixed(3)} SOL</span>
-                        <span className={`${getPlayerStatusColor(player.status)}`}>
-                          {getPlayerStatusIcon(player.status)}
-                        </span>
-                        {player.cash_out_multiplier && (
-                          <span className="text-green-400 text-xs">
-                            @{player.cash_out_multiplier.toFixed(2)}x
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            
+            {gamePhase === 'crashed' && (
+              <p className="text-red-400 text-xl">💥 CRASHED at {crashPoint.toFixed(2)}x</p>
+            )}
+            
+            {cashedOut && (
+              <p className="text-green-400 text-xl">✅ Cashed out at {cashOutMultiplier.toFixed(2)}x</p>
             )}
           </div>
-        </>
-      )}
 
-      {/* Game Rules */}
-      <div className="mt-6 text-gray-400 text-xs">
-        <p>🎯 <strong>Multiplayer Crash Game:</strong> Join room with other players → Watch shared multiplier → Cash out before crash!</p>
-        <p>👥 <strong>Minimum Players:</strong> 1 player required to start each round (Testing Mode)</p>
-        <p>💰 <strong>Payouts:</strong> Your bet × multiplier when you cash out (real SOL transfers)</p>
-        <p>💸 <strong>Bet Limits:</strong> 0.005 - 0.2 SOL per game</p>
-        <p>🔥 <strong>Dev Fee:</strong> 12% per wager</p>
+          {gameResult && (
+            <div className="bg-gray-700 p-4 rounded-lg mb-4">
+              <h4 className="text-white font-semibold mb-2">Game Result:</h4>
+              <p className="text-gray-300">Result: <span className={`font-bold ${gameResult.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>{gameResult.result.toUpperCase()}</span></p>
+              <p className="text-gray-300">Multiplier: <span className="text-yellow-400">{gameResult.multiplier.toFixed(2)}x</span></p>
+              <p className="text-gray-300">Payout: <span className="text-green-400 font-bold">{gameResult.payout.toFixed(6)} SOL</span></p>
+              {gameResult.result === 'win' && (
+                <p className={`font-semibold ${gameResult.payout > wagerAmount ? 'text-green-400' : 'text-red-400'}`}>
+                  Net: {(gameResult.payout - wagerAmount).toFixed(6)} SOL
+                </p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={newGame}
+            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold"
+          >
+            New Game
+          </button>
+        </div>
+      )}
+      
+      <div className="mt-6 text-sm text-gray-400">
+        <p>🎮 <strong>How to play:</strong> Click START GAME, watch multiplier rise, cash out before it crashes!</p>
+        <p>💰 <strong>Payouts:</strong> Your wager × multiplier when you cash out</p>
+        <p>⚡ <strong>Auto Cash Out:</strong> Set multiplier to automatically cash out</p>
       </div>
     </div>
   );
