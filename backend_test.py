@@ -36,6 +36,14 @@ TESTNET_TOKEN_ADDRESS = "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"
 DEV_WALLET_ADDRESS = "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
 TRANSACTION_FEE_PERCENTAGE = 0.12  # 12% - UPDATED DEV FEE
 
+# Additional test wallets for variety
+TEST_WALLETS = [
+    "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ",
+    "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+    "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    "GDfnEsia2WLAW5t8yx2X5j2mkfA74i5kwGdDuZHt7XmG"
+]
+
 # Helper function to generate a random client name
 def random_client_name():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
