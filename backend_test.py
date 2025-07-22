@@ -48,6 +48,10 @@ TEST_WALLETS = [
 def random_client_name():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
+# Helper function to generate a random client name
+def random_client_name():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
 # Helper function to print test results
 def print_test_result(test_name, success, response=None, error=None):
     if success:
