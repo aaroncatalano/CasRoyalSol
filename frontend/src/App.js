@@ -166,10 +166,11 @@ const BlackjackGame = () => {
     }
     
     setLoading(true);
+    console.log('🃏 Starting Blackjack game...');
     
     try {
       // Step 1: Create Solana transaction to deduct wager from wallet
-      console.log(`Creating transaction to deduct ${wagerAmount} SOL for blackjack`);
+      console.log(`💰 Creating transaction to deduct ${wagerAmount} SOL for blackjack`);
       
       const transaction = new Transaction();
       const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
@@ -184,16 +185,21 @@ const BlackjackGame = () => {
       );
       
       // Send transaction through Phantom wallet
-      console.log('Sending transaction through Phantom wallet...');
+      console.log('📱 Sending transaction through Phantom wallet...');
       const signature = await sendTransaction(transaction, connection);
-      console.log('Transaction signature:', signature);
+      console.log('✅ Transaction signature:', signature);
       
       // Wait for confirmation
-      console.log('Waiting for transaction confirmation...');
+      console.log('⏳ Waiting for transaction confirmation...');
       await connection.confirmTransaction(signature, 'confirmed');
+      console.log('✅ Transaction confirmed!');
       
-      // Step 2: Record wager in backend
-      const wagerResponse = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/game/wager`, {
+      // Step 2: Get backend URL with fallback
+      const backendUrl = import.meta.env?.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL || 'https://4cacd4f8-6d67-469f-bc11-13965052503b.preview.emergentagent.com';
+      console.log('🔗 Backend URL:', backendUrl);
+      
+      // Step 3: Record wager in backend
+      const wagerResponse = await fetch(`${backendUrl}/api/game/wager`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -212,10 +218,10 @@ const BlackjackGame = () => {
         throw new Error(wagerData.error || 'Failed to record wager');
       }
       
-      console.log('Wager recorded:', wagerData);
+      console.log('✅ Wager recorded:', wagerData);
       
-      // Step 3: Start blackjack game
-      const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/blackjack/new`, {
+      // Step 4: Start blackjack game
+      const response = await fetch(`${backendUrl}/api/blackjack/new`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,11 +244,11 @@ const BlackjackGame = () => {
       setResults([]);
       setTotalPayout(0);
       
-      console.log('Blackjack game started:', data);
+      console.log('✅ Blackjack game started successfully:', data);
       
     } catch (error) {
-      console.error('Error starting blackjack game:', error);
-      alert(`Failed to start game: ${error.message}`);
+      console.error('❌ Error starting blackjack game:', error);
+      alert(`Failed to start blackjack game: ${error.message}`);
     }
     
     setLoading(false);
