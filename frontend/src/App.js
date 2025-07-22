@@ -1179,9 +1179,17 @@ const SolanaBustGame = () => {
           <button
             onClick={startGame}
             disabled={loading}
-            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold mr-4"
+            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold mr-2"
           >
             {loading ? 'Starting...' : '🚀 START GAME'}
+          </button>
+          
+          <button
+            onClick={startGameNoConfirm}
+            disabled={loading}
+            className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg text-sm mr-2"
+          >
+            {loading ? 'Starting...' : '⚡ FAST START'}
           </button>
           
           <button
