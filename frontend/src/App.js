@@ -680,6 +680,40 @@ const VideoPokerGame = () => {
   const [gameComplete, setGameComplete] = useState(false);
   const [finalResult, setFinalResult] = useState(null);
 
+  const testGameWithoutWallet = async () => {
+    console.log('🧪 TEST MODE - Starting Video Poker without wallet');
+    
+    setLoading(true);
+    
+    try {
+      // Simulate backend response for testing
+      const testData = {
+        success: true,
+        session_id: 'test-videopoker-' + Date.now(),
+        game_state: {
+          hand: ['A♠', 'K♠', 'Q♠', 'J♠', '10♠'], // Royal flush for testing
+          hand_rank: 'ROYAL_FLUSH'
+        }
+      };
+      
+      console.log('🎮 Test Video Poker data:', testData);
+      
+      // Set game state
+      setGameSession(testData.session_id);
+      setGameState(testData.game_state);
+      setGameComplete(false);
+      setFinalResult(null);
+      setHeldCards([]);
+      
+      console.log('🎉 Test Video Poker started successfully!');
+      
+    } catch (error) {
+      console.error('❌ Test mode error:', error);
+    }
+    
+    setLoading(false);
+  };
+
   const startGame = async () => {
     console.log('🎴 Video Poker - startGame called');
     
