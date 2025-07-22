@@ -3936,7 +3936,13 @@ def run_all_tests():
         ("SolanaBust 12% Developer Fee Calculation", test_solanabust_12_percent_dev_fee),
         ("SolanaBust Multiplayer Game Flow", test_solanabust_multiplayer_game_flow),
         ("SolanaBust Real SOL Payout Integration", test_solanabust_real_sol_payout_integration),
-        ("SolanaBust Edge Cases and Error Handling", test_solanabust_edge_cases)
+        ("SolanaBust Edge Cases and Error Handling", test_solanabust_edge_cases),
+        ("SolanaBust Single Player Start Game", test_solanabust_single_player_start),
+        ("SolanaBust Single Player Cash Out", test_solanabust_single_player_cash_out),
+        ("SolanaBust Wager Validation (Single Player)", test_solanabust_wager_validation),
+        ("SolanaBust Crash Point Generation", test_solanabust_crash_point_generation),
+        ("SolanaBust Database Integration", test_solanabust_database_integration),
+        ("SolanaBust Error Handling", test_solanabust_error_handling)
     ]
     
     results = {}
