@@ -634,7 +634,7 @@ const VideoPokerGame = () => {
       
     } catch (error) {
       console.error('❌ Error starting video poker game:', error);
-      alert(`Failed to start video poker game: ${error.message}`);
+      console.log(`Failed to start video poker game: ${error.message}`);
     }
     
     setLoading(false);
