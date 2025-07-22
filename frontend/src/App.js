@@ -982,24 +982,28 @@ const SolanaBustGame = () => {
   };
 
   const startMultiplierAnimation = (crashPointValue) => {
+    console.log('🎬 startMultiplierAnimation called with crash point:', crashPointValue);
     const startTime = Date.now();
     const autoCashOutValue = autoCashOut ? parseFloat(autoCashOut) : null;
+    console.log('⚡ Auto cash-out value:', autoCashOutValue);
     
     const animateMultiplier = () => {
       const elapsed = (Date.now() - startTime) / 1000;
       const newMultiplier = 1.00 + (elapsed * 0.2); // 0.2x per second
       
+      console.log(`🎯 Multiplier: ${newMultiplier.toFixed(2)}x (elapsed: ${elapsed.toFixed(1)}s)`);
       setCurrentMultiplier(newMultiplier);
       
       // Check auto cash-out first
       if (autoCashOutValue && newMultiplier >= autoCashOutValue && !cashedOut) {
-        console.log(`Auto cash-out triggered at ${newMultiplier.toFixed(2)}x`);
+        console.log(`🤖 Auto cash-out triggered at ${newMultiplier.toFixed(2)}x`);
         handleCashOut(autoCashOutValue);
         return;
       }
       
       // Check if we've reached crash point
       if (newMultiplier >= crashPointValue) {
+        console.log(`💥 CRASHED at ${crashPointValue.toFixed(2)}x`);
         setGamePhase('crashed');
         setCurrentMultiplier(crashPointValue);
         
@@ -1020,6 +1024,7 @@ const SolanaBustGame = () => {
     };
     
     // Start animation
+    console.log('🎭 Starting animation loop...');
     animateMultiplier();
   };
 
