@@ -340,6 +340,49 @@ const BlackjackGame = () => {
     setLoading(false);
   };
 
+  const testGameWithoutWallet = async () => {
+    console.log('🧪 TEST MODE - Starting blackjack without wallet transaction');
+    
+    setLoading(true);
+    
+    try {
+      // Simulate backend response for testing
+      const testData = {
+        success: true,
+        session_id: 'test-blackjack-' + Date.now(),
+        game_state: {
+          player_hands: [{
+            cards: ['A♠', '7♥'],
+            value: 18,
+            busted: false
+          }],
+          dealer_hand: {
+            cards: ['K♦', '?'],
+            value: 10,
+            busted: false
+          }
+        }
+      };
+      
+      console.log('🎮 Test blackjack data:', testData);
+      
+      // Set game state
+      setGameSession(testData.session_id);
+      setGameState(testData.game_state);
+      setGameComplete(false);
+      setResults([]);
+      setTotalPayout(0);
+      
+      console.log('🎉 Test blackjack game started successfully!');
+      
+    } catch (error) {
+      console.error('❌ Test mode error:', error);
+      alert(`Test mode failed: ${error.message}`);
+    }
+    
+    setLoading(false);
+  };
+
   // Remove old placeWager function - now handled in startGame
   // const placeWager = async () => { ... }
 
