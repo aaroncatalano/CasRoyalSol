@@ -1164,18 +1164,36 @@ const SolanaBustGame = () => {
 
   const startGame = async () => {
     if (!publicKey) {
-      alert('Please connect your wallet first!');
+      console.log('❌ No wallet connected');
       return;
     }
     
     setLoading(true);
-    console.log('🎮 Starting SolanaBust game...');
+    console.log('🚀 Starting SolanaBust game...');
     
     try {
-      // Step 1: Create and send Solana transaction
-      console.log(`💰 Creating transaction: ${wagerAmount} SOL`);
+      // Step 1: Verify wallet connection and balance
+      console.log('🔐 Verifying wallet connection...');
+      if (!connection) {
+        throw new Error('No Solana connection available');
+      }
+      
+      const balance = await connection.getBalance(publicKey);
+      const balanceSOL = balance / LAMPORTS_PER_SOL;
+      console.log(`💰 Wallet balance: ${balanceSOL.toFixed(4)} SOL`);
+      
+      if (balanceSOL < wagerAmount) {
+        throw new Error(`Insufficient balance. Need ${wagerAmount} SOL, have ${balanceSOL.toFixed(4)} SOL`);
+      }
+      
+      // Step 2: Create and send transaction
+      console.log(`💸 Creating transaction for ${wagerAmount} SOL`);
       
       const transaction = new Transaction();
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+      
       const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
       
       transaction.add(
@@ -1186,17 +1204,52 @@ const SolanaBustGame = () => {
         })
       );
       
+      // Send with retry logic
       console.log('📱 Sending to Phantom...');
-      const signature = await sendTransaction(transaction, connection);
-      console.log('✅ Transaction sent:', signature);
+      let signature;
+      let attempts = 0;
+      const maxAttempts = 3;
       
-      // Step 2: Wait for confirmation
+      while (attempts < maxAttempts) {
+        try {
+          signature = await sendTransaction(transaction, connection, {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+            maxRetries: 3
+          });
+          console.log(`✅ Transaction sent (attempt ${attempts + 1}): ${signature}`);
+          break;
+        } catch (txError) {
+          attempts++;
+          console.log(`❌ Transaction attempt ${attempts} failed:`, txError.message);
+          if (attempts >= maxAttempts) {
+            throw new Error(`Transaction failed after ${maxAttempts} attempts: ${txError.message}`);
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      // Step 3: Wait for confirmation
       console.log('⏳ Waiting for confirmation...');
-      await connection.confirmTransaction(signature, 'confirmed');
+      const confirmationPromise = connection.confirmTransaction(signature, 'confirmed');
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
+      );
+      
+      await Promise.race([confirmationPromise, timeoutPromise]);
       console.log('✅ Transaction confirmed!');
       
-      // Step 3: IMMEDIATELY start the game with mock data (bypass backend for now)
-      console.log('🚀 BYPASSING BACKEND - Starting game immediately');
+      // Step 4: Verify transaction
+      const txInfo = await connection.getTransaction(signature, { commitment: 'confirmed' });
+      if (!txInfo) {
+        throw new Error('Transaction not found after confirmation');
+      }
+      
+      console.log('💯 Transaction verified on blockchain');
+      console.log('💳 SOL successfully deducted from wallet');
+      
+      // Step 5: Start game immediately with mock data (bypass backend for now)
+      console.log('🚀 Starting SolanaBust with mock data...');
       
       const mockCrashPoint = Math.random() * 20 + 2; // Random 2-22x
       const sessionId = 'real-' + Date.now();
@@ -1210,15 +1263,25 @@ const SolanaBustGame = () => {
       setCurrentMultiplier(1.00);
       setGamePhase('flying');
       
-      console.log('🎯 States set! Crash point:', mockCrashPoint);
+      console.log('🎯 Game initialized! Crash point:', mockCrashPoint);
+      console.log('🎬 Starting animation...');
       
       // Force immediate animation start
-      console.log('🎬 FORCING animation start...');
       startMultiplierAnimation(mockCrashPoint);
       
     } catch (error) {
-      console.error('❌ Error:', error);
-      alert(`Game failed: ${error.message}`);
+      console.error('❌ SolanaBust error:', error);
+      console.log(`🚨 SOLANABUST START FAILED: ${error.message}`);
+      
+      if (error.message.includes('User rejected')) {
+        console.log('🙅 User cancelled the transaction');
+      } else if (error.message.includes('Insufficient balance')) {
+        console.log('💸 Not enough SOL in wallet');
+      } else if (error.message.includes('timeout')) {
+        console.log('⏰ Transaction took too long - please try again');
+      } else {
+        console.log('🔧 Technical error - please check wallet connection');
+      }
     }
     
     setLoading(false);
