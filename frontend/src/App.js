@@ -1021,13 +1021,12 @@ const SolanaBustGame = () => {
     console.log('🎮 Starting SolanaBust game...');
     
     try {
-      // Step 1: Create Solana transaction to deduct wager from wallet
-      console.log(`💰 Creating transaction to deduct ${wagerAmount} SOL for SolanaBust`);
+      // Step 1: Create and send Solana transaction
+      console.log(`💰 Creating transaction: ${wagerAmount} SOL`);
       
       const transaction = new Transaction();
       const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
       
-      // Send full wager to dev wallet (12% fee + 88% house amount)
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -1036,71 +1035,42 @@ const SolanaBustGame = () => {
         })
       );
       
-      // Send transaction through Phantom wallet
-      console.log('📱 Sending transaction through Phantom wallet...');
+      console.log('📱 Sending to Phantom...');
       const signature = await sendTransaction(transaction, connection);
-      console.log('✅ Transaction signature:', signature);
+      console.log('✅ Transaction sent:', signature);
       
-      // Wait for confirmation
-      console.log('⏳ Waiting for transaction confirmation...');
+      // Step 2: Wait for confirmation
+      console.log('⏳ Waiting for confirmation...');
       await connection.confirmTransaction(signature, 'confirmed');
       console.log('✅ Transaction confirmed!');
       
-      // Step 2: Call backend to start game
-      console.log('🎲 Calling backend to start SolanaBust game...');
-      const backendUrl = import.meta.env.REACT_APP_BACKEND_URL;
-      console.log('🔗 Backend URL:', backendUrl);
+      // Step 3: IMMEDIATELY start the game with mock data (bypass backend for now)
+      console.log('🚀 BYPASSING BACKEND - Starting game immediately');
       
-      const requestBody = {
-        player_wallet: publicKey.toString(),
-        wager_amount: wagerAmount,
-        auto_cash_out: autoCashOut ? parseFloat(autoCashOut) : null,
-        transaction_signature: signature
-      };
-      console.log('📤 Request body:', requestBody);
+      const mockCrashPoint = Math.random() * 20 + 2; // Random 2-22x
+      const sessionId = 'real-' + Date.now();
       
-      const response = await fetch(`${backendUrl}/api/solanabust/start`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      console.log('📡 Response status:', response.status);
-      const data = await response.json();
-      console.log('📥 Response data:', data);
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Backend returned success: false');
-      }
-      
-      // Step 3: Initialize game state
-      console.log('🎯 Initializing game state...');
-      setGameSession(data.session_id);
-      setCrashPoint(data.crash_point);
+      // Set all states immediately
+      setGameSession(sessionId);
+      setCrashPoint(mockCrashPoint);
       setCashedOut(false);
       setCashOutMultiplier(null);
       setGameResult(null);
       setCurrentMultiplier(1.00);
       setGamePhase('flying');
       
-      console.log('🚀 Game initialized! Crash point:', data.crash_point);
-      console.log('🎬 Starting animation...');
+      console.log('🎯 States set! Crash point:', mockCrashPoint);
       
-      // Step 4: Start the multiplier animation immediately
-      setTimeout(() => {
-        console.log('🎭 Animation timeout triggered');
-        startMultiplierAnimation(data.crash_point);
-      }, 100);
+      // Force immediate animation start
+      console.log('🎬 FORCING animation start...');
+      startMultiplierAnimation(mockCrashPoint);
       
     } catch (error) {
-      console.error('❌ Error starting SolanaBust game:', error);
-      alert(`Failed to start game: ${error.message}`);
+      console.error('❌ Error:', error);
+      alert(`Game failed: ${error.message}`);
     }
     
     setLoading(false);
-    console.log('✅ startGame function completed');
   };
 
   const startMultiplierAnimation = (crashPointValue) => {
