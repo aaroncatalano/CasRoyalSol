@@ -896,10 +896,11 @@ const SolanaBustGame = () => {
     }
     
     setLoading(true);
+    console.log('🎮 Starting SolanaBust game...');
     
     try {
       // Step 1: Create Solana transaction to deduct wager from wallet
-      console.log(`Creating transaction to deduct ${wagerAmount} SOL for SolanaBust`);
+      console.log(`💰 Creating transaction to deduct ${wagerAmount} SOL for SolanaBust`);
       
       const transaction = new Transaction();
       const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
@@ -914,35 +915,46 @@ const SolanaBustGame = () => {
       );
       
       // Send transaction through Phantom wallet
-      console.log('Sending transaction through Phantom wallet...');
+      console.log('📱 Sending transaction through Phantom wallet...');
       const signature = await sendTransaction(transaction, connection);
-      console.log('Transaction signature:', signature);
+      console.log('✅ Transaction signature:', signature);
       
       // Wait for confirmation
-      console.log('Waiting for transaction confirmation...');
+      console.log('⏳ Waiting for transaction confirmation...');
       await connection.confirmTransaction(signature, 'confirmed');
+      console.log('✅ Transaction confirmed!');
       
-      // Step 2: Record wager and start game
-      const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/solanabust/start`, {
+      // Step 2: Call backend to start game
+      console.log('🎲 Calling backend to start SolanaBust game...');
+      const backendUrl = import.meta.env.REACT_APP_BACKEND_URL;
+      console.log('🔗 Backend URL:', backendUrl);
+      
+      const requestBody = {
+        player_wallet: publicKey.toString(),
+        wager_amount: wagerAmount,
+        auto_cash_out: autoCashOut ? parseFloat(autoCashOut) : null,
+        transaction_signature: signature
+      };
+      console.log('📤 Request body:', requestBody);
+      
+      const response = await fetch(`${backendUrl}/api/solanabust/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          player_wallet: publicKey.toString(),
-          wager_amount: wagerAmount,
-          auto_cash_out: autoCashOut ? parseFloat(autoCashOut) : null,
-          transaction_signature: signature
-        })
+        body: JSON.stringify(requestBody)
       });
       
+      console.log('📡 Response status:', response.status);
       const data = await response.json();
+      console.log('📥 Response data:', data);
       
       if (!data.success) {
-        throw new Error(data.error || 'Failed to start game');
+        throw new Error(data.error || 'Backend returned success: false');
       }
       
-      // Initialize game state
+      // Step 3: Initialize game state
+      console.log('🎯 Initializing game state...');
       setGameSession(data.session_id);
       setCrashPoint(data.crash_point);
       setCashedOut(false);
@@ -951,18 +963,22 @@ const SolanaBustGame = () => {
       setCurrentMultiplier(1.00);
       setGamePhase('flying');
       
-      console.log('SolanaBust game started:', data);
-      console.log('Crash point:', data.crash_point);
+      console.log('🚀 Game initialized! Crash point:', data.crash_point);
+      console.log('🎬 Starting animation...');
       
-      // Start the multiplier animation immediately
-      startMultiplierAnimation(data.crash_point);
+      // Step 4: Start the multiplier animation immediately
+      setTimeout(() => {
+        console.log('🎭 Animation timeout triggered');
+        startMultiplierAnimation(data.crash_point);
+      }, 100);
       
     } catch (error) {
-      console.error('Error starting SolanaBust game:', error);
+      console.error('❌ Error starting SolanaBust game:', error);
       alert(`Failed to start game: ${error.message}`);
     }
     
     setLoading(false);
+    console.log('✅ startGame function completed');
   };
 
   const startMultiplierAnimation = (crashPointValue) => {
