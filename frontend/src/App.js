@@ -548,9 +548,31 @@ const VideoPokerGame = () => {
     setLoading(true);
     
     try {
-      // Step 1: Record wager in backend (no blockchain transaction yet)
-      console.log(`Recording wager: ${wagerAmount} SOL for video_poker`);
+      // Step 1: Create Solana transaction to deduct wager from wallet
+      console.log(`Creating transaction to deduct ${wagerAmount} SOL for video_poker`);
       
+      const transaction = new Transaction();
+      const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
+      
+      // Send full wager to dev wallet (12% fee + 88% house amount)
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
+          lamports: lamportsToSend
+        })
+      );
+      
+      // Send transaction through Phantom wallet
+      console.log('Sending transaction through Phantom wallet...');
+      const signature = await sendTransaction(transaction, connection);
+      console.log('Transaction signature:', signature);
+      
+      // Wait for confirmation
+      console.log('Waiting for transaction confirmation...');
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      // Step 2: Record wager in backend
       const wagerResponse = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/game/wager`, {
         method: 'POST',
         headers: {
@@ -561,6 +583,7 @@ const VideoPokerGame = () => {
           amount: wagerAmount,
           game_type: 'video_poker',
           session_id: Date.now().toString(),
+          transaction_signature: signature
         })
       });
       
@@ -571,7 +594,7 @@ const VideoPokerGame = () => {
       
       console.log('Wager recorded:', wagerData);
       
-      // Step 2: Start video poker game
+      // Step 3: Start video poker game
       const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/video_poker/new`, {
         method: 'POST',
         headers: {
