@@ -552,10 +552,11 @@ const VideoPokerGame = () => {
     }
     
     setLoading(true);
+    console.log('🎴 Starting Video Poker game...');
     
     try {
       // Step 1: Create Solana transaction to deduct wager from wallet
-      console.log(`Creating transaction to deduct ${wagerAmount} SOL for video_poker`);
+      console.log(`💰 Creating transaction to deduct ${wagerAmount} SOL for video_poker`);
       
       const transaction = new Transaction();
       const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
@@ -570,16 +571,21 @@ const VideoPokerGame = () => {
       );
       
       // Send transaction through Phantom wallet
-      console.log('Sending transaction through Phantom wallet...');
+      console.log('📱 Sending transaction through Phantom wallet...');
       const signature = await sendTransaction(transaction, connection);
-      console.log('Transaction signature:', signature);
+      console.log('✅ Transaction signature:', signature);
       
       // Wait for confirmation
-      console.log('Waiting for transaction confirmation...');
+      console.log('⏳ Waiting for transaction confirmation...');
       await connection.confirmTransaction(signature, 'confirmed');
+      console.log('✅ Transaction confirmed!');
       
-      // Step 2: Record wager in backend
-      const wagerResponse = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/game/wager`, {
+      // Step 2: Get backend URL with fallback
+      const backendUrl = import.meta.env?.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL || 'https://4cacd4f8-6d67-469f-bc11-13965052503b.preview.emergentagent.com';
+      console.log('🔗 Backend URL:', backendUrl);
+      
+      // Step 3: Record wager in backend
+      const wagerResponse = await fetch(`${backendUrl}/api/game/wager`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -598,10 +604,10 @@ const VideoPokerGame = () => {
         throw new Error(wagerData.error || 'Failed to record wager');
       }
       
-      console.log('Wager recorded:', wagerData);
+      console.log('✅ Wager recorded:', wagerData);
       
-      // Step 3: Start video poker game
-      const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/video_poker/new`, {
+      // Step 4: Start video poker game
+      const response = await fetch(`${backendUrl}/api/video_poker/new`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -624,11 +630,11 @@ const VideoPokerGame = () => {
       setFinalResult(null);
       setHeldCards([]);
       
-      console.log('Video Poker game started:', data);
+      console.log('✅ Video Poker game started successfully:', data);
       
     } catch (error) {
-      console.error('Error starting video poker game:', error);
-      alert(`Failed to start game: ${error.message}`);
+      console.error('❌ Error starting video poker game:', error);
+      alert(`Failed to start video poker game: ${error.message}`);
     }
     
     setLoading(false);
