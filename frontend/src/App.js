@@ -889,6 +889,41 @@ const SolanaBustGame = () => {
   const [cashedOut, setCashedOut] = useState(false);
   const [cashOutMultiplier, setCashOutMultiplier] = useState(null);
 
+  const testGame = async () => {
+    console.log('🧪 TEST GAME - Bypassing wallet transaction');
+    
+    // Simulate backend response
+    const testData = {
+      success: true,
+      session_id: 'test-session-' + Date.now(),
+      crash_point: Math.random() * 10 + 2, // Random between 2-12x
+      game_state: {
+        status: "flying",
+        wager_amount: wagerAmount,
+        auto_cash_out: autoCashOut ? parseFloat(autoCashOut) : null
+      }
+    };
+    
+    console.log('🎮 Test data:', testData);
+    
+    // Initialize game state
+    setGameSession(testData.session_id);
+    setCrashPoint(testData.crash_point);
+    setCashedOut(false);
+    setCashOutMultiplier(null);
+    setGameResult(null);
+    setCurrentMultiplier(1.00);
+    setGamePhase('flying');
+    
+    console.log('🚀 Test game initialized! Crash point:', testData.crash_point);
+    
+    // Start animation
+    setTimeout(() => {
+      console.log('🎭 Starting test animation...');
+      startMultiplierAnimation(testData.crash_point);
+    }, 100);
+  };
+
   const startGame = async () => {
     if (!publicKey) {
       alert('Please connect your wallet first!');
