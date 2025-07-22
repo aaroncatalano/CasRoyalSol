@@ -248,7 +248,7 @@ const BlackjackGame = () => {
       
     } catch (error) {
       console.error('❌ Error starting blackjack game:', error);
-      alert(`Failed to start blackjack game: ${error.message}`);
+      console.log(`Failed to start blackjack game: ${error.message}`);
     }
     
     setLoading(false);
