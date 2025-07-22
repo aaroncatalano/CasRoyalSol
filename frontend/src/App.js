@@ -168,9 +168,31 @@ const BlackjackGame = () => {
     setLoading(true);
     
     try {
-      // Step 1: Record wager in backend (no blockchain transaction yet)
-      console.log(`Recording wager: ${wagerAmount} SOL for blackjack`);
+      // Step 1: Create Solana transaction to deduct wager from wallet
+      console.log(`Creating transaction to deduct ${wagerAmount} SOL for blackjack`);
       
+      const transaction = new Transaction();
+      const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
+      
+      // Send full wager to dev wallet (12% fee + 88% house amount)
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
+          lamports: lamportsToSend
+        })
+      );
+      
+      // Send transaction through Phantom wallet
+      console.log('Sending transaction through Phantom wallet...');
+      const signature = await sendTransaction(transaction, connection);
+      console.log('Transaction signature:', signature);
+      
+      // Wait for confirmation
+      console.log('Waiting for transaction confirmation...');
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      // Step 2: Record wager in backend
       const wagerResponse = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/game/wager`, {
         method: 'POST',
         headers: {
@@ -181,6 +203,7 @@ const BlackjackGame = () => {
           amount: wagerAmount,
           game_type: 'blackjack',
           session_id: Date.now().toString(),
+          transaction_signature: signature
         })
       });
       
@@ -191,7 +214,7 @@ const BlackjackGame = () => {
       
       console.log('Wager recorded:', wagerData);
       
-      // Step 2: Start blackjack game
+      // Step 3: Start blackjack game
       const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/blackjack/new`, {
         method: 'POST',
         headers: {
