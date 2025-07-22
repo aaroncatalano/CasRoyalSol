@@ -515,9 +515,16 @@ const BlackjackGame = () => {
               startGame();
             }}
             disabled={loading}
-            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold"
+            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold mr-2"
           >
-            {loading ? 'Starting...' : 'Start Game'}
+            {loading ? 'Processing...' : '🎴 START GAME'}
+          </button>
+          
+          <button
+            onClick={testGameWithoutWallet}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"
+          >
+            🧪 TEST MODE
           </button>
         </div>
       ) : (
