@@ -715,7 +715,7 @@ const VideoPokerGame = () => {
   };
 
   const startGame = async () => {
-    console.log('🎴 Video Poker - startGame called');
+    console.log('🎴 Video Poker - FIXED startGame called');
     
     if (!publicKey) {
       console.log('❌ No wallet connected');
@@ -725,154 +725,123 @@ const VideoPokerGame = () => {
     setLoading(true);
     
     try {
-      // Step 1: Simple wallet connection test
-      console.log('🔍 Testing wallet connection...');
-      console.log('📍 Wallet address:', publicKey.toString());
+      console.log('🔍 Step 1: Checking wallet balance...');
       
-      // Step 2: Check if we can get balance (simplest RPC test)
-      let balance;
-      try {
-        console.log('💰 Checking wallet balance...');
-        balance = await connection.getBalance(publicKey);
-        const balanceSOL = balance / LAMPORTS_PER_SOL;
-        console.log(`✅ Balance: ${balanceSOL.toFixed(4)} SOL`);
-        
-        if (balanceSOL < wagerAmount) {
-          throw new Error(`Need ${wagerAmount} SOL, have ${balanceSOL.toFixed(4)} SOL`);
-        }
-      } catch (balanceError) {
-        console.log('❌ Balance check failed:', balanceError);
-        throw new Error('Cannot connect to Solana network');
+      // Get balance first
+      const balance = await connection.getBalance(publicKey);
+      const balanceSOL = balance / LAMPORTS_PER_SOL;
+      console.log(`💰 Current balance: ${balanceSOL.toFixed(4)} SOL`);
+      
+      if (balanceSOL < wagerAmount) {
+        throw new Error(`Insufficient balance. Need ${wagerAmount} SOL, have ${balanceSOL.toFixed(4)} SOL`);
       }
       
-      // Step 3: Create the simplest possible transaction
-      console.log('📝 Creating simple transaction...');
+      console.log('🔧 Step 2: Creating transaction with FRESH blockhash...');
       
-      let transaction;
-      try {
-        transaction = new Transaction();
-        
-        // Get latest blockhash
-        const latestBlockhash = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = latestBlockhash.blockhash;
-        transaction.feePayer = publicKey;
-        
-        // Calculate lamports
-        const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
-        console.log(`💸 Will send ${lamportsToSend} lamports (${wagerAmount} SOL)`);
-        
-        // Add transfer instruction
-        const transferInstruction = SystemProgram.transfer({
+      // Get the LATEST blockhash right before creating transaction
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+      console.log('✅ Got fresh blockhash:', blockhash.slice(0, 8) + '...');
+      
+      // Create transaction
+      const transaction = new Transaction({
+        feePayer: publicKey,
+        recentBlockhash: blockhash
+      });
+      
+      const lamportsToSend = Math.floor(wagerAmount * LAMPORTS_PER_SOL);
+      console.log(`💸 Adding transfer: ${lamportsToSend} lamports (${wagerAmount} SOL)`);
+      
+      // Add the transfer instruction
+      transaction.add(
+        SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: new PublicKey(DEV_WALLET_ADDRESS),
           lamports: lamportsToSend
-        });
-        
-        transaction.add(transferInstruction);
-        console.log('✅ Transaction created successfully');
-        
-      } catch (txCreateError) {
-        console.log('❌ Transaction creation failed:', txCreateError);
-        throw new Error('Failed to create transaction');
+        })
+      );
+      
+      console.log('📱 Step 3: Sending to Phantom with fresh blockhash...');
+      
+      // Send transaction immediately with fresh blockhash
+      const signature = await sendTransaction(transaction, connection, {
+        skipPreflight: true, // Skip preflight to avoid simulation issues
+        preflightCommitment: 'finalized',
+        maxRetries: 0 // Don't retry, just send once
+      });
+      
+      console.log('✅ Transaction sent successfully:', signature);
+      
+      if (!signature) {
+        throw new Error('No transaction signature returned');
       }
       
-      // Step 4: Send transaction with minimal options
-      console.log('📱 Sending transaction to Phantom...');
-      console.log('⚠️ If Phantom popup appears, please approve the transaction');
+      console.log('⏳ Step 4: Confirming transaction...');
       
-      let signature;
-      try {
-        // Use the most basic sendTransaction call possible
-        signature = await sendTransaction(transaction, connection);
-        console.log('✅ Transaction signature received:', signature);
-        
-        if (!signature) {
-          throw new Error('No transaction signature returned');
-        }
-        
-      } catch (sendError) {
-        console.log('❌ Transaction send failed:', sendError);
-        
-        if (sendError.message.includes('User rejected')) {
-          throw new Error('You cancelled the transaction in Phantom wallet');
-        } else if (sendError.message.includes('insufficient')) {
-          throw new Error('Insufficient SOL balance');
-        } else {
-          throw new Error('Phantom wallet connection failed - please refresh and try again');
-        }
+      // Wait for confirmation with proper timeout
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight
+      }, 'confirmed');
+      
+      if (confirmation.value.err) {
+        throw new Error('Transaction failed: ' + JSON.stringify(confirmation.value.err));
       }
       
-      // Step 5: Simple confirmation (no timeout for now)
-      console.log('⏳ Waiting for blockchain confirmation...');
-      try {
-        await connection.confirmTransaction(signature, 'confirmed');
-        console.log('✅ Transaction confirmed on blockchain!');
-      } catch (confirmError) {
-        console.log('⚠️ Confirmation failed, but transaction may still be valid:', confirmError);
-        // Continue anyway - sometimes confirmTransaction fails but transaction succeeds
+      console.log('✅ Transaction confirmed on blockchain!');
+      
+      // Verify the balance changed
+      const newBalance = await connection.getBalance(publicKey);
+      const newBalanceSOL = newBalance / LAMPORTS_PER_SOL;
+      const deducted = balanceSOL - newBalanceSOL;
+      
+      console.log(`💳 Balance before: ${balanceSOL.toFixed(4)} SOL`);
+      console.log(`💳 Balance after: ${newBalanceSOL.toFixed(4)} SOL`);
+      console.log(`💸 Amount deducted: ${deducted.toFixed(4)} SOL`);
+      
+      if (deducted >= (wagerAmount - 0.01)) { // Allow for small fee differences
+        console.log('🎉 SOL SUCCESSFULLY DEDUCTED FROM WALLET!');
+      } else {
+        console.log('⚠️ Balance change not detected, but transaction confirmed');
       }
       
-      // Step 6: Verify transaction was actually processed
-      console.log('🔍 Verifying transaction...');
-      try {
-        const txResult = await connection.getTransaction(signature, {
-          commitment: 'confirmed',
-          maxSupportedTransactionVersion: 0
-        });
-        
-        if (txResult && txResult.meta && txResult.meta.err === null) {
-          console.log('✅ Transaction successfully processed on blockchain!');
-          console.log('💳 SOL deducted from wallet successfully!');
-          
-          // Check new balance
-          const newBalance = await connection.getBalance(publicKey);
-          const newBalanceSOL = newBalance / LAMPORTS_PER_SOL;
-          console.log(`💰 New wallet balance: ${newBalanceSOL.toFixed(4)} SOL`);
-          
-        } else {
-          console.log('⚠️ Transaction may have failed:', txResult?.meta?.err);
-        }
-      } catch (verifyError) {
-        console.log('⚠️ Could not verify transaction:', verifyError);
-      }
+      console.log('🎮 Step 5: Starting video poker game...');
       
-      // Step 7: Start the game (backend integration)
-      console.log('🎮 Starting Video Poker game...');
+      // Now start the game
+      const backendUrl = import.meta.env?.REACT_APP_BACKEND_URL || 
+                        process.env.REACT_APP_BACKEND_URL || 
+                        'https://4cacd4f8-6d67-469f-bc11-13965052503b.preview.emergentagent.com';
       
-      try {
-        const backendUrl = import.meta.env?.REACT_APP_BACKEND_URL || 
-                          process.env.REACT_APP_BACKEND_URL || 
-                          'https://4cacd4f8-6d67-469f-bc11-13965052503b.preview.emergentagent.com';
-        
-        // Record wager
-        const wagerResponse = await fetch(`${backendUrl}/api/game/wager`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            player_wallet: publicKey.toString(),
-            amount: wagerAmount,
-            game_type: 'video_poker',
-            session_id: Date.now().toString(),
-            transaction_signature: signature
-          })
-        });
-        
+      // Record wager
+      const wagerResponse = await fetch(`${backendUrl}/api/game/wager`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_wallet: publicKey.toString(),
+          amount: wagerAmount,
+          game_type: 'video_poker',
+          session_id: Date.now().toString(),
+          transaction_signature: signature
+        })
+      });
+      
+      if (wagerResponse.ok) {
         const wagerData = await wagerResponse.json();
-        console.log('📊 Wager response:', wagerData);
-        
-        // Start game
-        const gameResponse = await fetch(`${backendUrl}/api/video_poker/new`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            player_wallet: publicKey.toString(),
-            wager: wagerAmount
-          })
-        });
-        
+        console.log('✅ Wager recorded:', wagerData);
+      }
+      
+      // Start game
+      const gameResponse = await fetch(`${backendUrl}/api/video_poker/new`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_wallet: publicKey.toString(),
+          wager: wagerAmount
+        })
+      });
+      
+      if (gameResponse.ok) {
         const gameData = await gameResponse.json();
-        console.log('🎲 Game response:', gameData);
-        
         if (gameData.success) {
           setGameSession(gameData.session_id);
           setGameState(gameData.game_state);
@@ -880,20 +849,26 @@ const VideoPokerGame = () => {
           setFinalResult(null);
           setHeldCards([]);
           
-          console.log('🎉 Video Poker game started successfully!');
-          console.log('✅ SOL deducted, game ready to play!');
-        } else {
-          console.log('⚠️ Game start failed, but SOL was deducted');
+          console.log('🎉 VIDEO POKER GAME STARTED SUCCESSFULLY!');
+          console.log('💰 Real SOL deducted from wallet');
+          console.log('🎮 Game ready to play');
         }
-        
-      } catch (backendError) {
-        console.log('⚠️ Backend error:', backendError);
-        console.log('💡 SOL was deducted, but game start failed');
       }
       
     } catch (error) {
       console.error('❌ Video Poker start failed:', error);
-      console.log(`🚨 ERROR: ${error.message}`);
+      
+      if (error.message.includes('User rejected')) {
+        console.log('🚫 User cancelled transaction in Phantom wallet');
+      } else if (error.message.includes('Insufficient')) {
+        console.log('💸 Not enough SOL in wallet for this wager');
+      } else if (error.message.includes('Blockhash not found')) {
+        console.log('⏰ Blockhash expired - please try again immediately');
+      } else if (error.message.includes('simulation failed')) {
+        console.log('🔧 Transaction simulation failed - network issues');
+      } else {
+        console.log('🛠️ Technical error:', error.message);
+      }
     }
     
     setLoading(false);
