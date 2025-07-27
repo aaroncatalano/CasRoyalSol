@@ -929,8 +929,8 @@ async def video_poker_draw(session_id: str):
         hand_rank = evaluate_poker_hand([card_data["card"] for card_data in new_hand])
         payout_multiplier = get_video_poker_payout(hand_rank)
         
-        # Apply 65% win bias
-        should_player_win = random.random() < 0.65
+        # Apply 31% player win bias (69% house edge)
+        should_player_win = random.random() < 0.31
         if should_player_win and payout_multiplier == 0:
             # Try to improve to at least Jacks or Better
             # Simple bias: if no winning hand, try to create a pair of face cards
