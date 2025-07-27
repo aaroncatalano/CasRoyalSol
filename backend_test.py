@@ -5135,3 +5135,255 @@ def run_dev_wallet_fee_tests():
     print("=" * 80)
     
     return passed_tests, total_tests
+
+# Test 50: COMPREHENSIVE GAME ODDS VERIFICATION - 31% PLAYER WIN RATE (69% HOUSE EDGE)
+def test_comprehensive_game_odds_verification():
+    """
+    Comprehensive test to verify the updated game odds are correct.
+    Tests both Blackjack and Video Poker for 31% player win rate (69% house edge).
+    """
+    try:
+        print("\n🎯 COMPREHENSIVE GAME ODDS VERIFICATION - 31% PLAYER WIN RATE")
+        print("=" * 80)
+        
+        # Test 1: Blackjack Win Rate with 20 games
+        print("\n1. TESTING BLACKJACK WIN RATE (20 games)...")
+        blackjack_wins = 0
+        blackjack_losses = 0
+        blackjack_pushes = 0
+        blackjack_blackjacks = 0
+        blackjack_total = 20
+        blackjack_results = []
+        
+        for i in range(blackjack_total):
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "blackjack"
+                }
+            )
+            session_id = session_response.json()["session_id"]
+            
+            # Finish game immediately to test the odds
+            finish_response = requests.post(
+                f"{API_URL}/game/blackjack/finish",
+                params={"session_id": session_id}
+            )
+            finish_data = finish_response.json()
+            
+            # Record result
+            result = finish_data["results"][0]["result"]
+            player_value = finish_data["results"][0]["player_value"]
+            dealer_value = finish_data["results"][0]["dealer_value"]
+            payout_multiplier = finish_data["results"][0]["payout_multiplier"]
+            
+            blackjack_results.append({
+                "game": i + 1,
+                "result": result,
+                "player_value": player_value,
+                "dealer_value": dealer_value,
+                "payout_multiplier": payout_multiplier
+            })
+            
+            if result == "win":
+                blackjack_wins += 1
+            elif result == "lose":
+                blackjack_losses += 1
+            elif result == "push":
+                blackjack_pushes += 1
+            elif result == "blackjack":
+                blackjack_blackjacks += 1
+                blackjack_wins += 1  # Count blackjack as win
+        
+        blackjack_win_rate = (blackjack_wins / blackjack_total) * 100
+        blackjack_house_edge = 100 - blackjack_win_rate
+        
+        print(f"   Blackjack Results: {blackjack_wins} wins, {blackjack_losses} losses, {blackjack_pushes} pushes, {blackjack_blackjacks} blackjacks")
+        print(f"   Blackjack Win Rate: {blackjack_win_rate:.2f}% (Expected: ~31%)")
+        print(f"   Blackjack House Edge: {blackjack_house_edge:.2f}% (Expected: ~69%)")
+        
+        # Test 2: Video Poker Win Rate with 20 games
+        print("\n2. TESTING VIDEO POKER WIN RATE (20 games)...")
+        poker_wins = 0
+        poker_losses = 0
+        poker_total = 20
+        poker_results = []
+        
+        for i in range(poker_total):
+            # Create session
+            session_response = requests.post(
+                f"{API_URL}/game/session/create",
+                params={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "game_type": "video_poker"
+                }
+            )
+            session_id = session_response.json()["session_id"]
+            
+            # Draw cards immediately to test the odds
+            draw_response = requests.post(
+                f"{API_URL}/game/video_poker/draw",
+                params={"session_id": session_id}
+            )
+            draw_data = draw_response.json()
+            
+            # Record result
+            hand_rank = draw_data["final_hand"]
+            payout_multiplier = draw_data["payout_multiplier"]
+            final_hand = [card["card"] for card in draw_data["game_state"]["hand"]]
+            
+            poker_results.append({
+                "game": i + 1,
+                "hand_rank": hand_rank,
+                "payout_multiplier": payout_multiplier,
+                "final_hand": final_hand,
+                "win": payout_multiplier > 0
+            })
+            
+            if payout_multiplier > 0:
+                poker_wins += 1
+            else:
+                poker_losses += 1
+        
+        poker_win_rate = (poker_wins / poker_total) * 100
+        poker_house_edge = 100 - poker_win_rate
+        
+        print(f"   Video Poker Results: {poker_wins} wins, {poker_losses} losses")
+        print(f"   Video Poker Win Rate: {poker_win_rate:.2f}% (Expected: ~31%)")
+        print(f"   Video Poker House Edge: {poker_house_edge:.2f}% (Expected: ~69%)")
+        
+        # Test 3: Verify Game Logic Implementation
+        print("\n3. VERIFYING GAME LOGIC IMPLEMENTATION...")
+        
+        # Check if winning_percentage is correctly set to 0.31 in the backend
+        # We can infer this from the win rates we observed
+        blackjack_within_range = abs(blackjack_win_rate - 31) <= 20  # Allow 20% variance for small sample
+        poker_within_range = abs(poker_win_rate - 31) <= 20  # Allow 20% variance for small sample
+        
+        print(f"   Blackjack odds within expected range (31% ± 20%): {blackjack_within_range}")
+        print(f"   Video Poker odds within expected range (31% ± 20%): {poker_within_range}")
+        
+        # Test 4: Test Actual Game Sessions with Multiple Scenarios
+        print("\n4. TESTING ACTUAL GAME SESSIONS...")
+        
+        # Test different blackjack scenarios
+        scenario_results = []
+        
+        # Scenario 1: Hit until stand
+        session_response = requests.post(
+            f"{API_URL}/game/session/create",
+            params={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "game_type": "blackjack"
+            }
+        )
+        session_id = session_response.json()["session_id"]
+        
+        # Hit once
+        hit_response = requests.post(
+            f"{API_URL}/game/blackjack/hit",
+            params={"session_id": session_id, "hand_index": 0}
+        )
+        
+        # Stand
+        stand_response = requests.post(
+            f"{API_URL}/game/blackjack/stand",
+            params={"session_id": session_id, "hand_index": 0}
+        )
+        
+        # Finish
+        finish_response = requests.post(
+            f"{API_URL}/game/blackjack/finish",
+            params={"session_id": session_id}
+        )
+        finish_data = finish_response.json()
+        
+        scenario_results.append({
+            "scenario": "hit_once_then_stand",
+            "result": finish_data["results"][0]["result"],
+            "player_value": finish_data["results"][0]["player_value"],
+            "dealer_value": finish_data["results"][0]["dealer_value"]
+        })
+        
+        print(f"   Game session scenario test completed: {len(scenario_results)} scenarios tested")
+        
+        # Calculate overall statistics
+        total_games = blackjack_total + poker_total
+        total_wins = blackjack_wins + poker_wins
+        overall_win_rate = (total_wins / total_games) * 100
+        overall_house_edge = 100 - overall_win_rate
+        
+        print(f"\n5. OVERALL STATISTICS:")
+        print(f"   Total Games Tested: {total_games}")
+        print(f"   Total Wins: {total_wins}")
+        print(f"   Overall Win Rate: {overall_win_rate:.2f}% (Expected: ~31%)")
+        print(f"   Overall House Edge: {overall_house_edge:.2f}% (Expected: ~69%)")
+        
+        # Determine if the test passes
+        overall_within_range = abs(overall_win_rate - 31) <= 15  # Allow 15% variance
+        
+        success = (blackjack_within_range and poker_within_range and overall_within_range)
+        
+        return success, {
+            "blackjack": {
+                "total_games": blackjack_total,
+                "wins": blackjack_wins,
+                "losses": blackjack_losses,
+                "pushes": blackjack_pushes,
+                "blackjacks": blackjack_blackjacks,
+                "win_rate": f"{blackjack_win_rate:.2f}%",
+                "house_edge": f"{blackjack_house_edge:.2f}%",
+                "within_expected_range": blackjack_within_range,
+                "detailed_results": blackjack_results[:5]  # Show first 5 games
+            },
+            "video_poker": {
+                "total_games": poker_total,
+                "wins": poker_wins,
+                "losses": poker_losses,
+                "win_rate": f"{poker_win_rate:.2f}%",
+                "house_edge": f"{poker_house_edge:.2f}%",
+                "within_expected_range": poker_within_range,
+                "hand_distribution": {
+                    hand_rank: len([r for r in poker_results if r["hand_rank"] == hand_rank])
+                    for hand_rank in set(r["hand_rank"] for r in poker_results)
+                },
+                "detailed_results": poker_results[:5]  # Show first 5 games
+            },
+            "overall": {
+                "total_games": total_games,
+                "total_wins": total_wins,
+                "overall_win_rate": f"{overall_win_rate:.2f}%",
+                "overall_house_edge": f"{overall_house_edge:.2f}%",
+                "within_expected_range": overall_within_range,
+                "expected_player_win_rate": "31%",
+                "expected_house_edge": "69%"
+            },
+            "game_sessions": {
+                "scenarios_tested": len(scenario_results),
+                "scenario_results": scenario_results
+            },
+            "verification_status": {
+                "blackjack_odds_correct": blackjack_within_range,
+                "video_poker_odds_correct": poker_within_range,
+                "overall_odds_correct": overall_within_range,
+                "house_edge_working": overall_house_edge > 50  # House should win more than 50%
+            }
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Main execution for game odds verification
+if __name__ == "__main__":
+    print("🎯 GAME ODDS VERIFICATION TESTING - 31% PLAYER WIN RATE (69% HOUSE EDGE)")
+    print("=" * 80)
+    
+    # Run the comprehensive game odds verification test
+    print_test_result("Comprehensive Game Odds Verification", *test_comprehensive_game_odds_verification())
+    
+    # Also run the individual win rate tests
+    print_test_result("Blackjack Win Rate Test (31%)", *test_blackjack_win_rate())
+    print_test_result("Video Poker Win Rate Test (31%)", *test_video_poker_win_rate())
+    print_test_result("Win Rates with More Games (31%)", *test_win_rates_with_more_games())
