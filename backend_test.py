@@ -1107,7 +1107,7 @@ def test_blackjack_different_scenarios():
     except Exception as e:
         return False, str(e)
 
-# Test 26: Win Rate Verification with More Games
+# Test 26: Win Rate Verification with More Games - UPDATED FOR 31% PLAYER WIN RATE
 def test_win_rates_with_more_games():
     try:
         # Test blackjack win rate with more games
@@ -1184,16 +1184,16 @@ def test_win_rates_with_more_games():
                 "total_games": blackjack_total_games,
                 "wins": blackjack_wins,
                 "win_rate": f"{blackjack_win_rate:.2f}%",
-                "expected_win_rate": "69%",
-                "within_target": abs(blackjack_win_rate - 69) <= 15,
+                "expected_win_rate": "31%",
+                "within_target": abs(blackjack_win_rate - 31) <= 15,
                 "result_distribution": {result: blackjack_results.count(result) for result in set(blackjack_results)}
             },
             "video_poker": {
                 "total_games": poker_total_games,
                 "wins": poker_wins,
                 "win_rate": f"{poker_win_rate:.2f}%",
-                "expected_win_rate": "65%",
-                "within_target": abs(poker_win_rate - 65) <= 15,
+                "expected_win_rate": "31%",
+                "within_target": abs(poker_win_rate - 31) <= 15,
                 "hand_rank_distribution": {
                     hand_rank: len([r for r in poker_results if r["hand_rank"] == hand_rank])
                     for hand_rank in set(r["hand_rank"] for r in poker_results)
