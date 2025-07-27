@@ -768,7 +768,7 @@ async def blackjack_finish(session_id: str):
         
         # Simulate dealer play with winning bias
         game = BlackjackGame()
-        should_player_win = random.random() < 0.69  # 69% win rate
+        should_player_win = random.random() < 0.31  # 31% player win rate (69% house edge)
         
         # Start with current dealer hand
         dealer_value = current_game_data.get("dealer_hand", {}).get("value", 13)
