@@ -777,7 +777,7 @@ const VideoPokerGame = () => {
       
       console.log('⏳ Step 4: Confirming transaction...');
       
-      // Wait for confirmation with proper timeout
+      // Wait for confirmation with proper timeout and better verification
       const confirmation = await connection.confirmTransaction({
         signature,
         blockhash,
@@ -785,24 +785,30 @@ const VideoPokerGame = () => {
       }, 'confirmed');
       
       if (confirmation.value.err) {
-        throw new Error('Transaction failed: ' + JSON.stringify(confirmation.value.err));
+        throw new Error('Transaction failed on blockchain: ' + JSON.stringify(confirmation.value.err));
       }
       
       console.log('✅ Transaction confirmed on blockchain!');
       
-      // Verify the balance changed
+      // CRITICAL: Wait a moment for balance to update, then verify
+      console.log('🔍 Step 5: Verifying SOL was actually deducted...');
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      
       const newBalance = await connection.getBalance(publicKey);
       const newBalanceSOL = newBalance / LAMPORTS_PER_SOL;
-      const deducted = balanceSOL - newBalanceSOL;
+      const actualDeducted = balanceSOL - newBalanceSOL;
       
-      console.log(`💳 Balance before: ${balanceSOL.toFixed(4)} SOL`);
-      console.log(`💳 Balance after: ${newBalanceSOL.toFixed(4)} SOL`);
-      console.log(`💸 Amount deducted: ${deducted.toFixed(4)} SOL`);
+      console.log(`💳 Balance before: ${balanceSOL.toFixed(6)} SOL`);
+      console.log(`💳 Balance after: ${newBalanceSOL.toFixed(6)} SOL`);
+      console.log(`💸 Amount deducted: ${actualDeducted.toFixed(6)} SOL`);
+      console.log(`🎯 Expected deduction: ${wagerAmount.toFixed(6)} SOL`);
       
-      if (deducted >= (wagerAmount - 0.01)) { // Allow for small fee differences
-        console.log('🎉 SOL SUCCESSFULLY DEDUCTED FROM WALLET!');
+      if (actualDeducted < (wagerAmount * 0.8)) { // Allow for transaction fees
+        console.log('❌ WARNING: SOL was not properly deducted from wallet!');
+        console.log('🔄 This might be a network delay - check your wallet balance manually');
+        throw new Error(`Expected ${wagerAmount} SOL to be deducted, but only ${actualDeducted.toFixed(6)} SOL was deducted. Transaction may have failed.`);
       } else {
-        console.log('⚠️ Balance change not detected, but transaction confirmed');
+        console.log('🎉 CONFIRMED: SOL SUCCESSFULLY DEDUCTED FROM WALLET!');
       }
       
       console.log('🎮 Step 5: Starting video poker game...');
