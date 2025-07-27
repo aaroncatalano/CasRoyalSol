@@ -212,7 +212,7 @@ class BlackjackHand:
             self.aces -= 1
 
 class BlackjackGame:
-    def __init__(self, winning_percentage: float = 0.35):
+    def __init__(self, winning_percentage: float = 0.31):  # 31% player win rate (69% house edge)
         self.deck = self._create_deck()
         self.shuffle_deck()
         self.player_hands = []
