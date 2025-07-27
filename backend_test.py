@@ -755,7 +755,7 @@ def test_complete_video_poker_game_flow():
     except Exception as e:
         return False, str(e)
 
-# Test 16: Blackjack Win Rate Validation
+# Test 16: Blackjack Win Rate Validation - UPDATED FOR 31% PLAYER WIN RATE
 def test_blackjack_win_rate():
     try:
         wins = 0
@@ -798,9 +798,9 @@ def test_blackjack_win_rate():
         
         win_rate = (wins / total_games) * 100
         
-        # Expected win rate is 69%
+        # Expected win rate is 31% (69% house edge)
         # Allow for some variance due to randomness
-        if abs(win_rate - 69) <= 15:  # Allow 15% variance
+        if abs(win_rate - 31) <= 15:  # Allow 15% variance
             return True, {
                 "total_games": total_games,
                 "wins": wins,
@@ -808,14 +808,15 @@ def test_blackjack_win_rate():
                 "pushes": pushes,
                 "blackjacks": blackjacks,
                 "win_rate": f"{win_rate:.2f}%",
-                "expected_win_rate": "69%"
+                "expected_win_rate": "31%",
+                "house_edge": f"{100 - win_rate:.2f}%"
             }
         else:
-            return False, f"Win rate of {win_rate:.2f}% is too far from expected 69%"
+            return False, f"Win rate of {win_rate:.2f}% is too far from expected 31%"
     except Exception as e:
         return False, str(e)
 
-# Test 17: Video Poker Win Rate Validation
+# Test 17: Video Poker Win Rate Validation - UPDATED FOR 31% PLAYER WIN RATE
 def test_video_poker_win_rate():
     try:
         wins = 0
@@ -851,18 +852,19 @@ def test_video_poker_win_rate():
         
         win_rate = (wins / total_games) * 100
         
-        # Expected win rate is 65%
+        # Expected win rate is 31% (69% house edge)
         # Allow for some variance due to randomness
-        if abs(win_rate - 65) <= 15:  # Allow 15% variance
+        if abs(win_rate - 31) <= 15:  # Allow 15% variance
             return True, {
                 "total_games": total_games,
                 "wins": wins,
                 "losses": losses,
                 "win_rate": f"{win_rate:.2f}%",
-                "expected_win_rate": "65%"
+                "expected_win_rate": "31%",
+                "house_edge": f"{100 - win_rate:.2f}%"
             }
         else:
-            return False, f"Win rate of {win_rate:.2f}% is too far from expected 65%"
+            return False, f"Win rate of {win_rate:.2f}% is too far from expected 31%"
     except Exception as e:
         return False, str(e)
 
