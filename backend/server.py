@@ -1349,9 +1349,27 @@ async def start_solanabust_game(request: dict):
         # Create new game session
         session_id = str(uuid.uuid4())
         
-        # Generate crash point (house edge built in)
+        # Generate crash point with 70% house edge (30% player win rate)
         import random
-        crash_point = random.uniform(1.01, 50.0)  # Random crash between 1.01x and 50x
+        def generate_crash_point_with_house_edge() -> float:
+            """Generate crash point with 70% house edge (30% player win rate)"""
+            random_value = random.random()
+            
+            # Implement 70% house edge: players should win only 30% of the time
+            # The house edge is built into the crash point distribution
+            # Using inverse exponential distribution to favor lower multipliers
+            if random_value < 0.70:  # 70% chance for house to win (lower multipliers)
+                # House wins: crash point between 1.01x and 2.0x (most common)
+                crash_multiplier = random.uniform(1.01, 2.0)
+            else:  # 30% chance for player to win (higher multipliers)
+                # Player wins: crash point between 2.0x and 50.0x
+                # Use exponential decay to make very high multipliers rare
+                exponential_factor = random.expovariate(2.0)  # Lambda = 2.0 for moderate decay
+                crash_multiplier = min(2.0 + exponential_factor * 10, 50.0)
+            
+            return round(max(1.01, crash_multiplier), 2)
+        
+        crash_point = generate_crash_point_with_house_edge()
         
         # Record wager
         wager_record = {
