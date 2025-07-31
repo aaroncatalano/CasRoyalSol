@@ -258,7 +258,7 @@ const BlackjackGame = () => {
       // Step 6: Get backend URL and make API calls
       const backendUrl = import.meta.env?.REACT_APP_BACKEND_URL || 
                         process.env.REACT_APP_BACKEND_URL || 
-                        'https://4cacd4f8-6d67-469f-bc11-13965052503b.preview.emergentagent.com';
+                        'https://b91d5667-991c-45b1-b2c6-7d8de9e4e20e.preview.emergentagent.com';
       console.log('🔗 Backend URL:', backendUrl);
       
       // Record wager
@@ -816,7 +816,7 @@ const VideoPokerGame = () => {
       // Now start the game
       const backendUrl = import.meta.env?.REACT_APP_BACKEND_URL || 
                         process.env.REACT_APP_BACKEND_URL || 
-                        'https://4cacd4f8-6d67-469f-bc11-13965052503b.preview.emergentagent.com';
+                        'https://b91d5667-991c-45b1-b2c6-7d8de9e4e20e.preview.emergentagent.com';
       
       // Record wager
       const wagerResponse = await fetch(`${backendUrl}/api/game/wager`, {
