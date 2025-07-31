@@ -575,8 +575,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "SolanaBust Multiplayer Rooms System"
-    - "SolanaBust Multiplayer Room Endpoints"
+    - "SolanaBust Odds Fix - 70% House Edge Implementation"
+    - "SolanaBust Single Player Endpoint Testing"
+    - "Complete Betting Flow Verification"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
