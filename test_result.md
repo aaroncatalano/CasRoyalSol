@@ -612,7 +612,21 @@ test_plan:
         agent: "testing"
         comment: "WALLET ADDRESS VERIFICATION COMPLETED SUCCESSFULLY! All wallet addresses are correctly configured: ✅ Dev Wallet Address: A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ (verified in all wager transactions) ✅ House Wallet Service: Available with 16.66 SOL balance ✅ Payout System Integration: House wallet balance endpoint working correctly ✅ Transaction Routing: All dev fees correctly sent to specified dev wallet address. Both critical wallet addresses are properly configured and functional."
 
+  - task: "SolanaBust Odds Fix - 70% House Edge Implementation"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "CRITICAL FIX: Fixed SolanaBust odds by implementing proper 70% house edge (30% player win rate) in the single-player endpoint /api/solanabust/start. The previous implementation used random.uniform(1.01, 50.0) which had no house edge and caused players to win every round. New implementation: 70% chance for crash between 1.01x-2.0x (house wins), 30% chance for crash between 2.0x-50.0x (player wins) using exponential decay for high multipliers. This matches the user requirement of 70% house edge and 30% player win rate. Frontend uses single-player endpoints, not multiplayer rooms."
+
 agent_communication:
+  - agent: "main"
+    message: "🎯 CRITICAL SOLANABUST ODDS FIX IMPLEMENTED! 🎯 Fixed the core issue where players were winning every SolanaBust round due to broken odds in single-player endpoints. PROBLEM IDENTIFIED: Frontend calls /api/solanabust/start (single-player) but this endpoint used random.uniform(1.01, 50.0) with NO house edge - completely random crash points. Meanwhile, multiplayer room system had correct house edge but frontend doesn't use those endpoints. SOLUTION IMPLEMENTED: Replaced broken random crash point generation with proper 70% house edge algorithm: • 70% chance: crash between 1.01x-2.0x (house wins) • 30% chance: crash between 2.0x-50.0x (player wins with exponential decay) This ensures exactly 30% player win rate and 70% house edge as requested. Backend restarted successfully. Ready for comprehensive testing of: 1) Crash point distribution over multiple games 2) Player win rate verification 3) Complete betting flow (wallet deduction → dev fee → payout)"
   - agent: "testing"
     message: "🎉 DEV WALLET FEE TRANSACTION TESTING COMPLETED WITH EXCELLENT RESULTS! 🎉 Comprehensive testing of the 12% developer fee system and wallet address verification shows outstanding performance: ✅ 12% Dev Fee Calculation: 86.7% success rate (13/15 tests passed) - All valid transactions calculate exactly 12% dev fee ✅ Wallet Address Verification: 100% success - Dev wallet (A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ) and House wallet correctly configured ✅ Game-Specific Wager Limits: 100% success (12/12 tests) - All game types enforce correct wager limits ✅ Transaction Processing: 100% success (3/3 tests) - All transactions properly recorded with correct dev fees ✅ Error Handling: Robust validation for invalid amounts with appropriate error messages. The system correctly processes: Blackjack (0.01-10.0 SOL), Video Poker (0.01-10.0 SOL), SolanaBust (0.005-0.05 SOL). All dev fees are accurately calculated at 12% and sent to the correct dev wallet address. The backend is production-ready for dev fee processing."
   - agent: "testing"
