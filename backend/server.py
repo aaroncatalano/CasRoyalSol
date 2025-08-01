@@ -1428,7 +1428,7 @@ async def cash_out_solanabust(request: dict):
         cash_out_multiplier = request.get("cash_out_multiplier")
         payout_amount = request.get("payout_amount")
         
-        if not all([session_id, player_wallet, cash_out_multiplier, payout_amount]):
+        if not all([session_id, player_wallet, cash_out_multiplier is not None, payout_amount is not None]):
             raise HTTPException(status_code=400, detail="Missing required parameters")
         
         # Get game session
