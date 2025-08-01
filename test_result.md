@@ -609,7 +609,17 @@ test_plan:
         agent: "testing"
         comment: "WALLET ADDRESS VERIFICATION COMPLETED SUCCESSFULLY! All wallet addresses are correctly configured: ✅ Dev Wallet Address: A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ (verified in all wager transactions) ✅ House Wallet Service: Available with 16.66 SOL balance ✅ Payout System Integration: House wallet balance endpoint working correctly ✅ Transaction Routing: All dev fees correctly sent to specified dev wallet address. Both critical wallet addresses are properly configured and functional."
 
-  - task: "SolanaBust Odds Fix - 70% House Edge Implementation"
+  - task: "SolanaBust Win/Loss Logic Fix - Critical Bug"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "CRITICAL BUG FIX: Fixed the fundamental SolanaBust win/loss logic. Previous implementation ALWAYS set result='win' regardless of crash point, causing players to win every cash-out. NEW LOGIC: Players only win if they cash out BEFORE the crash point. If cash_out_multiplier < crash_point = WIN (get payout), if cash_out_multiplier >= crash_point = LOSE (no payout). Also fixed payout system to only send SOL when player actually wins. This completes the house edge implementation - now players can actually lose."
     implemented: true
     working: true
     file: "/app/backend/server.py"
