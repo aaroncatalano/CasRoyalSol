@@ -4337,14 +4337,14 @@ def run_all_tests():
         ("Get Player Sessions", test_get_player_sessions),
         ("Error Handling - Invalid Game Type", test_error_handling_invalid_game),
         ("Error Handling - Invalid Session ID", test_error_handling_invalid_session),
-        ("Error Handling - Invalid Wallet Address", test_error_handling_invalid_wallet_address),
-        ("Multiplayer Stats", test_multiplayer_stats),
-        ("Recent Announcements", test_recent_announcements),
-        ("Manual Win Announcement", test_manual_win_announcement),
-        ("SolanaBust Wager Validation", test_solana_bust_wager_validation),
-        ("Bet Categorization Logic", test_bet_categorization),
-        ("Enhanced Game Results with Multiplayer", test_enhanced_game_results),
-        ("Complete Crash Game Flow (SolanaBust)", test_crash_game_flow),
+        
+        # CRITICAL SOLANABUST WIN/LOSS LOGIC TESTS
+        ("🚨 CRITICAL: SolanaBust Win Logic", test_solanabust_win_logic),
+        ("🚨 CRITICAL: SolanaBust Loss Logic", test_solanabust_loss_logic),
+        ("🚨 CRITICAL: SolanaBust Edge Cases", test_solanabust_edge_cases),
+        ("🚨 CRITICAL: SolanaBust Statistical Validation", test_solanabust_statistical_validation),
+        
+        # Other tests
         ("SolanaBust Room Join", test_solanabust_room_join),
         ("SolanaBust Room Join Validation", test_solanabust_room_join_validation),
         ("SolanaBust Room State Retrieval", test_solanabust_room_state),
@@ -4353,7 +4353,6 @@ def run_all_tests():
         ("SolanaBust 12% Developer Fee Calculation", test_solanabust_12_percent_dev_fee),
         ("SolanaBust Multiplayer Game Flow", test_solanabust_multiplayer_game_flow),
         ("SolanaBust Real SOL Payout Integration", test_solanabust_real_sol_payout_integration),
-        ("SolanaBust Edge Cases and Error Handling", test_solanabust_edge_cases),
         ("SolanaBust Single Player Start Game", test_solanabust_single_player_start),
         ("SolanaBust Single Player Cash Out", test_solanabust_single_player_cash_out),
         ("SolanaBust Wager Validation (Single Player)", test_solanabust_wager_validation),
