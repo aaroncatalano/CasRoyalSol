@@ -1480,22 +1480,22 @@ async def cash_out_solanabust(request: dict):
         
         await db.game_results.insert_one(result_record)
         
-        # Process real SOL payout if service available
+        # Process real SOL payout ONLY if player wins
         payout_sent = False
         transaction_signature = None
         
-        if SOLANA_PAYOUT_AVAILABLE and solana_payout_service and payout_amount > 0:
+        if result == "win" and SOLANA_PAYOUT_AVAILABLE and solana_payout_service and final_payout > 0:
             try:
                 payout_result = await solana_payout_service.send_payout(
                     player_wallet, 
-                    payout_amount,
+                    final_payout,
                     f"SolanaBust win payout - {cash_out_multiplier:.2f}x multiplier"
                 )
                 
                 if payout_result["success"]:
                     payout_sent = True
                     transaction_signature = payout_result.get("signature")
-                    logger.info(f"SOL payout sent: {payout_amount} SOL to {player_wallet}")
+                    logger.info(f"SOL payout sent: {final_payout} SOL to {player_wallet}")
                     
                     # Update result record with payout info
                     await db.game_results.update_one(
@@ -1507,17 +1507,21 @@ async def cash_out_solanabust(request: dict):
                     
             except Exception as payout_error:
                 logger.error(f"Error processing SOL payout: {str(payout_error)}")
+        elif result == "lose":
+            logger.info(f"No payout sent - player lost by cashing out after crash point")
         
-        logger.info(f"SolanaBust cash out successful: {session_id}, payout: {payout_amount} SOL")
+        logger.info(f"SolanaBust game completed: {session_id}, result: {result}, payout: {final_payout} SOL")
         
         return {
             "success": True,
-            "cashed_out": True,
+            "result": result,
+            "cashed_out": result == "win",
             "multiplier": cash_out_multiplier,
-            "payout_amount": payout_amount,
+            "crash_point": crash_point,
+            "payout_amount": final_payout,
             "payout_sent": payout_sent,
             "transaction_signature": transaction_signature,
-            "message": "Cash out successful"
+            "message": f"{'Cash out successful' if result == 'win' else 'Game over - crashed before cash out'}"
         }
         
     except Exception as e:
