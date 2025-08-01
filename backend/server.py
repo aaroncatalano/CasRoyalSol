@@ -1436,22 +1436,45 @@ async def cash_out_solanabust(request: dict):
         if not session:
             raise HTTPException(status_code=404, detail="Game session not found")
         
+        # CRITICAL FIX: Check if player cashed out before crash point
+        crash_point = session.get("crash_point")
+        if not crash_point:
+            raise HTTPException(status_code=400, detail="Invalid game session - no crash point found")
+        
+        # Determine if player wins or loses based on crash point
+        if cash_out_multiplier < crash_point:
+            # Player wins: cashed out before crash
+            result = "win"
+            final_payout = payout_amount
+            logger.info(f"Player WIN: Cashed out at {cash_out_multiplier}x before crash at {crash_point}x")
+        else:
+            # Player loses: tried to cash out at or after crash point
+            result = "lose"
+            final_payout = 0.0  # Player loses their bet
+            logger.info(f"Player LOSE: Tried to cash out at {cash_out_multiplier}x but crashed at {crash_point}x")
+        
         # Update session status
         await db.game_sessions.update_one(
             {"id": session_id},
-            {"$set": {"status": "completed", "cash_out_multiplier": cash_out_multiplier, "payout_amount": payout_amount}}
+            {"$set": {
+                "status": "completed", 
+                "cash_out_multiplier": cash_out_multiplier, 
+                "payout_amount": final_payout,
+                "result": result
+            }}
         )
         
-        # Record game result
+        # Record game result with correct win/loss logic
         result_record = {
             "id": str(uuid.uuid4()),
             "session_id": session_id,
             "player_wallet": player_wallet,
             "game_type": "crash",
             "wager_amount": session["wager_amount"],
-            "payout_amount": payout_amount,
+            "payout_amount": final_payout,
             "multiplier": cash_out_multiplier,
-            "result": "win",
+            "crash_point": crash_point,
+            "result": result,
             "timestamp": datetime.utcnow()
         }
         
