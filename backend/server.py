@@ -1394,7 +1394,7 @@ async def start_solanabust_game(request: dict):
             "game_type": "crash",
             "wager_amount": wager_amount,
             "auto_cash_out": auto_cash_out,
-            "crash_point": crash_point,
+            "crash_point": crash_point,  # Store crash point for win/loss validation
             "status": "active",
             "created_at": datetime.utcnow()
         }
