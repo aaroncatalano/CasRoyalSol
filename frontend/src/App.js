@@ -846,20 +846,34 @@ const VideoPokerGame = () => {
         })
       });
       
-      if (gameResponse.ok) {
-        const gameData = await gameResponse.json();
-        if (gameData.success) {
-          setGameSession(gameData.session_id);
-          setGameState(gameData.game_state);
-          setGameComplete(false);
-          setFinalResult(null);
-          setHeldCards([]);
-          
-          console.log('🎉 VIDEO POKER GAME STARTED SUCCESSFULLY!');
-          console.log('💰 Real SOL deducted from wallet');
-          console.log('🎮 Game ready to play');
-        }
+      if (!gameResponse.ok) {
+        const errorText = await gameResponse.text();
+        throw new Error(`Game start failed: ${gameResponse.status} - ${errorText}`);
       }
+      
+      const gameData = await gameResponse.json();
+      
+      if (!gameData.success) {
+        throw new Error(`Game start failed: ${gameData.message || 'Unknown error'}`);
+      }
+      
+      // Validate game data
+      if (!gameData.session_id || !gameData.game_state) {
+        throw new Error('Invalid game data received from server');
+      }
+      
+      // Set game state
+      setGameSession(gameData.session_id);
+      setGameState(gameData.game_state);
+      setGameComplete(false);
+      setFinalResult(null);
+      setHeldCards([]);
+      
+      console.log('🎉 VIDEO POKER GAME STARTED SUCCESSFULLY!');
+      console.log('💰 Real SOL deducted from wallet');
+      console.log('🎮 Game ready to play');
+      console.log('🎯 Session ID:', gameData.session_id);
+      console.log('🃏 Game State:', gameData.game_state);
       
     } catch (error) {
       console.error('❌ Video Poker start failed:', error);
