@@ -35,7 +35,7 @@ try:
         validator
     )
     from security.key_manager import SecureKeyManager
-    from security.error_handler import SecurityErrorHandler
+    from security.error_handler import ErrorHandler
     SECURITY_AVAILABLE = True
     logger = logging.getLogger(__name__)
     logger.info("🔒 Security modules loaded successfully")
@@ -84,7 +84,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize security components
-security_error_handler = SecurityErrorHandler() if SECURITY_AVAILABLE else None
+security_error_handler = ErrorHandler() if SECURITY_AVAILABLE else None
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
