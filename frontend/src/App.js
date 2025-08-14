@@ -157,6 +157,7 @@ const BlackjackGame = () => {
   const [gameComplete, setGameComplete] = useState(false);
   const [results, setResults] = useState([]);
   const [totalPayout, setTotalPayout] = useState(0);
+  const [error, setError] = useState(null);
 
   const startGame = async () => {
     console.log('startGame called, publicKey:', publicKey);
