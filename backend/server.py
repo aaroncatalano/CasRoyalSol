@@ -25,6 +25,26 @@ import uvicorn
 # Add the current directory to Python path to import our module
 sys.path.append(str(Path(__file__).parent))
 
+# Import security modules
+try:
+    from security.auth import security_middleware, rate_limit_only, optional_auth
+    from security.validators import (
+        InputValidator, 
+        ValidatedWagerRequest, 
+        ValidatedGameResultRequest,
+        validator
+    )
+    from security.key_manager import KeyManager
+    from security.error_handler import SecurityErrorHandler
+    SECURITY_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("🔒 Security modules loaded successfully")
+except ImportError as e:
+    SECURITY_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.error(f"❌ Security modules failed to load: {e}")
+    logger.error("🚨 RUNNING WITHOUT SECURITY - NOT PRODUCTION READY")
+
 try:
     from solana_payout import SolanaPayoutService
     from security.key_manager import key_manager
