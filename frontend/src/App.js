@@ -523,6 +523,7 @@ const BlackjackGame = () => {
   return (
     <div className="bg-gray-800 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-4">🃏 Blackjack</h2>
+      <p className="text-blue-400 text-sm mb-4">House Edge: 69% | Dev Fee: 12% | Multi-Hand Game</p>
 
       
       {!gameSession ? (
