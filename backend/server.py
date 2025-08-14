@@ -1355,19 +1355,23 @@ async def start_solanabust_game(request: dict):
             """Generate crash point with 70% house edge (30% player win rate)"""
             random_value = random.random()
             
-            # Implement 70% house edge: players should win only 30% of the time
-            # The house edge is built into the crash point distribution
-            # Using inverse exponential distribution to favor lower multipliers
-            if random_value < 0.70:  # 70% chance for house to win (lower multipliers)
-                # House wins: crash point between 1.01x and 2.0x (most common)
-                crash_multiplier = random.uniform(1.01, 2.0)
-            else:  # 30% chance for player to win (higher multipliers)
-                # Player wins: crash point between 2.0x and 50.0x
-                # Use exponential decay to make very high multipliers rare
-                exponential_factor = random.expovariate(2.0)  # Lambda = 2.0 for moderate decay
-                crash_multiplier = min(2.0 + exponential_factor * 10, 50.0)
+            # Implement 70% house edge with proper weighted distribution
+            # Based on crash game mathematics research
             
-            return round(max(1.01, crash_multiplier), 2)
+            if random_value < 0.50:  # 50% chance - crash very low (1.01x-1.5x)
+                crash_multiplier = random.uniform(1.01, 1.5)
+            elif random_value < 0.70:  # Additional 20% chance - crash low-medium (1.5x-2.0x)  
+                crash_multiplier = random.uniform(1.5, 2.0)
+            elif random_value < 0.85:  # 15% chance - crash medium (2.0x-3.0x)
+                crash_multiplier = random.uniform(2.0, 3.0)
+            elif random_value < 0.95:  # 10% chance - crash high (3.0x-5.0x)
+                crash_multiplier = random.uniform(3.0, 5.0)
+            else:  # 5% chance - crash very high (5.0x-20.0x max)
+                # Use logarithmic distribution to heavily favor lower values
+                log_factor = random.uniform(0, 1)
+                crash_multiplier = 5.0 + (15.0 * log_factor * log_factor)  # Quadratic decay
+            
+            return round(max(1.01, min(crash_multiplier, 20.0)), 2)
         
         crash_point = generate_crash_point_with_house_edge()
         
