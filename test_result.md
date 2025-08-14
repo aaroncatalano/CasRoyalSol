@@ -609,7 +609,17 @@ test_plan:
         agent: "testing"
         comment: "WALLET ADDRESS VERIFICATION COMPLETED SUCCESSFULLY! All wallet addresses are correctly configured: ✅ Dev Wallet Address: A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ (verified in all wager transactions) ✅ House Wallet Service: Available with 16.66 SOL balance ✅ Payout System Integration: House wallet balance endpoint working correctly ✅ Transaction Routing: All dev fees correctly sent to specified dev wallet address. Both critical wallet addresses are properly configured and functional."
 
-  - task: "SolanaBust UI House Edge Display Fix - Production Ready"
+  - task: "Video Poker Production Issues Fix - Critical"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js, /app/frontend/src/MultiplayerComponent.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "PRODUCTION CRITICAL FIX: Resolved multiple Video Poker production blocking issues: 1) TRANSACTION VALIDATION: Fixed overly strict balance validation that failed games when transaction fees caused smaller balance changes. Changed from throwing errors to warnings when blockchain transaction is confirmed. 2) CORS ERRORS: Enhanced multiplayer polling with proper CORS headers and graceful error handling to prevent CORS failures from breaking games. 3) WEBSOCKET FAILURES: Added graceful failure handling for WebSocket connections. 4) ERROR HANDLING: Improved error logging and user experience. Games now start successfully even with network connectivity issues to secondary features."
     implemented: true
     working: "NA"
     file: "/app/frontend/src/App.js"
