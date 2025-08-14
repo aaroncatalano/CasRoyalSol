@@ -109,8 +109,9 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
         }
 
       } catch (error) {
-        console.error('Error polling multiplayer data:', error);
+        console.warn('Error polling multiplayer data:', error.message);
         setIsConnected(false);
+        // Don't throw - just fail gracefully
       }
     };
 
