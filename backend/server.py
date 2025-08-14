@@ -1955,9 +1955,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+@app.on_event("shutdown") 
+async def shutdown():
+    """Clean shutdown"""
+    logger.info("🛑 Shutting down Solana Gaming Platform...")
+    if 'client' in globals():
+        client.close()
+    logger.info("👋 Goodbye!")
 
 # Update game result endpoint to integrate with multiplayer announcements
 async def enhanced_record_game_result(result):
