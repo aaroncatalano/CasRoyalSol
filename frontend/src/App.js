@@ -632,6 +632,22 @@ const BlackjackGame = () => {
             </div>
           )}
           
+          {!gameState && (
+            <div className="mb-4 p-4 bg-yellow-900 border border-yellow-500 rounded-lg">
+              <p className="text-yellow-200 text-sm">⚠️ Game did not start properly after transaction</p>
+              <p className="text-yellow-300 text-xs mt-1">Your SOL was deducted but the game session failed to initialize</p>
+              <button
+                onClick={() => {
+                  setGameSession(null);
+                  setError(null);
+                }}
+                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg mt-2 text-sm"
+              >
+                Try New Game
+              </button>
+            </div>
+          )}
+          
           <div className="flex gap-4">
             {!gameComplete ? (
               <>
