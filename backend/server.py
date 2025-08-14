@@ -27,7 +27,7 @@ sys.path.append(str(Path(__file__).parent))
 
 # Import security modules
 try:
-    from security.auth import security_middleware, rate_limit_only, optional_auth
+    from security.auth import security_middleware, rate_limit_only, optional_auth, detect_suspicious_betting_pattern
     from security.validators import (
         InputValidator, 
         ValidatedWagerRequest, 
