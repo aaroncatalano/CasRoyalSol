@@ -679,6 +679,7 @@ const VideoPokerGame = () => {
   const [loading, setLoading] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
   const [finalResult, setFinalResult] = useState(null);
+  const [error, setError] = useState(null);
 
   const testGameWithoutWallet = async () => {
     console.log('🧪 TEST MODE - Starting Video Poker without wallet');
