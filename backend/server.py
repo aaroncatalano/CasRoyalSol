@@ -1380,8 +1380,7 @@ async def start_solanabust_single_player(
             wager_amount = validator.validate_wager_amount(wager_amount, "crash")
             
             # Fraud detection: Check for suspicious betting patterns
-            # Note: detect_suspicious_betting_pattern function needs to be implemented
-            # await detect_suspicious_betting_pattern(player_wallet, wager_amount)
+            await detect_suspicious_betting_pattern(player_wallet, wager_amount)
             
         except Exception as e:
             logger.warning(f"🚨 Security validation failed: {e}")
