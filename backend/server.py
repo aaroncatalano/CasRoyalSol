@@ -34,7 +34,7 @@ try:
         ValidatedGameResultRequest,
         validator
     )
-    from security.key_manager import KeyManager
+    from security.key_manager import SecureKeyManager
     from security.error_handler import SecurityErrorHandler
     SECURITY_AVAILABLE = True
     logger = logging.getLogger(__name__)
