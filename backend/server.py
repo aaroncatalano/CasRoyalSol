@@ -1356,10 +1356,13 @@ async def get_payout_history(limit: int = 50):
         raise HTTPException(status_code=500, detail=result["error"])
     return result
 
-# SolanaBust Room Endpoints
-@api_router.post("/solanabust/start")
-async def start_solanabust_game(request: dict):
-    """Start a new single player SolanaBust game"""
+# SolanaBust Single Player Endpoints - SECURED
+@api_router.post("/solanabust/start", dependencies=[Depends(rate_limit_only)] if SECURITY_AVAILABLE else [])
+async def start_solanabust_single_player(
+    request: Request,
+    data: dict
+):
+    """Start SolanaBust single player game with security validation"""
     try:
         player_wallet = request.get("player_wallet")
         wager_amount = request.get("wager_amount")
