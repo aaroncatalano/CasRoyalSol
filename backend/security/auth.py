@@ -248,3 +248,24 @@ def generate_api_key(wallet_address: str) -> str:
 def hash_sensitive_data(data: str) -> str:
     """Hash sensitive data for logging"""
     return hashlib.sha256(data.encode()).hexdigest()[:8]
+
+async def detect_suspicious_betting_pattern(wallet_address: str, wager_amount: float):
+    """
+    Detect suspicious betting patterns for fraud prevention
+    """
+    # This is a placeholder implementation - in production you would:
+    # 1. Check betting frequency
+    # 2. Analyze bet size patterns
+    # 3. Check for rapid successive bets
+    # 4. Monitor win/loss ratios
+    # 5. Cross-reference with known fraud patterns
+    
+    # For now, just log the activity
+    logger.info(f"🔍 Fraud detection check: {hash_sensitive_data(wallet_address)} - {wager_amount} SOL")
+    
+    # Example basic checks (implement more sophisticated logic as needed)
+    if wager_amount > 1.0:  # Large bet threshold
+        logger.warning(f"⚠️ Large bet detected: {wager_amount} SOL from {hash_sensitive_data(wallet_address)}")
+    
+    # Add more sophisticated fraud detection logic here
+    pass
