@@ -1472,14 +1472,43 @@ async def start_solanabust_single_player(
         logger.error(f"Error starting SolanaBust game: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to start SolanaBust game: {str(e)}")
 
-@api_router.post("/solanabust/cash-out")
-async def cash_out_solanabust(request: dict):
-    """Cash out from SolanaBust game"""
+@api_router.post("/solanabust/cash-out", dependencies=[Depends(rate_limit_only)] if SECURITY_AVAILABLE else [])
+async def cash_out_solanabust_single_player(
+    request: Request,
+    data: dict
+):
+    """Cash out SolanaBust single player game with security validation"""
+    
+    # 🔒 SECURITY: Input validation
+    if SECURITY_AVAILABLE:
+        try:
+            session_id = data.get("session_id")
+            player_wallet = data.get("player_wallet")
+            cash_out_multiplier = data.get("cash_out_multiplier")
+            
+            if not session_id or not player_wallet:
+                raise HTTPException(status_code=400, detail="Missing session_id or player_wallet")
+            
+            session_id = validator.validate_session_id(session_id)
+            player_wallet = validator.validate_solana_address(player_wallet)
+            
+            if cash_out_multiplier and cash_out_multiplier < 1.0:
+                raise HTTPException(status_code=400, detail="Invalid cash_out_multiplier")
+                
+        except Exception as e:
+            logger.warning(f"🚨 Security validation failed: {e}")
+            raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+    else:
+        # Fallback when security is not available
+        session_id = data.get("session_id")
+        player_wallet = data.get("player_wallet") 
+        cash_out_multiplier = data.get("cash_out_multiplier")
+        
+        if not session_id or not player_wallet:
+            raise HTTPException(status_code=400, detail="Missing session_id or player_wallet")
+    
     try:
-        session_id = request.get("session_id")
-        player_wallet = request.get("player_wallet")
-        cash_out_multiplier = request.get("cash_out_multiplier")
-        payout_amount = request.get("payout_amount")
+        payout_amount = data.get("payout_amount")
         
         if not all([session_id, player_wallet, cash_out_multiplier is not None, payout_amount is not None]):
             raise HTTPException(status_code=400, detail="Missing required parameters")
