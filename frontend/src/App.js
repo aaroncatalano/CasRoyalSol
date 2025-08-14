@@ -880,14 +880,20 @@ const VideoPokerGame = () => {
     } catch (error) {
       console.error('❌ Video Poker start failed:', error);
       
+      // Set user-visible error message
+      setError(`Game start failed: ${error.message}`);
+      
       if (error.message.includes('User rejected')) {
         console.log('🚫 User cancelled transaction in Phantom wallet');
       } else if (error.message.includes('Insufficient')) {
         console.log('💸 Not enough SOL in wallet for this wager');
+        setError('Insufficient SOL balance for this wager');
       } else if (error.message.includes('Blockhash not found')) {
         console.log('⏰ Blockhash expired - please try again immediately');
+        setError('Transaction expired - please try again');
       } else if (error.message.includes('simulation failed')) {
         console.log('🔧 Transaction simulation failed - network issues');
+        setError('Network error - please try again');
       } else {
         console.log('🛠️ Technical error:', error.message);
       }
