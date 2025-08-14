@@ -724,6 +724,7 @@ const VideoPokerGame = () => {
     }
     
     setLoading(true);
+    setError(null); // Clear previous errors
     
     try {
       console.log('🔍 Step 1: Checking wallet balance...');
