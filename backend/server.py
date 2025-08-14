@@ -83,6 +83,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize security components
+security_error_handler = SecurityErrorHandler() if SECURITY_AVAILABLE else None
+
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
