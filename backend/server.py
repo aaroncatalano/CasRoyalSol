@@ -644,12 +644,6 @@ async def start_blackjack_game(
             raise HTTPException(status_code=400, detail="Missing player_wallet or wager")
     
     try:
-        player_wallet = request.get("player_wallet")
-        wager = request.get("wager")
-        
-        if not player_wallet or not wager:
-            raise HTTPException(status_code=400, detail="Missing player_wallet or wager")
-        
         # Create new game session
         session_id = str(uuid.uuid4())
         
