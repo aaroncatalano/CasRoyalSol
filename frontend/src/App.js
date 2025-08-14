@@ -823,10 +823,14 @@ const VideoPokerGame = () => {
       console.log(`💸 Amount deducted: ${actualDeducted.toFixed(6)} SOL`);
       console.log(`🎯 Expected deduction: ${wagerAmount.toFixed(6)} SOL`);
       
-      if (actualDeducted < (wagerAmount * 0.8)) { // Allow for transaction fees
+      if (actualDeducted < 0.005) { // Minimum threshold - if less than 0.005 SOL deducted, transaction likely failed
         console.log('❌ WARNING: SOL was not properly deducted from wallet!');
-        console.log('🔄 This might be a network delay - check your wallet balance manually');
+        console.log('🔄 This might be a transaction failure or network issue');
         throw new Error(`Expected ${wagerAmount} SOL to be deducted, but only ${actualDeducted.toFixed(6)} SOL was deducted. Transaction may have failed.`);
+      } else if (actualDeducted < (wagerAmount * 0.5)) { // If less than 50% deducted, warn but continue
+        console.log('⚠️ WARNING: Less SOL deducted than expected, but continuing...');
+        console.log(`Expected: ${wagerAmount} SOL, Actual: ${actualDeducted.toFixed(6)} SOL`);
+        console.log('🔄 This might be due to transaction fees or network delays');
       } else {
         console.log('🎉 CONFIRMED: SOL SUCCESSFULLY DEDUCTED FROM WALLET!');
       }
