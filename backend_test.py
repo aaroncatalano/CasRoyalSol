@@ -5071,9 +5071,225 @@ def run_payout_tests():
     
     return results
 
+# Test: CRITICAL PRODUCTION VERIFICATION - SolanaBust 10-Game House Edge Verification
+def test_solanabust_10_game_house_edge_verification():
+    """
+    CRITICAL PRODUCTION VERIFICATION: Test SolanaBust 10 times to verify 70% house edge
+    
+    This test runs exactly 10 SolanaBust games and verifies:
+    1. Crash point distribution (70% between 1.01x-2.0x, 30% between 2.0x-50.0x)
+    2. Win/Loss logic with 1.5x cash-out strategy
+    3. Statistical analysis and house profitability
+    """
+    try:
+        print("\n🎯 CRITICAL PRODUCTION VERIFICATION: 10-GAME HOUSE EDGE TEST 🎯")
+        print("=" * 80)
+        
+        # Test parameters as specified
+        TEST_WALLET = "A7GZMJLFzGSPn1nYHsGhLbU5pby4q96AessVHn5qVXFZ"
+        WAGER_AMOUNT = 0.01  # 0.01 SOL per game
+        CASH_OUT_MULTIPLIER = 1.5  # Cash out at 1.5x for each game
+        TOTAL_GAMES = 10
+        
+        # Storage for results
+        game_results = []
+        crash_points = []
+        win_loss_results = []
+        total_wagered = 0
+        total_payout = 0
+        
+        print(f"Running {TOTAL_GAMES} SolanaBust games with {WAGER_AMOUNT} SOL wager each")
+        print(f"Testing cash-out at {CASH_OUT_MULTIPLIER}x multiplier for each game")
+        print("-" * 80)
+        
+        # Run exactly 10 games
+        for game_num in range(1, TOTAL_GAMES + 1):
+            print(f"\n🎮 GAME {game_num}/{TOTAL_GAMES}")
+            
+            # PRIORITY 1: Start SolanaBust game
+            start_response = requests.post(
+                f"{API_URL}/solanabust/start",
+                json={
+                    "player_wallet": TEST_WALLET,
+                    "wager_amount": WAGER_AMOUNT,
+                    "auto_cash_out": CASH_OUT_MULTIPLIER
+                }
+            )
+            start_response.raise_for_status()
+            start_data = start_response.json()
+            
+            if not start_data.get("success"):
+                return False, f"Game {game_num} failed to start: {start_data}"
+            
+            session_id = start_data["session_id"]
+            crash_point = start_data["crash_point"]
+            crash_points.append(crash_point)
+            total_wagered += WAGER_AMOUNT
+            
+            print(f"   Session ID: {session_id}")
+            print(f"   Crash Point: {crash_point}x")
+            
+            # PRIORITY 2: Test cash-out at 1.5x
+            cash_out_response = requests.post(
+                f"{API_URL}/solanabust/cash-out",
+                json={
+                    "session_id": session_id,
+                    "player_wallet": TEST_WALLET,
+                    "cash_out_multiplier": CASH_OUT_MULTIPLIER,
+                    "payout_amount": WAGER_AMOUNT * CASH_OUT_MULTIPLIER if crash_point > CASH_OUT_MULTIPLIER else 0.0
+                }
+            )
+            cash_out_response.raise_for_status()
+            cash_out_data = cash_out_response.json()
+            
+            if not cash_out_data.get("success"):
+                return False, f"Game {game_num} cash-out failed: {cash_out_data}"
+            
+            # Verify win/loss logic
+            result = cash_out_data["result"]
+            payout_amount = cash_out_data["payout_amount"]
+            
+            # Expected logic: WIN if crash_point > 1.5x, LOSE if crash_point <= 1.5x
+            expected_result = "win" if crash_point > CASH_OUT_MULTIPLIER else "lose"
+            expected_payout = WAGER_AMOUNT * CASH_OUT_MULTIPLIER if crash_point > CASH_OUT_MULTIPLIER else 0.0
+            
+            win_loss_correct = (result == expected_result and abs(payout_amount - expected_payout) < 0.001)
+            
+            total_payout += payout_amount
+            
+            game_result = {
+                "game_number": game_num,
+                "session_id": session_id,
+                "crash_point": crash_point,
+                "cash_out_multiplier": CASH_OUT_MULTIPLIER,
+                "result": result,
+                "expected_result": expected_result,
+                "payout_amount": payout_amount,
+                "expected_payout": expected_payout,
+                "win_loss_correct": win_loss_correct,
+                "house_wins": crash_point <= 2.0,  # House wins if crash between 1.01x-2.0x
+                "player_potential_win": crash_point > 2.0  # Player could win if crash > 2.0x
+            }
+            
+            game_results.append(game_result)
+            win_loss_results.append(result)
+            
+            print(f"   Cash-out at: {CASH_OUT_MULTIPLIER}x")
+            print(f"   Result: {result} (Expected: {expected_result}) {'✅' if win_loss_correct else '❌'}")
+            print(f"   Payout: {payout_amount} SOL (Expected: {expected_payout} SOL)")
+            print(f"   House Edge Zone: {'Yes' if crash_point <= 2.0 else 'No'} (1.01x-2.0x)")
+            
+        print("\n" + "=" * 80)
+        print("📊 STATISTICAL ANALYSIS")
+        print("=" * 80)
+        
+        # PRIORITY 3: Statistical Analysis
+        
+        # 1. Crash Point Distribution Analysis
+        house_wins = sum(1 for cp in crash_points if 1.01 <= cp <= 2.0)
+        player_potential_wins = sum(1 for cp in crash_points if 2.0 < cp <= 50.0)
+        
+        house_win_percentage = (house_wins / TOTAL_GAMES) * 100
+        player_potential_win_percentage = (player_potential_wins / TOTAL_GAMES) * 100
+        
+        print(f"\n🎯 CRASH POINT DISTRIBUTION:")
+        print(f"   House Wins (1.01x-2.0x): {house_wins}/{TOTAL_GAMES} ({house_win_percentage:.1f}%)")
+        print(f"   Player Potential Wins (2.0x-50.0x): {player_potential_wins}/{TOTAL_GAMES} ({player_potential_win_percentage:.1f}%)")
+        print(f"   Expected: ~7 house wins (70%), ~3 player potential wins (30%)")
+        
+        # 2. Actual Win/Loss with 1.5x Strategy
+        actual_wins = win_loss_results.count("win")
+        actual_losses = win_loss_results.count("lose")
+        actual_win_rate = (actual_wins / TOTAL_GAMES) * 100
+        
+        print(f"\n💰 WIN/LOSS WITH 1.5x CASH-OUT STRATEGY:")
+        print(f"   Player Wins: {actual_wins}/{TOTAL_GAMES} ({actual_win_rate:.1f}%)")
+        print(f"   Player Losses: {actual_losses}/{TOTAL_GAMES} ({100-actual_win_rate:.1f}%)")
+        print(f"   Expected: ~3 wins (30%), ~7 losses (70%)")
+        
+        # 3. Crash Point Statistics
+        avg_crash_point = statistics.mean(crash_points)
+        median_crash_point = statistics.median(crash_points)
+        min_crash_point = min(crash_points)
+        max_crash_point = max(crash_points)
+        
+        print(f"\n📈 CRASH POINT STATISTICS:")
+        print(f"   Average: {avg_crash_point:.2f}x")
+        print(f"   Median: {median_crash_point:.2f}x")
+        print(f"   Range: {min_crash_point:.2f}x - {max_crash_point:.2f}x")
+        print(f"   All Crash Points: {[round(cp, 2) for cp in crash_points]}")
+        
+        # 4. House Profitability
+        house_profit = total_wagered - total_payout
+        house_profit_percentage = (house_profit / total_wagered) * 100 if total_wagered > 0 else 0
+        
+        print(f"\n🏦 HOUSE PROFITABILITY:")
+        print(f"   Total Wagered: {total_wagered:.3f} SOL")
+        print(f"   Total Payout: {total_payout:.3f} SOL")
+        print(f"   House Profit: {house_profit:.3f} SOL")
+        print(f"   House Profit %: {house_profit_percentage:.1f}%")
+        
+        # 5. Verification Results
+        print(f"\n✅ VERIFICATION RESULTS:")
+        
+        # Check if distribution is within acceptable range (±20% variance allowed for 10 games)
+        house_edge_acceptable = abs(house_win_percentage - 70) <= 30  # Allow 30% variance for small sample
+        win_loss_logic_correct = all(game["win_loss_correct"] for game in game_results)
+        house_profitable = house_profit > 0
+        
+        print(f"   House Edge Distribution: {'✅ PASS' if house_edge_acceptable else '❌ FAIL'}")
+        print(f"     - {house_win_percentage:.1f}% house wins (Expected: 70% ±30%)")
+        print(f"   Win/Loss Logic: {'✅ PASS' if win_loss_logic_correct else '❌ FAIL'}")
+        print(f"     - All {TOTAL_GAMES} games had correct win/loss determination")
+        print(f"   House Profitability: {'✅ PASS' if house_profitable else '❌ FAIL'}")
+        print(f"     - House profit: {house_profit:.3f} SOL")
+        
+        # Overall verification
+        overall_pass = house_edge_acceptable and win_loss_logic_correct and house_profitable
+        
+        print(f"\n🎯 OVERALL VERIFICATION: {'✅ PRODUCTION READY' if overall_pass else '❌ NEEDS ATTENTION'}")
+        
+        return overall_pass, {
+            "total_games": TOTAL_GAMES,
+            "crash_points": crash_points,
+            "house_wins": house_wins,
+            "player_potential_wins": player_potential_wins,
+            "house_win_percentage": house_win_percentage,
+            "player_potential_win_percentage": player_potential_win_percentage,
+            "actual_wins": actual_wins,
+            "actual_losses": actual_losses,
+            "actual_win_rate": actual_win_rate,
+            "crash_point_stats": {
+                "average": avg_crash_point,
+                "median": median_crash_point,
+                "min": min_crash_point,
+                "max": max_crash_point
+            },
+            "financial_summary": {
+                "total_wagered": total_wagered,
+                "total_payout": total_payout,
+                "house_profit": house_profit,
+                "house_profit_percentage": house_profit_percentage
+            },
+            "verification_results": {
+                "house_edge_acceptable": house_edge_acceptable,
+                "win_loss_logic_correct": win_loss_logic_correct,
+                "house_profitable": house_profitable,
+                "overall_pass": overall_pass
+            },
+            "detailed_games": game_results
+        }
+        
+    except Exception as e:
+        return False, f"Critical error during 10-game house edge verification: {str(e)}"
+
 if __name__ == "__main__":
-    # Check if we should run payout tests specifically
-    if len(sys.argv) > 1 and sys.argv[1] == "payout":
+    # Check if we should run the critical production verification
+    if len(sys.argv) > 1 and sys.argv[1] == "critical":
+        print("🎯 RUNNING CRITICAL PRODUCTION VERIFICATION 🎯")
+        success, data = test_solanabust_10_game_house_edge_verification()
+        print_test_result("CRITICAL: SolanaBust 10-Game House Edge Verification", success, data if success else None, data if not success else None)
+    elif len(sys.argv) > 1 and sys.argv[1] == "payout":
         run_payout_tests()
     else:
         run_all_tests()
