@@ -676,16 +676,41 @@ async def start_blackjack_game(
         logger.error(f"Error starting blackjack game: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to start blackjack game: {str(e)}")
 
-@api_router.post("/video_poker/new")
-async def start_video_poker_game(request: dict):
-    """Start a new video poker game"""
-    try:
-        player_wallet = request.get("player_wallet")
-        wager = request.get("wager")
+# Video Poker Game Endpoints - SECURED
+@api_router.post("/video_poker/new", dependencies=[Depends(rate_limit_only)] if SECURITY_AVAILABLE else [])
+async def start_video_poker_game(
+    request: Request,
+    data: dict
+):
+    """Start new video poker game with security validation"""
+    
+    # 🔒 SECURITY: Input validation
+    if SECURITY_AVAILABLE:
+        try:
+            player_wallet = data.get("player_wallet")
+            wager = data.get("wager")
+            
+            if not player_wallet or not wager:
+                raise HTTPException(status_code=400, detail="Missing player_wallet or wager")
+            
+            player_wallet = validator.validate_solana_address(player_wallet)
+            wager = validator.validate_wager_amount(wager, "video_poker")
+            
+            # Fraud detection
+            await detect_suspicious_betting_pattern(player_wallet, wager)
+            
+        except Exception as e:
+            logger.warning(f"🚨 Video Poker security validation failed: {e}")
+            raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+    else:
+        # Fallback when security is not available
+        player_wallet = data.get("player_wallet")
+        wager = data.get("wager")
         
         if not player_wallet or not wager:
             raise HTTPException(status_code=400, detail="Missing player_wallet or wager")
-        
+    
+    try:
         # Create new game session
         session_id = str(uuid.uuid4())
         
