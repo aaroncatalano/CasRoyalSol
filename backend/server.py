@@ -128,21 +128,57 @@ else:
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Rate limiting setup
+# Rate limiting setup and database optimization
 @app.on_event("startup")
 async def startup():
+    """Initialize app with database indexes and security setup"""
+    logger.info("🚀 Starting Solana Gaming Platform...")
+    
+    # 🔒 Initialize Security
+    if SECURITY_AVAILABLE:
+        logger.info("🔒 Security modules initialized")
+    else:
+        logger.warning("⚠️ Security modules not available")
+    
+    # 📊 Create database indexes for performance
     try:
-        # Disable Redis rate limiting for now to avoid compatibility issues
-        logger.info("Rate limiting disabled - Redis not required for Socket.IO functionality")
+        logger.info("📊 Creating database indexes...")
         
-        # Start SolanaBust room game loop
-        if ROOMS_AVAILABLE and start_game_loop:
-            start_game_loop()
-            logger.info("SolanaBust multiplayer rooms started successfully")
+        # Game sessions indexes
+        await db.game_sessions.create_index([
+            ("player_wallet", 1), 
+            ("created_at", -1)
+        ])
+        await db.game_sessions.create_index("id", unique=True)
+        
+        # Game results indexes  
+        await db.game_results.create_index([
+            ("player_wallet", 1),
+            ("timestamp", -1)
+        ])
+        await db.game_results.create_index("session_id")
+        
+        # Wagers indexes
+        await db.wagers.create_index([
+            ("player_wallet", 1),
+            ("timestamp", -1)
+        ])
+        
+        # Connected wallets indexes
+        await db.connected_wallets.create_index("public_key", unique=True)
+        
+        # TTL index for session cleanup (expire after 1 hour)
+        await db.game_sessions.create_index(
+            "created_at",
+            expireAfterSeconds=3600
+        )
+        
+        logger.info("✅ Database indexes created successfully")
         
     except Exception as e:
-        logger.warning(f"Startup configuration warning: {e}")
-        # Continue without rate limiting
+        logger.error(f"❌ Error creating database indexes: {e}")
+    
+    logger.info("🎮 Solana Gaming Platform started successfully!")
 
 # Models
 class StatusCheck(BaseModel):
