@@ -1363,7 +1363,6 @@ async def start_solanabust_single_player(
     data: dict
 ):
     """Start SolanaBust single player game with security validation"""
-    session_id = str(uuid.uuid4())
     
     # 🔒 SECURITY: Input validation
     if SECURITY_AVAILABLE:
