@@ -54,8 +54,16 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
     // Start polling for multiplayer data
     const pollMultiplayerData = async () => {
       try {
-        // Fetch multiplayer status
-        const statusResponse = await fetch(`${BACKEND_URL}/api/multiplayer/status`);
+        // Fetch multiplayer status with proper error handling
+        const statusResponse = await fetch(`${BACKEND_URL}/api/multiplayer/status`, {
+          mode: 'cors',
+          credentials: 'omit',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+        
         if (statusResponse.ok) {
           const statusData = await statusResponse.json();
           setIsConnected(statusData.connected);
@@ -69,6 +77,9 @@ const MultiplayerComponent = ({ publicKey, currentGame, onPlayerUpdate, onAnnoun
           if (onPlayerUpdate) {
             onPlayerUpdate({ totalOnline: statusData.total_online });
           }
+        } else {
+          console.warn('Multiplayer status endpoint not available:', statusResponse.status);
+          setIsConnected(false);
         }
 
         // Fetch chat messages
