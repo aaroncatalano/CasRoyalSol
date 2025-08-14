@@ -1511,7 +1511,7 @@ const SolanaBustGame = () => {
   return (
     <div className="bg-gray-800 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-4">🚀 SolanaBust</h2>
-      <p className="text-green-400 text-sm mb-4">House Edge: 12% | Single Player Crash Game</p>
+      <p className="text-green-400 text-sm mb-4">House Edge: 69% | Dev Fee: 12% | Single Player Crash Game</p>
       
       {!gameSession ? (
         <div>
