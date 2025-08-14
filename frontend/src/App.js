@@ -1049,6 +1049,18 @@ const VideoPokerGame = () => {
           >
             {loading ? 'Starting...' : 'Start Game'}
           </button>
+          
+          {error && (
+            <div className="mt-4 p-4 bg-red-900 border border-red-500 rounded-lg">
+              <p className="text-red-200 text-sm">⚠️ {error}</p>
+              <button 
+                onClick={() => setError(null)}
+                className="text-red-300 hover:text-red-100 text-xs mt-2 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div>
