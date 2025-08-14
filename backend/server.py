@@ -1363,15 +1363,40 @@ async def start_solanabust_single_player(
     data: dict
 ):
     """Start SolanaBust single player game with security validation"""
-    try:
-        player_wallet = request.get("player_wallet")
-        wager_amount = request.get("wager_amount")
-        auto_cash_out = request.get("auto_cash_out")
-        transaction_signature = request.get("transaction_signature")
+    session_id = str(uuid.uuid4())
+    
+    # 🔒 SECURITY: Input validation
+    if SECURITY_AVAILABLE:
+        try:
+            player_wallet = data.get("player_wallet")
+            wager_amount = data.get("wager_amount")
+            auto_cash_out = data.get("auto_cash_out")
+            transaction_signature = data.get("transaction_signature")
+            
+            if not player_wallet or not wager_amount:
+                raise HTTPException(status_code=400, detail="Missing player_wallet or wager_amount")
+            
+            player_wallet = validator.validate_solana_address(player_wallet)
+            wager_amount = validator.validate_wager_amount(wager_amount, "crash")
+            
+            # Fraud detection: Check for suspicious betting patterns
+            # Note: detect_suspicious_betting_pattern function needs to be implemented
+            # await detect_suspicious_betting_pattern(player_wallet, wager_amount)
+            
+        except Exception as e:
+            logger.warning(f"🚨 Security validation failed: {e}")
+            raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+    else:
+        # Fallback when security is not available
+        player_wallet = data.get("player_wallet")
+        wager_amount = data.get("wager_amount")
+        auto_cash_out = data.get("auto_cash_out")
+        transaction_signature = data.get("transaction_signature")
         
         if not player_wallet or not wager_amount:
             raise HTTPException(status_code=400, detail="Missing player_wallet or wager_amount")
-        
+    
+    try:
         # Create new game session
         session_id = str(uuid.uuid4())
         
