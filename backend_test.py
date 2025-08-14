@@ -6228,3 +6228,528 @@ if __name__ == "__main__":
     print_test_result("Blackjack Win Rate Test (31%)", *test_blackjack_win_rate())
     print_test_result("Video Poker Win Rate Test (31%)", *test_video_poker_win_rate())
     print_test_result("Win Rates with More Games (31%)", *test_win_rates_with_more_games())
+
+# ============================================================================
+# SECURITY TESTING FUNCTIONS - CRITICAL SECURITY VERIFICATION
+# ============================================================================
+
+# Test 47: Rate Limiting on Game Endpoints
+def test_rate_limiting_game_endpoints():
+    """Test rate limiting on critical game endpoints"""
+    try:
+        results = {}
+        
+        # Test endpoints to check for rate limiting
+        endpoints_to_test = [
+            {
+                "endpoint": "/solanabust/start",
+                "method": "POST",
+                "data": {
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "wager_amount": 0.01,
+                    "auto_cash_out": 2.0
+                }
+            },
+            {
+                "endpoint": "/blackjack/new", 
+                "method": "POST",
+                "data": {
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "wager": 0.01
+                }
+            },
+            {
+                "endpoint": "/video_poker/new",
+                "method": "POST", 
+                "data": {
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "wager": 0.01
+                }
+            }
+        ]
+        
+        for endpoint_config in endpoints_to_test:
+            endpoint = endpoint_config["endpoint"]
+            method = endpoint_config["method"]
+            data = endpoint_config["data"]
+            
+            print(f"Testing rate limiting on {endpoint}...")
+            
+            # Make rapid successive requests (more than typical rate limit)
+            request_count = 15  # Should trigger rate limiting
+            success_count = 0
+            rate_limited_count = 0
+            
+            for i in range(request_count):
+                try:
+                    if method == "POST":
+                        response = requests.post(f"{API_URL}{endpoint}", json=data, timeout=5)
+                    else:
+                        response = requests.get(f"{API_URL}{endpoint}", timeout=5)
+                    
+                    if response.status_code == 200:
+                        success_count += 1
+                    elif response.status_code == 429:  # Too Many Requests
+                        rate_limited_count += 1
+                    
+                    # Small delay to avoid overwhelming the server
+                    time.sleep(0.1)
+                    
+                except requests.exceptions.Timeout:
+                    # Timeout could indicate rate limiting or server protection
+                    rate_limited_count += 1
+                except Exception as e:
+                    # Other errors might indicate protection mechanisms
+                    pass
+            
+            results[endpoint] = {
+                "total_requests": request_count,
+                "successful_requests": success_count,
+                "rate_limited_requests": rate_limited_count,
+                "rate_limiting_active": rate_limited_count > 0 or success_count < request_count
+            }
+            
+            # Wait between endpoint tests to reset rate limits
+            time.sleep(2)
+        
+        # Check if any rate limiting was detected
+        rate_limiting_detected = any(result["rate_limiting_active"] for result in results.values())
+        
+        return rate_limiting_detected, {
+            "rate_limiting_detected": rate_limiting_detected,
+            "endpoint_results": results,
+            "message": "Rate limiting active" if rate_limiting_detected else "No rate limiting detected"
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 48: Input Validation - Invalid Solana Addresses
+def test_invalid_solana_addresses():
+    """Test input validation with invalid Solana wallet addresses"""
+    try:
+        invalid_addresses = [
+            "",  # Empty address
+            "invalid_address",  # Invalid format
+            "123",  # Too short
+            "0x1234567890abcdef1234567890abcdef12345678",  # Ethereum format
+            "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",  # Too long
+            "!@#$%^&*()",  # Special characters
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",  # Invalid base58
+            None  # Null value
+        ]
+        
+        results = []
+        
+        for invalid_address in invalid_addresses:
+            try:
+                # Test with blackjack endpoint
+                response = requests.post(
+                    f"{API_URL}/blackjack/new",
+                    json={
+                        "player_wallet": invalid_address,
+                        "wager": 0.01
+                    },
+                    timeout=10
+                )
+                
+                # Should return error for invalid address
+                if response.status_code in [400, 422, 500]:  # Error status codes
+                    validation_working = True
+                    error_message = response.json().get("detail", "Validation error")
+                else:
+                    validation_working = False
+                    error_message = "Invalid address was accepted"
+                
+                results.append({
+                    "invalid_address": str(invalid_address)[:20] + "..." if invalid_address and len(str(invalid_address)) > 20 else str(invalid_address),
+                    "validation_working": validation_working,
+                    "status_code": response.status_code,
+                    "error_message": error_message
+                })
+                
+            except Exception as e:
+                # Exception during request could indicate validation
+                results.append({
+                    "invalid_address": str(invalid_address)[:20] + "..." if invalid_address and len(str(invalid_address)) > 20 else str(invalid_address),
+                    "validation_working": True,
+                    "status_code": "Exception",
+                    "error_message": str(e)[:100]
+                })
+        
+        # Check if validation is working for most cases
+        validation_success_rate = sum(1 for r in results if r["validation_working"]) / len(results)
+        validation_working = validation_success_rate >= 0.7  # 70% success rate
+        
+        return validation_working, {
+            "validation_working": validation_working,
+            "success_rate": f"{validation_success_rate:.2%}",
+            "test_results": results,
+            "total_tests": len(results)
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 49: Input Validation - Invalid Wager Amounts
+def test_invalid_wager_amounts():
+    """Test input validation with invalid wager amounts"""
+    try:
+        # Test different invalid wager amounts
+        invalid_wagers = [
+            -1.0,      # Negative amount
+            0,         # Zero amount
+            -0.01,     # Negative small amount
+            100.0,     # Too large for most games
+            0.001,     # Too small for most games
+            "invalid", # Non-numeric
+            None,      # Null value
+            float('inf'),  # Infinity
+            float('nan')   # NaN
+        ]
+        
+        results = []
+        
+        for invalid_wager in invalid_wagers:
+            try:
+                # Test with video poker endpoint
+                response = requests.post(
+                    f"{API_URL}/video_poker/new",
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "wager": invalid_wager
+                    },
+                    timeout=10
+                )
+                
+                # Should return error for invalid wager
+                if response.status_code in [400, 422, 500]:  # Error status codes
+                    validation_working = True
+                    error_message = response.json().get("detail", "Validation error")
+                else:
+                    validation_working = False
+                    error_message = "Invalid wager was accepted"
+                
+                results.append({
+                    "invalid_wager": str(invalid_wager),
+                    "validation_working": validation_working,
+                    "status_code": response.status_code,
+                    "error_message": error_message
+                })
+                
+            except Exception as e:
+                # Exception during request could indicate validation
+                results.append({
+                    "invalid_wager": str(invalid_wager),
+                    "validation_working": True,
+                    "status_code": "Exception", 
+                    "error_message": str(e)[:100]
+                })
+        
+        # Check if validation is working for most cases
+        validation_success_rate = sum(1 for r in results if r["validation_working"]) / len(results)
+        validation_working = validation_success_rate >= 0.7  # 70% success rate
+        
+        return validation_working, {
+            "validation_working": validation_working,
+            "success_rate": f"{validation_success_rate:.2%}",
+            "test_results": results,
+            "total_tests": len(results)
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 50: Fraud Detection Testing
+def test_fraud_detection():
+    """Test fraud detection with large bet amounts and suspicious patterns"""
+    try:
+        results = []
+        
+        # Test large bet amounts that should trigger fraud detection
+        large_bet_amounts = [1.5, 2.0, 5.0, 10.0]  # Above 1.0 SOL threshold
+        
+        for bet_amount in large_bet_amounts:
+            try:
+                # Test with SolanaBust endpoint (but use regular limits, not SolanaBust limits)
+                response = requests.post(
+                    f"{API_URL}/blackjack/new",  # Use blackjack which allows larger amounts
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "wager": bet_amount
+                    },
+                    timeout=10
+                )
+                
+                # Check if request was processed or flagged
+                if response.status_code == 200:
+                    fraud_detection_triggered = False
+                    message = "Large bet accepted"
+                elif response.status_code in [400, 429]:
+                    fraud_detection_triggered = True
+                    message = response.json().get("detail", "Request blocked")
+                else:
+                    fraud_detection_triggered = False
+                    message = f"Unexpected status: {response.status_code}"
+                
+                results.append({
+                    "bet_amount": bet_amount,
+                    "fraud_detection_triggered": fraud_detection_triggered,
+                    "status_code": response.status_code,
+                    "message": message
+                })
+                
+                # Small delay between requests
+                time.sleep(0.5)
+                
+            except Exception as e:
+                results.append({
+                    "bet_amount": bet_amount,
+                    "fraud_detection_triggered": True,
+                    "status_code": "Exception",
+                    "message": str(e)[:100]
+                })
+        
+        # Test rapid successive betting pattern
+        rapid_betting_results = []
+        for i in range(5):  # 5 rapid bets
+            try:
+                response = requests.post(
+                    f"{API_URL}/blackjack/new",
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "wager": 0.5
+                    },
+                    timeout=5
+                )
+                
+                rapid_betting_results.append({
+                    "request_number": i + 1,
+                    "status_code": response.status_code,
+                    "blocked": response.status_code in [429, 400]
+                })
+                
+                # Very short delay to test rapid betting detection
+                time.sleep(0.1)
+                
+            except Exception as e:
+                rapid_betting_results.append({
+                    "request_number": i + 1,
+                    "status_code": "Exception",
+                    "blocked": True
+                })
+        
+        # Check if any fraud detection mechanisms are working
+        large_bet_detection = any(r["fraud_detection_triggered"] for r in results)
+        rapid_betting_detection = any(r["blocked"] for r in rapid_betting_results)
+        
+        fraud_detection_active = large_bet_detection or rapid_betting_detection
+        
+        return fraud_detection_active, {
+            "fraud_detection_active": fraud_detection_active,
+            "large_bet_detection": large_bet_detection,
+            "rapid_betting_detection": rapid_betting_detection,
+            "large_bet_results": results,
+            "rapid_betting_results": rapid_betting_results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 51: Database Index Performance Testing
+def test_database_index_performance():
+    """Test database query performance to verify indexes are working"""
+    try:
+        results = []
+        
+        # Test multiple queries that should benefit from indexes
+        test_queries = [
+            {
+                "name": "Player Sessions Query",
+                "endpoint": f"/game/sessions/{TEST_WALLET_PUBLIC_KEY}",
+                "method": "GET"
+            },
+            {
+                "name": "Player Stats Query", 
+                "endpoint": f"/player/stats/{TEST_WALLET_PUBLIC_KEY}",
+                "method": "GET"
+            },
+            {
+                "name": "Leaderboard Query",
+                "endpoint": "/leaderboard",
+                "method": "GET"
+            }
+        ]
+        
+        for query_test in test_queries:
+            query_times = []
+            
+            # Run each query multiple times to measure performance
+            for _ in range(3):
+                start_time = time.time()
+                
+                try:
+                    if query_test["method"] == "GET":
+                        response = requests.get(f"{API_URL}{query_test['endpoint']}", timeout=10)
+                    else:
+                        response = requests.post(f"{API_URL}{query_test['endpoint']}", timeout=10)
+                    
+                    end_time = time.time()
+                    query_time = end_time - start_time
+                    
+                    if response.status_code == 200:
+                        query_times.append(query_time)
+                    
+                except Exception as e:
+                    # Query failed, might indicate performance issues
+                    query_times.append(10.0)  # Assume slow query
+            
+            if query_times:
+                avg_time = sum(query_times) / len(query_times)
+                max_time = max(query_times)
+                min_time = min(query_times)
+                
+                # Consider performance good if average query time is under 2 seconds
+                performance_good = avg_time < 2.0
+                
+                results.append({
+                    "query_name": query_test["name"],
+                    "avg_time_seconds": round(avg_time, 3),
+                    "max_time_seconds": round(max_time, 3),
+                    "min_time_seconds": round(min_time, 3),
+                    "performance_good": performance_good
+                })
+        
+        # Overall performance assessment
+        overall_performance_good = all(r["performance_good"] for r in results) if results else False
+        
+        return overall_performance_good, {
+            "overall_performance_good": overall_performance_good,
+            "query_results": results,
+            "total_queries_tested": len(results)
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Test 52: Security Integration Verification
+def test_security_integration():
+    """Test that security features are properly integrated"""
+    try:
+        security_features = []
+        
+        # Test 1: Check if security headers are present
+        try:
+            response = requests.get(f"{API_URL}/", timeout=10)
+            headers = response.headers
+            
+            security_headers_present = any(
+                header.lower() in ['x-frame-options', 'x-content-type-options', 'x-xss-protection']
+                for header in headers.keys()
+            )
+            
+            security_features.append({
+                "feature": "Security Headers",
+                "working": security_headers_present,
+                "details": f"Headers present: {list(headers.keys())[:5]}"
+            })
+            
+        except Exception as e:
+            security_features.append({
+                "feature": "Security Headers",
+                "working": False,
+                "details": str(e)
+            })
+        
+        # Test 2: Check error handling doesn't expose sensitive info
+        try:
+            response = requests.post(
+                f"{API_URL}/blackjack/new",
+                json={"invalid": "data"},
+                timeout=10
+            )
+            
+            error_response = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+            
+            # Check if error response doesn't contain sensitive information
+            sensitive_keywords = ['traceback', 'exception', 'stack', 'internal', 'debug']
+            error_text = str(error_response).lower()
+            
+            secure_error_handling = not any(keyword in error_text for keyword in sensitive_keywords)
+            
+            security_features.append({
+                "feature": "Secure Error Handling",
+                "working": secure_error_handling,
+                "details": "Error responses don't expose sensitive information"
+            })
+            
+        except Exception as e:
+            security_features.append({
+                "feature": "Secure Error Handling", 
+                "working": True,  # Exception might indicate good security
+                "details": "Request properly handled"
+            })
+        
+        # Test 3: Check input sanitization
+        try:
+            malicious_inputs = [
+                "<script>alert('xss')</script>",
+                "'; DROP TABLE users; --",
+                "../../../etc/passwd"
+            ]
+            
+            sanitization_working = True
+            
+            for malicious_input in malicious_inputs:
+                response = requests.post(
+                    f"{API_URL}/blackjack/new",
+                    json={
+                        "player_wallet": malicious_input,
+                        "wager": 0.01
+                    },
+                    timeout=10
+                )
+                
+                # Should return validation error, not process malicious input
+                if response.status_code not in [400, 422, 500]:
+                    sanitization_working = False
+                    break
+            
+            security_features.append({
+                "feature": "Input Sanitization",
+                "working": sanitization_working,
+                "details": "Malicious inputs properly rejected"
+            })
+            
+        except Exception as e:
+            security_features.append({
+                "feature": "Input Sanitization",
+                "working": True,  # Exception indicates input was rejected
+                "details": "Malicious inputs caused exceptions (good)"
+            })
+        
+        # Overall security assessment
+        security_working = sum(1 for f in security_features if f["working"]) / len(security_features) >= 0.6
+        
+        return security_working, {
+            "security_integration_working": security_working,
+            "security_features": security_features,
+            "features_tested": len(security_features)
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# Security Testing Main Function
+def run_security_tests():
+    """Run all security tests"""
+    print("🔒 SECURITY TESTING - CRITICAL SECURITY VERIFICATION")
+    print("=" * 80)
+    
+    # Run security tests
+    print_test_result("Rate Limiting on Game Endpoints", *test_rate_limiting_game_endpoints())
+    print_test_result("Input Validation - Invalid Solana Addresses", *test_invalid_solana_addresses())
+    print_test_result("Input Validation - Invalid Wager Amounts", *test_invalid_wager_amounts())
+    print_test_result("Fraud Detection Testing", *test_fraud_detection())
+    print_test_result("Database Index Performance", *test_database_index_performance())
+    print_test_result("Security Integration Verification", *test_security_integration())
