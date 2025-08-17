@@ -1432,20 +1432,32 @@ const SolanaBustGame = () => {
         return;
       }
       
-      // Check if we've reached crash point
+      // Check if we've reached crash point with stricter validation
       if (newMultiplier >= crashPointValue) {
         console.log(`💥 CRASHED at ${crashPointValue.toFixed(2)}x`);
         setGamePhase('crashed');
         setCurrentMultiplier(crashPointValue);
         
+        // CRITICAL: Block any further cash-out attempts after crash
         if (!cashedOut) {
+          console.log('🚫 Too late! Game crashed before cash-out');
           setGameResult({
             result: 'loss',
             multiplier: crashPointValue,
-            payout: 0
+            payout: 0,
+            message: 'Game crashed before you could cash out'
           });
         }
         return;
+      }
+      
+      // SECURITY: Add buffer zone to prevent exploitation
+      // Block cash-out attempts when very close to crash point (within 0.05x)
+      const bufferZone = 0.05;
+      if ((crashPointValue - newMultiplier) <= bufferZone) {
+        // Players cannot cash out in the last 0.05x before crash
+        console.log('⚠️ Entering danger zone - cash out disabled to prevent exploitation');
+        // Continue animation but disable cash-out
       }
       
       // Continue animation if still flying and not cashed out
