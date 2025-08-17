@@ -136,23 +136,12 @@ app = FastAPI(title="Solana Gaming Platform API", version="1.0.0")
 # 🚦 Initialize Rate Limiting
 if RATE_LIMITING_AVAILABLE:
     try:
-        # Try to connect to Redis (local fallback if not available)
-        try:
-            redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-            redis_client.ping()  # Test connection
-            limiter = Limiter(
-                key_func=get_remote_address,
-                storage_uri="redis://localhost:6379",
-                default_limits=["100/minute", "1000/hour"]
-            )
-            logger.info("🚦 Redis rate limiting initialized")
-        except:
-            # Fallback to memory-based rate limiting
-            limiter = Limiter(
-                key_func=get_remote_address,
-                default_limits=["50/minute", "500/hour"]
-            )
-            logger.warning("⚠️ Using memory-based rate limiting (Redis unavailable)")
+        # Use memory-based rate limiting (more reliable for our setup)
+        limiter = Limiter(
+            key_func=get_remote_address,
+            default_limits=["50/minute", "500/hour"]
+        )
+        logger.info("🚦 Memory-based rate limiting initialized")
         
         app.state.limiter = limiter
         app.add_middleware(SlowAPIMiddleware)
@@ -161,13 +150,16 @@ if RATE_LIMITING_AVAILABLE:
         app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
         
         logger.info("🚦 Rate limiting middleware initialized successfully")
+        RATE_LIMITING_ACTIVE = True
         
     except Exception as e:
         logger.error(f"❌ Failed to initialize rate limiting: {e}")
         RATE_LIMITING_AVAILABLE = False
+        RATE_LIMITING_ACTIVE = False
         limiter = None
 else:
     limiter = None
+    RATE_LIMITING_ACTIVE = False
     logger.warning("⚠️ Rate limiting not available - security risk!")
 
 # Create Socket.IO app if multiplayer is available
