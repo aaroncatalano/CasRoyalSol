@@ -4969,6 +4969,755 @@ def test_security_headers():
     except Exception as e:
         return False, str(e)
 
+# PRIORITY 1: SolanaBust Timing Vulnerability Tests
+def test_solanabust_timing_vulnerability_multiple_cashouts():
+    """Test multiple cash-out attempts with varying crash points to verify timing vulnerability fixes"""
+    try:
+        results = []
+        test_scenarios = [
+            {"crash_point": 2.5, "cash_out_attempts": [1.8, 2.0, 2.3, 2.4, 2.5], "description": "Cash out well before, close to, and at crash point"},
+            {"crash_point": 1.5, "cash_out_attempts": [1.2, 1.4, 1.45, 1.5, 1.55], "description": "Low crash point with precise timing attempts"},
+            {"crash_point": 5.0, "cash_out_attempts": [3.0, 4.5, 4.9, 5.0, 5.1], "description": "High crash point with edge case timing"},
+            {"crash_point": 1.1, "cash_out_attempts": [1.05, 1.08, 1.1, 1.12], "description": "Very low crash point edge case"}
+        ]
+        
+        for scenario in test_scenarios:
+            scenario_results = []
+            
+            for cash_out_multiplier in scenario["cash_out_attempts"]:
+                # Start SolanaBust game
+                start_response = requests.post(
+                    f"{API_URL}/solanabust/start",
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "wager_amount": 0.01,
+                        "auto_cash_out": None,
+                        "transaction_signature": TEST_SIGNATURE
+                    }
+                )
+                
+                if start_response.status_code != 200:
+                    scenario_results.append({
+                        "cash_out_multiplier": cash_out_multiplier,
+                        "result": "failed_to_start",
+                        "error": start_response.text
+                    })
+                    continue
+                
+                start_data = start_response.json()
+                session_id = start_data["session_id"]
+                actual_crash_point = start_data["crash_point"]
+                
+                # Attempt cash out
+                cash_out_response = requests.post(
+                    f"{API_URL}/solanabust/cash-out",
+                    json={
+                        "session_id": session_id,
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "cash_out_multiplier": cash_out_multiplier,
+                        "payout_amount": 0.01 * cash_out_multiplier
+                    }
+                )
+                
+                if cash_out_response.status_code == 200:
+                    cash_out_data = cash_out_response.json()
+                    
+                    # Verify backend determines win/loss correctly
+                    expected_result = "win" if cash_out_multiplier < actual_crash_point else "lose"
+                    actual_result = "win" if cash_out_data.get("payout_amount", 0) > 0 else "lose"
+                    
+                    scenario_results.append({
+                        "cash_out_multiplier": cash_out_multiplier,
+                        "actual_crash_point": actual_crash_point,
+                        "expected_result": expected_result,
+                        "actual_result": actual_result,
+                        "correct_logic": expected_result == actual_result,
+                        "payout_amount": cash_out_data.get("payout_amount", 0),
+                        "backend_controlled": True
+                    })
+                else:
+                    scenario_results.append({
+                        "cash_out_multiplier": cash_out_multiplier,
+                        "actual_crash_point": actual_crash_point,
+                        "result": "cash_out_failed",
+                        "status_code": cash_out_response.status_code,
+                        "error": cash_out_response.text
+                    })
+            
+            results.append({
+                "scenario": scenario["description"],
+                "target_crash_point": scenario["crash_point"],
+                "results": scenario_results,
+                "correct_results": sum(1 for r in scenario_results if r.get("correct_logic", False)),
+                "total_attempts": len(scenario_results)
+            })
+        
+        # Calculate overall success rate
+        total_correct = sum(r["correct_results"] for r in results)
+        total_attempts = sum(r["total_attempts"] for r in results)
+        success_rate = (total_correct / total_attempts * 100) if total_attempts > 0 else 0
+        
+        return success_rate >= 80, {
+            "success_rate": f"{success_rate:.1f}%",
+            "total_correct": total_correct,
+            "total_attempts": total_attempts,
+            "scenarios": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_solanabust_buffer_zone_validation():
+    """Test the 0.05x buffer zone implementation to prevent timing exploitation"""
+    try:
+        results = []
+        buffer_zone = 0.05
+        
+        # Test scenarios with different crash points and buffer zone violations
+        test_cases = [
+            {"crash_point": 2.0, "cash_out_attempts": [1.94, 1.95, 1.96, 1.97, 1.98, 1.99, 2.0, 2.01], "description": "2.0x crash with buffer zone testing"},
+            {"crash_point": 1.5, "cash_out_attempts": [1.44, 1.45, 1.46, 1.47, 1.48, 1.49, 1.5, 1.51], "description": "1.5x crash with buffer zone testing"},
+            {"crash_point": 3.0, "cash_out_attempts": [2.94, 2.95, 2.96, 2.97, 2.98, 2.99, 3.0, 3.01], "description": "3.0x crash with buffer zone testing"}
+        ]
+        
+        for test_case in test_cases:
+            case_results = []
+            
+            for cash_out_multiplier in test_case["cash_out_attempts"]:
+                # Start game
+                start_response = requests.post(
+                    f"{API_URL}/solanabust/start",
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "wager_amount": 0.01,
+                        "auto_cash_out": None,
+                        "transaction_signature": TEST_SIGNATURE
+                    }
+                )
+                
+                if start_response.status_code != 200:
+                    continue
+                
+                start_data = start_response.json()
+                session_id = start_data["session_id"]
+                actual_crash_point = start_data["crash_point"]
+                
+                # Calculate if this should be in buffer zone
+                distance_to_crash = actual_crash_point - cash_out_multiplier
+                in_buffer_zone = 0 <= distance_to_crash <= buffer_zone
+                
+                # Attempt cash out
+                cash_out_response = requests.post(
+                    f"{API_URL}/solanabust/cash-out",
+                    json={
+                        "session_id": session_id,
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "cash_out_multiplier": cash_out_multiplier,
+                        "payout_amount": 0.01 * cash_out_multiplier
+                    }
+                )
+                
+                if cash_out_response.status_code == 200:
+                    cash_out_data = cash_out_response.json()
+                    payout_received = cash_out_data.get("payout_amount", 0) > 0
+                    
+                    # In buffer zone, cash-out should be rejected (player loses)
+                    expected_rejection = in_buffer_zone
+                    actual_rejection = not payout_received
+                    
+                    case_results.append({
+                        "cash_out_multiplier": cash_out_multiplier,
+                        "actual_crash_point": actual_crash_point,
+                        "distance_to_crash": distance_to_crash,
+                        "in_buffer_zone": in_buffer_zone,
+                        "expected_rejection": expected_rejection,
+                        "actual_rejection": actual_rejection,
+                        "buffer_zone_working": expected_rejection == actual_rejection,
+                        "payout_received": payout_received
+                    })
+            
+            results.append({
+                "description": test_case["description"],
+                "results": case_results,
+                "buffer_zone_tests": len([r for r in case_results if r["in_buffer_zone"]]),
+                "buffer_zone_working": len([r for r in case_results if r["buffer_zone_working"]])
+            })
+        
+        # Calculate buffer zone effectiveness
+        total_buffer_tests = sum(r["buffer_zone_tests"] for r in results)
+        total_working = sum(r["buffer_zone_working"] for r in results)
+        effectiveness = (total_working / total_buffer_tests * 100) if total_buffer_tests > 0 else 0
+        
+        return effectiveness >= 90, {
+            "buffer_zone_effectiveness": f"{effectiveness:.1f}%",
+            "total_buffer_tests": total_buffer_tests,
+            "total_working": total_working,
+            "buffer_zone_size": buffer_zone,
+            "test_cases": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_solanabust_backend_win_loss_control():
+    """Verify backend properly controls all win/loss decisions (not frontend)"""
+    try:
+        results = []
+        
+        # Test multiple scenarios to ensure backend always makes the final decision
+        for i in range(10):
+            # Start game
+            start_response = requests.post(
+                f"{API_URL}/solanabust/start",
+                json={
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "wager_amount": 0.01,
+                    "auto_cash_out": None,
+                    "transaction_signature": TEST_SIGNATURE
+                }
+            )
+            
+            if start_response.status_code != 200:
+                continue
+            
+            start_data = start_response.json()
+            session_id = start_data["session_id"]
+            crash_point = start_data["crash_point"]
+            
+            # Test different cash-out scenarios
+            test_multipliers = [
+                crash_point - 0.5,  # Well before crash
+                crash_point - 0.1,  # Close before crash
+                crash_point,        # Exactly at crash
+                crash_point + 0.1   # After crash
+            ]
+            
+            for cash_out_multiplier in test_multipliers:
+                if cash_out_multiplier < 1.0:
+                    continue
+                
+                # Attempt cash out
+                cash_out_response = requests.post(
+                    f"{API_URL}/solanabust/cash-out",
+                    json={
+                        "session_id": session_id,
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "cash_out_multiplier": cash_out_multiplier,
+                        "payout_amount": 0.01 * cash_out_multiplier
+                    }
+                )
+                
+                if cash_out_response.status_code == 200:
+                    cash_out_data = cash_out_response.json()
+                    
+                    # Backend should determine win/loss based on crash point comparison
+                    backend_determined_win = cash_out_data.get("payout_amount", 0) > 0
+                    expected_win = cash_out_multiplier < crash_point
+                    
+                    # Check if backend decision matches expected logic
+                    backend_control_working = backend_determined_win == expected_win
+                    
+                    results.append({
+                        "game_number": i + 1,
+                        "crash_point": crash_point,
+                        "cash_out_multiplier": cash_out_multiplier,
+                        "expected_win": expected_win,
+                        "backend_determined_win": backend_determined_win,
+                        "backend_control_working": backend_control_working,
+                        "payout_amount": cash_out_data.get("payout_amount", 0)
+                    })
+                
+                # Only test one cash-out per game
+                break
+        
+        # Calculate backend control effectiveness
+        total_tests = len(results)
+        working_tests = len([r for r in results if r["backend_control_working"]])
+        control_rate = (working_tests / total_tests * 100) if total_tests > 0 else 0
+        
+        return control_rate >= 95, {
+            "backend_control_rate": f"{control_rate:.1f}%",
+            "total_tests": total_tests,
+            "working_tests": working_tests,
+            "failed_tests": total_tests - working_tests,
+            "test_results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# PRIORITY 2: Edge Case Testing
+def test_solanabust_rapid_successive_cashouts():
+    """Test rapid successive cash-out attempts to verify proper handling"""
+    try:
+        results = []
+        
+        # Start a game
+        start_response = requests.post(
+            f"{API_URL}/solanabust/start",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "wager_amount": 0.01,
+                "auto_cash_out": None,
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        
+        if start_response.status_code != 200:
+            return False, "Failed to start game for rapid cash-out test"
+        
+        start_data = start_response.json()
+        session_id = start_data["session_id"]
+        crash_point = start_data["crash_point"]
+        
+        # Attempt multiple rapid cash-outs
+        cash_out_multiplier = min(crash_point - 0.2, 2.0)  # Safe cash-out point
+        rapid_attempts = 5
+        
+        for i in range(rapid_attempts):
+            cash_out_response = requests.post(
+                f"{API_URL}/solanabust/cash-out",
+                json={
+                    "session_id": session_id,
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "cash_out_multiplier": cash_out_multiplier,
+                    "payout_amount": 0.01 * cash_out_multiplier
+                }
+            )
+            
+            results.append({
+                "attempt": i + 1,
+                "status_code": cash_out_response.status_code,
+                "success": cash_out_response.status_code == 200,
+                "response": cash_out_response.json() if cash_out_response.status_code == 200 else cash_out_response.text
+            })
+        
+        # Only first attempt should succeed, others should be rejected
+        successful_attempts = len([r for r in results if r["success"]])
+        proper_handling = successful_attempts == 1
+        
+        return proper_handling, {
+            "rapid_attempts": rapid_attempts,
+            "successful_attempts": successful_attempts,
+            "proper_handling": proper_handling,
+            "crash_point": crash_point,
+            "cash_out_multiplier": cash_out_multiplier,
+            "attempt_results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_solanabust_invalid_session_scenarios():
+    """Test invalid session scenarios and error handling"""
+    try:
+        test_cases = [
+            {
+                "description": "Non-existent session ID",
+                "session_id": "non_existent_session_12345",
+                "expected_status": 404
+            },
+            {
+                "description": "Empty session ID",
+                "session_id": "",
+                "expected_status": 400
+            },
+            {
+                "description": "Invalid session ID format",
+                "session_id": "invalid-format-123",
+                "expected_status": 400
+            }
+        ]
+        
+        results = []
+        
+        for test_case in test_cases:
+            cash_out_response = requests.post(
+                f"{API_URL}/solanabust/cash-out",
+                json={
+                    "session_id": test_case["session_id"],
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "cash_out_multiplier": 2.0,
+                    "payout_amount": 0.02
+                }
+            )
+            
+            correct_status = cash_out_response.status_code == test_case["expected_status"]
+            
+            results.append({
+                "description": test_case["description"],
+                "expected_status": test_case["expected_status"],
+                "actual_status": cash_out_response.status_code,
+                "correct_status": correct_status,
+                "response": cash_out_response.text
+            })
+        
+        all_correct = all(r["correct_status"] for r in results)
+        
+        return all_correct, {
+            "test_cases": len(test_cases),
+            "all_correct": all_correct,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_solanabust_error_handling_and_feedback():
+    """Test proper error handling and user feedback for rejected cash-outs"""
+    try:
+        results = []
+        
+        # Start game
+        start_response = requests.post(
+            f"{API_URL}/solanabust/start",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "wager_amount": 0.01,
+                "auto_cash_out": None,
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        
+        if start_response.status_code != 200:
+            return False, "Failed to start game for error handling test"
+        
+        start_data = start_response.json()
+        session_id = start_data["session_id"]
+        crash_point = start_data["crash_point"]
+        
+        # Test various error scenarios
+        error_scenarios = [
+            {
+                "description": "Cash out after crash point",
+                "cash_out_multiplier": crash_point + 0.5,
+                "expected_result": "lose"
+            },
+            {
+                "description": "Cash out at crash point",
+                "cash_out_multiplier": crash_point,
+                "expected_result": "lose"
+            },
+            {
+                "description": "Invalid multiplier (too low)",
+                "cash_out_multiplier": 0.5,
+                "expected_status": 400
+            },
+            {
+                "description": "Missing payout amount",
+                "cash_out_multiplier": 2.0,
+                "payout_amount": None,
+                "expected_status": 400
+            }
+        ]
+        
+        for scenario in error_scenarios:
+            cash_out_data = {
+                "session_id": session_id,
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "cash_out_multiplier": scenario["cash_out_multiplier"]
+            }
+            
+            if "payout_amount" in scenario:
+                cash_out_data["payout_amount"] = scenario["payout_amount"]
+            else:
+                cash_out_data["payout_amount"] = 0.01 * scenario["cash_out_multiplier"]
+            
+            cash_out_response = requests.post(
+                f"{API_URL}/solanabust/cash-out",
+                json=cash_out_data
+            )
+            
+            if "expected_status" in scenario:
+                correct_handling = cash_out_response.status_code == scenario["expected_status"]
+            else:
+                correct_handling = cash_out_response.status_code == 200
+                if correct_handling and "expected_result" in scenario:
+                    response_data = cash_out_response.json()
+                    actual_result = "win" if response_data.get("payout_amount", 0) > 0 else "lose"
+                    correct_handling = actual_result == scenario["expected_result"]
+            
+            results.append({
+                "description": scenario["description"],
+                "correct_handling": correct_handling,
+                "status_code": cash_out_response.status_code,
+                "response": cash_out_response.json() if cash_out_response.status_code == 200 else cash_out_response.text
+            })
+            
+            # Only test one scenario per game session
+            break
+        
+        all_correct = all(r["correct_handling"] for r in results)
+        
+        return all_correct, {
+            "error_scenarios_tested": len(results),
+            "all_correct": all_correct,
+            "crash_point": crash_point,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+# PRIORITY 3: Statistical Verification
+def test_solanabust_statistical_verification_20_games():
+    """Run 20 games with controlled strategies to verify win rates align with expected house edge"""
+    try:
+        strategies = [
+            {"name": "Conservative", "cash_out_at": 1.5, "games": 5},
+            {"name": "Moderate", "cash_out_at": 2.0, "games": 5},
+            {"name": "Aggressive", "cash_out_at": 3.0, "games": 5},
+            {"name": "Very Aggressive", "cash_out_at": 5.0, "games": 5}
+        ]
+        
+        overall_results = []
+        strategy_results = {}
+        
+        for strategy in strategies:
+            strategy_name = strategy["name"]
+            cash_out_target = strategy["cash_out_at"]
+            games_to_play = strategy["games"]
+            
+            wins = 0
+            losses = 0
+            total_wagered = 0
+            total_payout = 0
+            
+            for game in range(games_to_play):
+                # Start game
+                start_response = requests.post(
+                    f"{API_URL}/solanabust/start",
+                    json={
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "wager_amount": 0.01,
+                        "auto_cash_out": None,
+                        "transaction_signature": TEST_SIGNATURE
+                    }
+                )
+                
+                if start_response.status_code != 200:
+                    continue
+                
+                start_data = start_response.json()
+                session_id = start_data["session_id"]
+                crash_point = start_data["crash_point"]
+                wager_amount = 0.01
+                
+                total_wagered += wager_amount
+                
+                # Apply strategy: only cash out if crash point allows it
+                if crash_point > cash_out_target:
+                    # Attempt cash out
+                    cash_out_response = requests.post(
+                        f"{API_URL}/solanabust/cash-out",
+                        json={
+                            "session_id": session_id,
+                            "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                            "cash_out_multiplier": cash_out_target,
+                            "payout_amount": wager_amount * cash_out_target
+                        }
+                    )
+                    
+                    if cash_out_response.status_code == 200:
+                        cash_out_data = cash_out_response.json()
+                        payout = cash_out_data.get("payout_amount", 0)
+                        
+                        if payout > 0:
+                            wins += 1
+                            total_payout += payout
+                        else:
+                            losses += 1
+                    else:
+                        losses += 1
+                else:
+                    # Crash point too low, player loses
+                    losses += 1
+                
+                overall_results.append({
+                    "strategy": strategy_name,
+                    "game": game + 1,
+                    "crash_point": crash_point,
+                    "cash_out_target": cash_out_target,
+                    "could_cash_out": crash_point > cash_out_target,
+                    "wager": wager_amount
+                })
+            
+            # Calculate strategy statistics
+            total_games = wins + losses
+            win_rate = (wins / total_games * 100) if total_games > 0 else 0
+            house_edge = ((total_wagered - total_payout) / total_wagered * 100) if total_wagered > 0 else 0
+            
+            strategy_results[strategy_name] = {
+                "games_played": total_games,
+                "wins": wins,
+                "losses": losses,
+                "win_rate": win_rate,
+                "total_wagered": total_wagered,
+                "total_payout": total_payout,
+                "house_edge": house_edge,
+                "cash_out_target": cash_out_target
+            }
+        
+        # Calculate overall statistics
+        total_games = sum(s["games_played"] for s in strategy_results.values())
+        total_wins = sum(s["wins"] for s in strategy_results.values())
+        overall_win_rate = (total_wins / total_games * 100) if total_games > 0 else 0
+        
+        total_wagered_all = sum(s["total_wagered"] for s in strategy_results.values())
+        total_payout_all = sum(s["total_payout"] for s in strategy_results.values())
+        overall_house_edge = ((total_wagered_all - total_payout_all) / total_wagered_all * 100) if total_wagered_all > 0 else 0
+        
+        # Expected house edge should be around 70% (30% player win rate)
+        house_edge_acceptable = 50 <= overall_house_edge <= 90  # Allow some variance
+        
+        return house_edge_acceptable, {
+            "total_games": total_games,
+            "overall_win_rate": f"{overall_win_rate:.1f}%",
+            "overall_house_edge": f"{overall_house_edge:.1f}%",
+            "expected_house_edge": "70%",
+            "house_edge_acceptable": house_edge_acceptable,
+            "strategy_results": strategy_results,
+            "detailed_results": overall_results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_solanabust_no_exploitation_methods():
+    """Verify no exploitation methods remain by testing various attack vectors"""
+    try:
+        exploitation_tests = []
+        
+        # Test 1: Rapid fire cash-outs at different multipliers
+        start_response = requests.post(
+            f"{API_URL}/solanabust/start",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "wager_amount": 0.01,
+                "auto_cash_out": None,
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        
+        if start_response.status_code == 200:
+            start_data = start_response.json()
+            session_id = start_data["session_id"]
+            crash_point = start_data["crash_point"]
+            
+            # Try multiple cash-outs at different multipliers rapidly
+            rapid_attempts = []
+            for multiplier in [1.5, 2.0, 2.5, 3.0]:
+                if multiplier < crash_point:
+                    cash_out_response = requests.post(
+                        f"{API_URL}/solanabust/cash-out",
+                        json={
+                            "session_id": session_id,
+                            "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                            "cash_out_multiplier": multiplier,
+                            "payout_amount": 0.01 * multiplier
+                        }
+                    )
+                    rapid_attempts.append({
+                        "multiplier": multiplier,
+                        "status_code": cash_out_response.status_code,
+                        "success": cash_out_response.status_code == 200
+                    })
+            
+            # Only one should succeed
+            successful_attempts = len([a for a in rapid_attempts if a["success"]])
+            exploitation_tests.append({
+                "test": "Rapid multiple cash-outs",
+                "attempts": len(rapid_attempts),
+                "successful": successful_attempts,
+                "exploitation_prevented": successful_attempts <= 1,
+                "details": rapid_attempts
+            })
+        
+        # Test 2: Invalid multiplier manipulation
+        start_response = requests.post(
+            f"{API_URL}/solanabust/start",
+            json={
+                "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                "wager_amount": 0.01,
+                "auto_cash_out": None,
+                "transaction_signature": TEST_SIGNATURE
+            }
+        )
+        
+        if start_response.status_code == 200:
+            start_data = start_response.json()
+            session_id = start_data["session_id"]
+            
+            # Try invalid multipliers
+            invalid_multipliers = [0, -1, 100, 1000, 0.5]
+            invalid_attempts = []
+            
+            for multiplier in invalid_multipliers:
+                cash_out_response = requests.post(
+                    f"{API_URL}/solanabust/cash-out",
+                    json={
+                        "session_id": session_id,
+                        "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                        "cash_out_multiplier": multiplier,
+                        "payout_amount": 0.01 * max(multiplier, 1)
+                    }
+                )
+                invalid_attempts.append({
+                    "multiplier": multiplier,
+                    "status_code": cash_out_response.status_code,
+                    "rejected": cash_out_response.status_code != 200
+                })
+            
+            all_rejected = all(a["rejected"] for a in invalid_attempts)
+            exploitation_tests.append({
+                "test": "Invalid multiplier manipulation",
+                "attempts": len(invalid_attempts),
+                "all_rejected": all_rejected,
+                "exploitation_prevented": all_rejected,
+                "details": invalid_attempts
+            })
+        
+        # Test 3: Session manipulation
+        fake_sessions = ["fake_session_1", "fake_session_2", "", "null"]
+        session_manipulation_attempts = []
+        
+        for fake_session in fake_sessions:
+            cash_out_response = requests.post(
+                f"{API_URL}/solanabust/cash-out",
+                json={
+                    "session_id": fake_session,
+                    "player_wallet": TEST_WALLET_PUBLIC_KEY,
+                    "cash_out_multiplier": 2.0,
+                    "payout_amount": 0.02
+                }
+            )
+            session_manipulation_attempts.append({
+                "fake_session": fake_session,
+                "status_code": cash_out_response.status_code,
+                "rejected": cash_out_response.status_code != 200
+            })
+        
+        all_session_attempts_rejected = all(a["rejected"] for a in session_manipulation_attempts)
+        exploitation_tests.append({
+            "test": "Session manipulation",
+            "attempts": len(session_manipulation_attempts),
+            "all_rejected": all_session_attempts_rejected,
+            "exploitation_prevented": all_session_attempts_rejected,
+            "details": session_manipulation_attempts
+        })
+        
+        # Overall exploitation prevention
+        all_exploits_prevented = all(test["exploitation_prevented"] for test in exploitation_tests)
+        
+        return all_exploits_prevented, {
+            "exploitation_tests": len(exploitation_tests),
+            "all_exploits_prevented": all_exploits_prevented,
+            "test_results": exploitation_tests
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
 def run_all_tests():
     tests = [
         # PRIORITY 1: SECURITY TESTS - RATE LIMITING
