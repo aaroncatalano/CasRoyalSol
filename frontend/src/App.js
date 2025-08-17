@@ -1474,16 +1474,34 @@ const SolanaBustGame = () => {
   const handleCashOut = async (multiplierValue = null) => {
     const cashOutAt = multiplierValue || currentMultiplier;
     
-    if (cashedOut || gamePhase !== 'flying') return;
+    if (cashedOut || gamePhase !== 'flying') {
+      console.log('🚫 Cash-out blocked: Game not in flying state or already cashed out');
+      return;
+    }
+    
+    // SECURITY: Additional validation - prevent cash-out too close to crash point
+    if (crashPoint && (crashPoint - cashOutAt) <= 0.05) {
+      console.log('🚫 Cash-out blocked: Too close to crash point (exploitation prevention)');
+      setGameResult({
+        result: 'loss',
+        multiplier: crashPoint,
+        payout: 0,
+        message: 'Cash-out attempt too late - game crashed'
+      });
+      setGamePhase('crashed');
+      return;
+    }
     
     try {
       setCashedOut(true);
       setCashOutMultiplier(cashOutAt);
-      setGamePhase('finished');
+      setGamePhase('pending'); // Don't assume success until backend confirms
+      
+      console.log('🎯 Attempting cash-out at', cashOutAt, 'vs crash point', crashPoint);
       
       const payout = wagerAmount * cashOutAt;
       
-      // Record game result and trigger payout
+      // CRITICAL: Let backend determine win/loss - don't assume success
       const response = await fetch(`${import.meta.env.REACT_APP_BACKEND_URL}/api/solanabust/cash-out`, {
         method: 'POST',
         headers: {
@@ -1499,20 +1517,50 @@ const SolanaBustGame = () => {
       
       const data = await response.json();
       
+      // SECURITY: Use backend result, not frontend assumption
       if (data.success) {
+        if (data.result === 'win') {
+          setGameResult({
+            result: 'win',
+            multiplier: cashOutAt,
+            payout: data.payout_amount,
+            payout_sent: data.payout_sent || false,
+            transaction_signature: data.transaction_signature,
+            message: `Successfully cashed out at ${cashOutAt.toFixed(2)}x!`
+          });
+          console.log('✅ Cash-out WIN confirmed by backend:', data);
+        } else {
+          // Backend determined it was a loss (crashed before cash-out)
+          setGameResult({
+            result: 'loss',
+            multiplier: data.crash_point || crashPoint,
+            payout: 0,
+            message: `Game crashed at ${(data.crash_point || crashPoint).toFixed(2)}x before cash-out`
+          });
+          console.log('❌ Cash-out LOSS confirmed by backend:', data);
+        }
+        setGamePhase('finished');
+      } else {
+        // Backend rejected the cash-out
+        console.error('❌ Backend rejected cash-out:', data);
         setGameResult({
-          result: 'win',
-          multiplier: cashOutAt,
-          payout: payout,
-          payout_sent: data.payout_sent || false,
-          transaction_signature: data.transaction_signature
+          result: 'loss',
+          multiplier: crashPoint,
+          payout: 0,
+          message: data.message || 'Cash-out failed'
         });
-        
-        console.log('Cash out successful:', data);
+        setGamePhase('crashed');
       }
       
     } catch (error) {
-      console.error('Error cashing out:', error);
+      console.error('❌ Error during cash-out:', error);
+      setGameResult({
+        result: 'loss',
+        multiplier: crashPoint,
+        payout: 0,
+        message: 'Network error during cash-out'
+      });
+      setGamePhase('crashed');
     }
   };
 
