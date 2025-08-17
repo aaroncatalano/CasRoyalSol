@@ -1511,29 +1511,38 @@ async def get_payout_history(limit: int = 50):
     return result
 
 # SolanaBust Single Player Endpoints - SECURED
-@api_router.post("/solanabust/start")
-async def start_solanabust_single_player(
-    request: Request,
-    data: dict
-):
-    """Start SolanaBust single player game with security validation"""
-    
-    # 🚦 MANUAL RATE LIMITING: Check before processing
-    if RATE_LIMITING_AVAILABLE and limiter:
-        try:
-            # Check rate limit using SlowAPI's built-in method
-            await limiter.check_limit(request, "5/minute")
-        except RateLimitExceeded:
-            logger.warning(f"🚦 Rate limit exceeded for SolanaBust from IP: {get_remote_address(request)}")
-            raise HTTPException(
-                status_code=429,
-                detail="Rate limit exceeded: 5 SolanaBust games per minute. Please wait before starting another game.",
-                headers={"Retry-After": "60"}
-            )
-    
-    # 🔒 SECURITY: Input validation
-    if SECURITY_AVAILABLE:
-        try:
+if RATE_LIMITING_AVAILABLE and limiter:
+    @limiter.limit("5/minute")
+    @api_router.post("/solanabust/start")
+    async def start_solanabust_single_player(
+        request: Request,
+        data: dict
+    ):
+        """Start SolanaBust single player game with security validation"""
+        # Rate limiting is handled by decorator above
+        
+        # 🔒 SECURITY: Input validation
+        if SECURITY_AVAILABLE:
+            try:
+                player_wallet = data.get("player_wallet")
+                wager_amount = data.get("wager_amount")
+                auto_cash_out = data.get("auto_cash_out")
+                transaction_signature = data.get("transaction_signature")
+                
+                if not player_wallet or not wager_amount:
+                    raise HTTPException(status_code=400, detail="Missing player_wallet or wager_amount")
+                
+                player_wallet = validator.validate_solana_address(player_wallet)
+                wager_amount = validator.validate_wager_amount(wager_amount, "crash")
+                
+                # Fraud detection: Check for suspicious betting patterns
+                await detect_suspicious_betting_pattern(player_wallet, wager_amount)
+                
+            except Exception as e:
+                logger.warning(f"🚨 Security validation failed: {e}")
+                raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+        else:
+            # Fallback when security is not available
             player_wallet = data.get("player_wallet")
             wager_amount = data.get("wager_amount")
             auto_cash_out = data.get("auto_cash_out")
@@ -1541,103 +1550,200 @@ async def start_solanabust_single_player(
             
             if not player_wallet or not wager_amount:
                 raise HTTPException(status_code=400, detail="Missing player_wallet or wager_amount")
+        
+        try:
+            # Create new game session
+            session_id = str(uuid.uuid4())
             
-            player_wallet = validator.validate_solana_address(player_wallet)
-            wager_amount = validator.validate_wager_amount(wager_amount, "crash")
+            # Generate crash point with 70% house edge (30% player win rate)
+            import random
+            def generate_crash_point_with_house_edge() -> float:
+                """Generate crash point with 70% house edge (30% player win rate)"""
+                random_value = random.random()
+                
+                # Implement 70% house edge with proper weighted distribution
+                # Based on crash game mathematics research
+                
+                if random_value < 0.50:  # 50% chance - crash very low (1.01x-1.5x)
+                    crash_multiplier = random.uniform(1.01, 1.5)
+                elif random_value < 0.70:  # Additional 20% chance - crash low-medium (1.5x-2.0x)  
+                    crash_multiplier = random.uniform(1.5, 2.0)
+                elif random_value < 0.85:  # 15% chance - crash medium (2.0x-3.0x)
+                    crash_multiplier = random.uniform(2.0, 3.0)
+                elif random_value < 0.95:  # 10% chance - crash high (3.0x-5.0x)
+                    crash_multiplier = random.uniform(3.0, 5.0)
+                else:  # 5% chance - crash very high (5.0x-20.0x max)
+                    # Use logarithmic distribution to heavily favor lower values
+                    log_factor = random.uniform(0, 1)
+                    crash_multiplier = 5.0 + (15.0 * log_factor * log_factor)  # Quadratic decay
+                
+                return round(max(1.01, min(crash_multiplier, 20.0)), 2)
             
-            # Fraud detection: Check for suspicious betting patterns
-            await detect_suspicious_betting_pattern(player_wallet, wager_amount)
+            crash_point = generate_crash_point_with_house_edge()
+            
+            # Record wager
+            wager_record = {
+                "id": str(uuid.uuid4()),
+                "player_wallet": player_wallet,
+                "amount": wager_amount,
+                "game_type": "crash",
+                "session_id": session_id,
+                "dev_fee": wager_amount * TRANSACTION_FEE_PERCENTAGE,
+                "game_amount": wager_amount * (1 - TRANSACTION_FEE_PERCENTAGE),
+                "dev_wallet": DEV_WALLET_ADDRESS,
+                "transaction_signature": transaction_signature,
+                "timestamp": datetime.utcnow()
+            }
+            
+            await db.wagers.insert_one(wager_record)
+            
+            # Create game session
+            game_record = {
+                "id": session_id,
+                "player_wallet": player_wallet,
+                "game_type": "crash",
+                "wager_amount": wager_amount,
+                "auto_cash_out": auto_cash_out,
+                "crash_point": crash_point,  # Store crash point for win/loss validation
+                "status": "active",
+                "created_at": datetime.utcnow()
+            }
+            
+            await db.game_sessions.insert_one(game_record)
+            
+            logger.info(f"SolanaBust single player game started: {session_id}, crash point: {crash_point}")
+            
+            return {
+                "success": True,
+                "session_id": session_id,
+                "crash_point": crash_point,
+                "game_state": {
+                    "status": "flying",
+                    "wager_amount": wager_amount,
+                    "auto_cash_out": auto_cash_out
+                },
+                "message": "SolanaBust game started successfully"
+            }
             
         except Exception as e:
-            logger.warning(f"🚨 Security validation failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
-    else:
-        # Fallback when security is not available
-        player_wallet = data.get("player_wallet")
-        wager_amount = data.get("wager_amount")
-        auto_cash_out = data.get("auto_cash_out")
-        transaction_signature = data.get("transaction_signature")
+            logger.error(f"Error starting SolanaBust game: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to start SolanaBust game: {str(e)}")
+else:
+    @api_router.post("/solanabust/start")
+    async def start_solanabust_single_player(
+        request: Request,
+        data: dict
+    ):
+        """Start SolanaBust single player game with security validation (NO RATE LIMITING)"""
+        logger.warning("🚦 No rate limiting active for SolanaBust!")
         
-        if not player_wallet or not wager_amount:
-            raise HTTPException(status_code=400, detail="Missing player_wallet or wager_amount")
-    
-    try:
-        # Create new game session
-        session_id = str(uuid.uuid4())
-        
-        # Generate crash point with 70% house edge (30% player win rate)
-        import random
-        def generate_crash_point_with_house_edge() -> float:
-            """Generate crash point with 70% house edge (30% player win rate)"""
-            random_value = random.random()
+        # 🔒 SECURITY: Input validation
+        if SECURITY_AVAILABLE:
+            try:
+                player_wallet = data.get("player_wallet")
+                wager_amount = data.get("wager_amount")
+                auto_cash_out = data.get("auto_cash_out")
+                transaction_signature = data.get("transaction_signature")
+                
+                if not player_wallet or not wager_amount:
+                    raise HTTPException(status_code=400, detail="Missing player_wallet or wager_amount")
+                
+                player_wallet = validator.validate_solana_address(player_wallet)
+                wager_amount = validator.validate_wager_amount(wager_amount, "crash")
+                
+                # Fraud detection: Check for suspicious betting patterns
+                await detect_suspicious_betting_pattern(player_wallet, wager_amount)
+                
+            except Exception as e:
+                logger.warning(f"🚨 Security validation failed: {e}")
+                raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+        else:
+            # Fallback when security is not available
+            player_wallet = data.get("player_wallet")
+            wager_amount = data.get("wager_amount")
+            auto_cash_out = data.get("auto_cash_out")
+            transaction_signature = data.get("transaction_signature")
             
-            # Implement 70% house edge with proper weighted distribution
-            # Based on crash game mathematics research
+            if not player_wallet or not wager_amount:
+                raise HTTPException(status_code=400, detail="Missing player_wallet or wager_amount")
+        
+        try:
+            # Create new game session
+            session_id = str(uuid.uuid4())
             
-            if random_value < 0.50:  # 50% chance - crash very low (1.01x-1.5x)
-                crash_multiplier = random.uniform(1.01, 1.5)
-            elif random_value < 0.70:  # Additional 20% chance - crash low-medium (1.5x-2.0x)  
-                crash_multiplier = random.uniform(1.5, 2.0)
-            elif random_value < 0.85:  # 15% chance - crash medium (2.0x-3.0x)
-                crash_multiplier = random.uniform(2.0, 3.0)
-            elif random_value < 0.95:  # 10% chance - crash high (3.0x-5.0x)
-                crash_multiplier = random.uniform(3.0, 5.0)
-            else:  # 5% chance - crash very high (5.0x-20.0x max)
-                # Use logarithmic distribution to heavily favor lower values
-                log_factor = random.uniform(0, 1)
-                crash_multiplier = 5.0 + (15.0 * log_factor * log_factor)  # Quadratic decay
+            # Generate crash point with 70% house edge (30% player win rate)
+            import random
+            def generate_crash_point_with_house_edge() -> float:
+                """Generate crash point with 70% house edge (30% player win rate)"""
+                random_value = random.random()
+                
+                # Implement 70% house edge with proper weighted distribution
+                # Based on crash game mathematics research
+                
+                if random_value < 0.50:  # 50% chance - crash very low (1.01x-1.5x)
+                    crash_multiplier = random.uniform(1.01, 1.5)
+                elif random_value < 0.70:  # Additional 20% chance - crash low-medium (1.5x-2.0x)  
+                    crash_multiplier = random.uniform(1.5, 2.0)
+                elif random_value < 0.85:  # 15% chance - crash medium (2.0x-3.0x)
+                    crash_multiplier = random.uniform(2.0, 3.0)
+                elif random_value < 0.95:  # 10% chance - crash high (3.0x-5.0x)
+                    crash_multiplier = random.uniform(3.0, 5.0)
+                else:  # 5% chance - crash very high (5.0x-20.0x max)
+                    # Use logarithmic distribution to heavily favor lower values
+                    log_factor = random.uniform(0, 1)
+                    crash_multiplier = 5.0 + (15.0 * log_factor * log_factor)  # Quadratic decay
+                
+                return round(max(1.01, min(crash_multiplier, 20.0)), 2)
             
-            return round(max(1.01, min(crash_multiplier, 20.0)), 2)
-        
-        crash_point = generate_crash_point_with_house_edge()
-        
-        # Record wager
-        wager_record = {
-            "id": str(uuid.uuid4()),
-            "player_wallet": player_wallet,
-            "amount": wager_amount,
-            "game_type": "crash",
-            "session_id": session_id,
-            "dev_fee": wager_amount * TRANSACTION_FEE_PERCENTAGE,
-            "game_amount": wager_amount * (1 - TRANSACTION_FEE_PERCENTAGE),
-            "dev_wallet": DEV_WALLET_ADDRESS,
-            "transaction_signature": transaction_signature,
-            "timestamp": datetime.utcnow()
-        }
-        
-        await db.wagers.insert_one(wager_record)
-        
-        # Create game session
-        game_record = {
-            "id": session_id,
-            "player_wallet": player_wallet,
-            "game_type": "crash",
-            "wager_amount": wager_amount,
-            "auto_cash_out": auto_cash_out,
-            "crash_point": crash_point,  # Store crash point for win/loss validation
-            "status": "active",
-            "created_at": datetime.utcnow()
-        }
-        
-        await db.game_sessions.insert_one(game_record)
-        
-        logger.info(f"SolanaBust single player game started: {session_id}, crash point: {crash_point}")
-        
-        return {
-            "success": True,
-            "session_id": session_id,
-            "crash_point": crash_point,
-            "game_state": {
-                "status": "flying",
+            crash_point = generate_crash_point_with_house_edge()
+            
+            # Record wager
+            wager_record = {
+                "id": str(uuid.uuid4()),
+                "player_wallet": player_wallet,
+                "amount": wager_amount,
+                "game_type": "crash",
+                "session_id": session_id,
+                "dev_fee": wager_amount * TRANSACTION_FEE_PERCENTAGE,
+                "game_amount": wager_amount * (1 - TRANSACTION_FEE_PERCENTAGE),
+                "dev_wallet": DEV_WALLET_ADDRESS,
+                "transaction_signature": transaction_signature,
+                "timestamp": datetime.utcnow()
+            }
+            
+            await db.wagers.insert_one(wager_record)
+            
+            # Create game session
+            game_record = {
+                "id": session_id,
+                "player_wallet": player_wallet,
+                "game_type": "crash",
                 "wager_amount": wager_amount,
-                "auto_cash_out": auto_cash_out
-            },
-            "message": "SolanaBust game started successfully"
-        }
-        
-    except Exception as e:
-        logger.error(f"Error starting SolanaBust game: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to start SolanaBust game: {str(e)}")
+                "auto_cash_out": auto_cash_out,
+                "crash_point": crash_point,  # Store crash point for win/loss validation
+                "status": "active",
+                "created_at": datetime.utcnow()
+            }
+            
+            await db.game_sessions.insert_one(game_record)
+            
+            logger.info(f"SolanaBust single player game started: {session_id}, crash point: {crash_point}")
+            
+            return {
+                "success": True,
+                "session_id": session_id,
+                "crash_point": crash_point,
+                "game_state": {
+                    "status": "flying",
+                    "wager_amount": wager_amount,
+                    "auto_cash_out": auto_cash_out
+                },
+                "message": "SolanaBust game started successfully"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error starting SolanaBust game: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to start SolanaBust game: {str(e)}")
 
 @api_router.post("/solanabust/cash-out")
 async def cash_out_solanabust_single_player(
