@@ -776,18 +776,6 @@ async def start_video_poker_game(
 ):
     """Start new video poker game with security validation"""
     
-    # 🚦 MANUAL RATE LIMITING: Check before processing
-    if RATE_LIMITING_AVAILABLE and limiter:
-        try:
-            await limiter.check_limit(request, "3/minute")
-        except RateLimitExceeded:
-            logger.warning(f"🚦 Rate limit exceeded for Video Poker from IP: {get_remote_address(request)}")
-            raise HTTPException(
-                status_code=429,
-                detail="Rate limit exceeded: 3 Video Poker games per minute. Please wait.",
-                headers={"Retry-After": "60"}
-            )
-    
     # 🔒 SECURITY: Input validation
     if SECURITY_AVAILABLE:
         try:
