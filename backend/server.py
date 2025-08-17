@@ -1507,10 +1507,10 @@ async def start_solanabust_single_player(
     # 🚦 MANUAL RATE LIMITING: Check before processing
     if RATE_LIMITING_AVAILABLE and limiter:
         try:
-            # Manually check rate limit for this endpoint
-            limiter.check_request_limit(request, "5/minute")
-        except Exception as rate_error:
-            logger.warning(f"🚦 Rate limit exceeded for SolanaBust: {rate_error}")
+            # Check rate limit using SlowAPI's built-in method
+            await limiter.check_limit(request, "5/minute")
+        except RateLimitExceeded:
+            logger.warning(f"🚦 Rate limit exceeded for SolanaBust from IP: {get_remote_address(request)}")
             raise HTTPException(
                 status_code=429,
                 detail="Rate limit exceeded: 5 SolanaBust games per minute. Please wait before starting another game.",
