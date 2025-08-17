@@ -1611,7 +1611,8 @@ async def start_solanabust_single_player(
         logger.error(f"Error starting SolanaBust game: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to start SolanaBust game: {str(e)}")
 
-@api_router.post("/solanabust/cash-out", dependencies=[Depends(rate_limit_only)] if SECURITY_AVAILABLE else [])
+@api_router.post("/solanabust/cash-out")
+@limiter.limit("10/minute") if RATE_LIMITING_AVAILABLE and limiter else lambda f: f
 async def cash_out_solanabust_single_player(
     request: Request,
     data: dict
