@@ -1667,14 +1667,48 @@ const SolanaBustGame = () => {
             
             {gamePhase === 'flying' && !cashedOut && (
               <div>
-                <p className="text-white mb-4 text-xl">🚀 FLYING! Cash out anytime!</p>
-                <button
-                  onClick={() => handleCashOut()}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg font-bold text-xl shadow-lg transform hover:scale-105"
-                >
-                  💰 CASH OUT: {(wagerAmount * currentMultiplier).toFixed(4)} SOL
-                </button>
-                <p className="text-gray-400 text-sm mt-2">Crash point: ???</p>
+                {(() => {
+                  // Calculate if we're in danger zone (within 0.05x of crash point)
+                  const dangerZone = crashPoint && (crashPoint - currentMultiplier) <= 0.05;
+                  const tooLate = crashPoint && currentMultiplier >= crashPoint;
+                  
+                  if (tooLate) {
+                    return (
+                      <>
+                        <p className="text-red-400 mb-4 text-xl">💥 TOO LATE!</p>
+                        <p className="text-red-300 text-sm">Game crashed before you could cash out</p>
+                      </>
+                    );
+                  }
+                  
+                  if (dangerZone) {
+                    return (
+                      <>
+                        <p className="text-orange-400 mb-4 text-xl">⚠️ DANGER ZONE!</p>
+                        <button
+                          disabled
+                          className="bg-gray-500 text-gray-300 px-8 py-4 rounded-lg font-bold text-xl opacity-50 cursor-not-allowed"
+                        >
+                          🚫 CASH OUT DISABLED
+                        </button>
+                        <p className="text-orange-400 text-sm mt-2">Too close to crash - cash out disabled to prevent exploitation</p>
+                      </>
+                    );
+                  }
+                  
+                  return (
+                    <>
+                      <p className="text-white mb-4 text-xl">🚀 FLYING! Cash out anytime!</p>
+                      <button
+                        onClick={() => handleCashOut()}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg font-bold text-xl shadow-lg transform hover:scale-105"
+                      >
+                        💰 CASH OUT: {(wagerAmount * currentMultiplier).toFixed(4)} SOL
+                      </button>
+                      <p className="text-gray-400 text-sm mt-2">Crash point: ???</p>
+                    </>
+                  );
+                })()}
                 {autoCashOut && <p className="text-yellow-400 text-sm">Auto cash-out at: {autoCashOut}x</p>}
               </div>
             )}
