@@ -1727,18 +1727,6 @@ async def cash_out_solanabust_single_player(
 ):
     """Cash out SolanaBust single player game with security validation"""
     
-    # 🚦 MANUAL RATE LIMITING: Check before processing
-    if RATE_LIMITING_AVAILABLE and limiter:
-        try:
-            await limiter.check_limit(request, "10/minute")
-        except RateLimitExceeded:
-            logger.warning(f"🚦 Rate limit exceeded for SolanaBust cash-out from IP: {get_remote_address(request)}")
-            raise HTTPException(
-                status_code=429,
-                detail="Rate limit exceeded: 10 cash-outs per minute. Please wait.",
-                headers={"Retry-After": "60"}
-            )
-    
     # 🔒 SECURITY: Input validation
     if SECURITY_AVAILABLE:
         try:
