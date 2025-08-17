@@ -767,7 +767,8 @@ async def start_blackjack_game(
         raise HTTPException(status_code=500, detail=f"Failed to start blackjack game: {str(e)}")
 
 # Video Poker Game Endpoints - SECURED
-@api_router.post("/video_poker/new", dependencies=[Depends(rate_limit_only)] if SECURITY_AVAILABLE else [])
+@api_router.post("/video_poker/new")
+@limiter.limit("3/minute") if RATE_LIMITING_AVAILABLE and limiter else lambda f: f
 async def start_video_poker_game(
     request: Request,
     data: dict
