@@ -22,6 +22,22 @@ import socketio
 import uvicorn
 # Removed Redis imports to avoid compatibility issues
 
+# Rate limiting imports
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.middleware import SlowAPIMiddleware
+    import redis
+    RATE_LIMITING_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("🚦 Rate limiting modules loaded successfully")
+except ImportError as e:
+    RATE_LIMITING_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.error(f"❌ Rate limiting modules failed to load: {e}")
+    logger.error("🚨 RUNNING WITHOUT RATE LIMITING - NOT PRODUCTION READY")
+
 # Add the current directory to Python path to import our module
 sys.path.append(str(Path(__file__).parent))
 
