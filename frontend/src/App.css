@@ -450,8 +450,6 @@ input:focus, select:focus, textarea:focus {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
-  box-shadow: 0 6px 20px 0 rgba(116, 79, 168, 0.6) !important;
-}
 
 .wallet-adapter-button-trigger {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
