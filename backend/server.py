@@ -1498,12 +1498,24 @@ async def get_payout_history(limit: int = 50):
 
 # SolanaBust Single Player Endpoints - SECURED
 @api_router.post("/solanabust/start")
-@limiter.limit("5/minute") if RATE_LIMITING_AVAILABLE and limiter else lambda f: f
 async def start_solanabust_single_player(
     request: Request,
     data: dict
 ):
     """Start SolanaBust single player game with security validation"""
+    
+    # 🚦 MANUAL RATE LIMITING: Check before processing
+    if RATE_LIMITING_AVAILABLE and limiter:
+        try:
+            # Manually check rate limit for this endpoint
+            limiter.check_request_limit(request, "5/minute")
+        except Exception as rate_error:
+            logger.warning(f"🚦 Rate limit exceeded for SolanaBust: {rate_error}")
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded: 5 SolanaBust games per minute. Please wait before starting another game.",
+                headers={"Retry-After": "60"}
+            )
     
     # 🔒 SECURITY: Input validation
     if SECURITY_AVAILABLE:
