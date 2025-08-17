@@ -666,10 +666,8 @@ metadata:
 test_plan:
   current_focus:
     - "Security Testing - Rate Limiting"
-    - "Security Testing - Fraud Detection"
   stuck_tasks:
     - "Security Testing - Rate Limiting"
-    - "Security Testing - Fraud Detection"
   test_all: false
   test_priority: "high_first"
 
