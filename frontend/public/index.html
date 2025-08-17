@@ -2,37 +2,99 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#000000" />
-        <meta name="description" content="A product of emergent.sh" />
-        <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-        <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-        <title>Emergent | Fullstack App</title>
+        <!-- 📱 Enhanced Mobile Optimization -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta name="theme-color" content="#16213e" />
+        <meta name="description" content="Play Blackjack, Video Poker, and SolanaBust on Solana blockchain. Secure crypto gaming with real SOL payouts." />
+        
+        <!-- 🎮 PWA Configuration -->
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="application-name" content="Solana Games" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Solana Games" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        
+        <!-- 🔒 Security Headers -->
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; font-src 'self';" />
+        <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+        <meta http-equiv="X-Frame-Options" content="DENY" />
+        <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+        <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+        
+        <!-- 🍎 iOS Specific -->
+        <link rel="apple-touch-icon" sizes="180x180" href="/icon-apple-touch.png" />
+        <link rel="apple-touch-startup-image" href="/icon-512.png" />
+        <meta name="apple-touch-fullscreen" content="yes" />
+        
+        <!-- 🎨 Theme and Branding -->
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+        <meta name="msapplication-TileColor" content="#16213e" />
+        <meta name="msapplication-TileImage" content="/icon-192.png" />
+        
+        <!-- 📊 SEO and Social -->
+        <meta name="keywords" content="solana, blockchain, gaming, blackjack, poker, crypto, SOL, phantom wallet" />
+        <meta name="author" content="Solana Gaming Platform" />
+        <meta property="og:title" content="Solana Gaming Platform" />
+        <meta property="og:description" content="Play Blackjack, Video Poker, and SolanaBust on Solana blockchain" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="/icon-512.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        
+        <title>Solana Gaming Platform | Play with SOL</title>
+        
+        <!-- 🎯 Preload Critical Resources -->
+        <link rel="preload" href="/static/css/main.css" as="style" />
+        <link rel="preload" href="/static/js/main.js" as="script" />
+        <link rel="dns-prefetch" href="https://api.mainnet-beta.solana.com" />
+        <link rel="dns-prefetch" href="https://phantom.app" />
     </head>
     <body>
-        <noscript>You need to enable JavaScript to run this app.</noscript>
+        <noscript>
+            <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                <h2>🎮 Solana Gaming Platform</h2>
+                <p>You need to enable JavaScript to play our blockchain games.</p>
+                <p>Please enable JavaScript and refresh the page.</p>
+            </div>
+        </noscript>
         <div id="root"></div>
-        <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
+        
+        <!-- 🔧 Service Worker Registration -->
+        <script>
+            // Register Service Worker for PWA functionality
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(function(registration) {
+                            console.log('🎮 SW registered: ', registration);
+                            
+                            // Check for updates
+                            registration.addEventListener('updatefound', function() {
+                                console.log('🔄 SW update found');
+                            });
+                        })
+                        .catch(function(registrationError) {
+                            console.log('❌ SW registration failed: ', registrationError);
+                        });
+                });
+            }
+            
+            // PWA Install Prompt
+            let deferredPrompt;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                console.log('🎮 PWA install prompt available');
+                deferredPrompt = e;
+                // Show install button in UI (to be implemented in React component)
+                window.dispatchEvent(new CustomEvent('pwa-installable'));
+            });
+            
+            // Track PWA usage
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                console.log('🎮 Running as PWA');
+                // Track PWA usage
+            }
+        </script>
         <a
             id="emergent-badge"
             target="_blank"
