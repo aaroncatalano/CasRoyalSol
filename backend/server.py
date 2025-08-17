@@ -1495,7 +1495,8 @@ async def get_payout_history(limit: int = 50):
     return result
 
 # SolanaBust Single Player Endpoints - SECURED
-@api_router.post("/solanabust/start", dependencies=[Depends(rate_limit_only)] if SECURITY_AVAILABLE else [])
+@api_router.post("/solanabust/start")
+@limiter.limit("5/minute") if RATE_LIMITING_AVAILABLE and limiter else lambda f: f
 async def start_solanabust_single_player(
     request: Request,
     data: dict
