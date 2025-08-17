@@ -699,7 +699,8 @@ async def create_game_session(player_wallet: str, game_type: str, num_hands: int
         logger.error(f"Error creating game session: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create game session: {str(e)}")
 
-@api_router.post("/blackjack/new", dependencies=[Depends(rate_limit_only)] if SECURITY_AVAILABLE else [])
+@api_router.post("/blackjack/new")
+@limiter.limit("3/minute") if RATE_LIMITING_AVAILABLE and limiter else lambda f: f
 async def start_blackjack_game(
     request: Request,
     data: dict
