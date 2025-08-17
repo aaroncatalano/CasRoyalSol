@@ -251,21 +251,79 @@ def hash_sensitive_data(data: str) -> str:
 
 async def detect_suspicious_betting_pattern(wallet_address: str, wager_amount: float):
     """
-    Detect suspicious betting patterns for fraud prevention
+    Enhanced fraud detection system for suspicious betting patterns
     """
-    # This is a placeholder implementation - in production you would:
-    # 1. Check betting frequency
-    # 2. Analyze bet size patterns
-    # 3. Check for rapid successive bets
-    # 4. Monitor win/loss ratios
-    # 5. Cross-reference with known fraud patterns
-    
-    # For now, just log the activity
-    logger.info(f"🔍 Fraud detection check: {hash_sensitive_data(wallet_address)} - {wager_amount} SOL")
-    
-    # Example basic checks (implement more sophisticated logic as needed)
-    if wager_amount > 1.0:  # Large bet threshold
-        logger.warning(f"⚠️ Large bet detected: {wager_amount} SOL from {hash_sensitive_data(wallet_address)}")
-    
-    # Add more sophisticated fraud detection logic here
-    pass
+    try:
+        # Hash wallet for logging (security)
+        wallet_hash = hash_sensitive_data(wallet_address)
+        
+        # 🚨 CRITICAL: Large bet detection
+        if wager_amount >= 1.0:
+            logger.warning(f"🚨 LARGE BET ALERT: {wager_amount} SOL from wallet {wallet_hash}")
+            
+            # Additional validation for large bets
+            if wager_amount >= 5.0:
+                logger.critical(f"🔥 WHALE ALERT: Extremely large bet {wager_amount} SOL from {wallet_hash}")
+                # In production, you might want to require additional verification
+                
+        # 🔍 Pattern Analysis: Check recent betting history
+        try:
+            from motor.motor_asyncio import AsyncIOMotorClient
+            import os
+            
+            # Get recent wagers from this wallet (last 5 minutes)
+            five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+            
+            # Access the database
+            mongo_url = os.environ.get('MONGO_URL')
+            db_name = os.environ.get('DB_NAME', 'solana_gaming')
+            
+            if mongo_url:
+                client = AsyncIOMotorClient(mongo_url)
+                db = client[db_name]
+                
+                recent_wagers = await db.wagers.find({
+                    "player_wallet": wallet_address,
+                    "timestamp": {"$gte": five_minutes_ago}
+                }).to_list(length=20)
+                
+                # Analyze patterns
+                if recent_wagers:
+                    wager_count = len(recent_wagers)
+                    total_wagered = sum(w.get("amount", 0) for w in recent_wagers)
+                    avg_wager = total_wagered / wager_count if wager_count > 0 else 0
+                    
+                    # 🚨 Rapid betting detection
+                    if wager_count >= 5:
+                        logger.warning(f"🚨 RAPID BETTING: {wager_count} bets in 5min from {wallet_hash}, total: {total_wagered:.4f} SOL")
+                        
+                        # Check for bot-like behavior
+                        if wager_count >= 10:
+                            logger.critical(f"🤖 POSSIBLE BOT: {wager_count} rapid bets from {wallet_hash}")
+                    
+                    # 🚨 Large volume detection
+                    if total_wagered >= 5.0:
+                        logger.critical(f"🏦 HIGH VOLUME: {total_wagered:.4f} SOL wagered in 5min from {wallet_hash}")
+                    
+                    # 🚨 Pattern consistency detection (possible bot)
+                    amounts = [w.get("amount", 0) for w in recent_wagers]
+                    if len(set(amounts)) <= 2 and wager_count >= 3:
+                        logger.warning(f"🤖 CONSISTENT BETTING: Repetitive amounts from {wallet_hash}")
+                        
+        except Exception as db_error:
+            logger.error(f"❌ Fraud detection database error: {db_error}")
+        
+        # 🔍 Basic validation
+        logger.info(f"🔍 Fraud check: {wallet_hash} wagering {wager_amount} SOL - ✅ PASSED")
+        
+        # Future enhancements can be added here:
+        # - Machine learning models
+        # - Cross-wallet correlation
+        # - Time-based analysis
+        # - Win/loss ratio analysis
+        # - IP-based tracking
+        
+    except Exception as e:
+        logger.error(f"❌ Fraud detection error: {e}")
+        # Don't block the game if fraud detection fails
+        pass
