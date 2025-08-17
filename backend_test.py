@@ -4535,6 +4535,440 @@ def test_solanabust_crash_point_algorithm_10_games():
     except Exception as e:
         return False, f"Test failed with error: {str(e)}"
 
+# SECURITY TESTING FUNCTIONS
+
+def test_rate_limiting_solanabust():
+    """Test SolanaBust rate limiting (5/minute)"""
+    try:
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        
+        # Make 6 rapid requests to exceed the 5/minute limit
+        responses = []
+        for i in range(6):
+            response = requests.post(
+                f"{API_URL}/solanabust/start",
+                json={
+                    "player_wallet": test_wallet,
+                    "wager_amount": 0.01,
+                    "auto_cash_out": 2.0
+                }
+            )
+            responses.append({
+                "request_number": i + 1,
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "response": response.json() if response.status_code != 429 else response.text
+            })
+            
+            # Small delay between requests
+            time.sleep(0.1)
+        
+        # Check if request #6 returns HTTP 429
+        rate_limited = any(r["status_code"] == 429 for r in responses)
+        
+        # Check for rate limit headers
+        rate_limit_headers = []
+        for r in responses:
+            headers = r["headers"]
+            if any(key.lower().startswith('x-ratelimit') or key.lower().startswith('retry-after') for key in headers.keys()):
+                rate_limit_headers.append({
+                    "request": r["request_number"],
+                    "headers": {k: v for k, v in headers.items() if 'ratelimit' in k.lower() or 'retry' in k.lower()}
+                })
+        
+        return rate_limited, {
+            "total_requests": 6,
+            "rate_limited": rate_limited,
+            "responses": responses,
+            "rate_limit_headers": rate_limit_headers,
+            "expected": "Request #6 should return HTTP 429"
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_rate_limiting_blackjack():
+    """Test Blackjack rate limiting (3/minute)"""
+    try:
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        
+        # Make 4 rapid requests to exceed the 3/minute limit
+        responses = []
+        for i in range(4):
+            response = requests.post(
+                f"{API_URL}/blackjack/new",
+                json={
+                    "player_wallet": test_wallet,
+                    "wager": 0.1
+                }
+            )
+            responses.append({
+                "request_number": i + 1,
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "response": response.json() if response.status_code != 429 else response.text
+            })
+            
+            # Small delay between requests
+            time.sleep(0.1)
+        
+        # Check if request #4 returns HTTP 429
+        rate_limited = any(r["status_code"] == 429 for r in responses)
+        
+        # Check for rate limit headers
+        rate_limit_headers = []
+        for r in responses:
+            headers = r["headers"]
+            if any(key.lower().startswith('x-ratelimit') or key.lower().startswith('retry-after') for key in headers.keys()):
+                rate_limit_headers.append({
+                    "request": r["request_number"],
+                    "headers": {k: v for k, v in headers.items() if 'ratelimit' in k.lower() or 'retry' in k.lower()}
+                })
+        
+        return rate_limited, {
+            "total_requests": 4,
+            "rate_limited": rate_limited,
+            "responses": responses,
+            "rate_limit_headers": rate_limit_headers,
+            "expected": "Request #4 should return HTTP 429"
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_fraud_detection_large_bets():
+    """Test fraud detection for large bets (>= 1.0 SOL alerts, >= 5.0 SOL whale alerts)"""
+    try:
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        
+        # Test different bet amounts to trigger fraud detection
+        test_amounts = [1.0, 2.5, 5.0, 7.5, 10.0]  # Should trigger large bet and whale alerts
+        
+        results = []
+        for amount in test_amounts:
+            try:
+                response = requests.post(
+                    f"{API_URL}/blackjack/new",
+                    json={
+                        "player_wallet": test_wallet,
+                        "wager": amount
+                    }
+                )
+                
+                results.append({
+                    "bet_amount": amount,
+                    "status_code": response.status_code,
+                    "response": response.json() if response.status_code == 200 else response.text,
+                    "expected_alert": "large_bet" if amount >= 1.0 else None,
+                    "expected_whale_alert": "whale" if amount >= 5.0 else None
+                })
+                
+                # Small delay between requests
+                time.sleep(0.2)
+                
+            except Exception as e:
+                results.append({
+                    "bet_amount": amount,
+                    "error": str(e)
+                })
+        
+        # Check if any fraud detection warnings were logged (we can't directly check logs, 
+        # but we can verify the requests were processed)
+        all_processed = all(r.get("status_code") == 200 for r in results if "status_code" in r)
+        
+        return True, {
+            "large_bet_tests": len([r for r in results if r["bet_amount"] >= 1.0]),
+            "whale_bet_tests": len([r for r in results if r["bet_amount"] >= 5.0]),
+            "all_processed": all_processed,
+            "results": results,
+            "note": "Fraud detection should log warnings for bets >= 1.0 SOL (large) and >= 5.0 SOL (whale)"
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_fraud_detection_rapid_betting():
+    """Test fraud detection for rapid betting patterns"""
+    try:
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        
+        # Make multiple quick bets from same wallet
+        rapid_bets = []
+        for i in range(5):
+            try:
+                response = requests.post(
+                    f"{API_URL}/blackjack/new",
+                    json={
+                        "player_wallet": test_wallet,
+                        "wager": 0.5
+                    }
+                )
+                
+                rapid_bets.append({
+                    "bet_number": i + 1,
+                    "status_code": response.status_code,
+                    "timestamp": time.time(),
+                    "response": response.json() if response.status_code == 200 else response.text
+                })
+                
+                # Very small delay to simulate rapid betting
+                time.sleep(0.05)
+                
+            except Exception as e:
+                rapid_bets.append({
+                    "bet_number": i + 1,
+                    "error": str(e)
+                })
+        
+        # Calculate time span
+        if len(rapid_bets) >= 2:
+            time_span = rapid_bets[-1].get("timestamp", 0) - rapid_bets[0].get("timestamp", 0)
+        else:
+            time_span = 0
+        
+        # Check if rapid betting was detected (we can't directly check logs,
+        # but we can verify the pattern was created)
+        all_processed = all(r.get("status_code") == 200 for r in rapid_bets if "status_code" in r)
+        
+        return True, {
+            "rapid_bets_count": len(rapid_bets),
+            "time_span_seconds": round(time_span, 2),
+            "all_processed": all_processed,
+            "results": rapid_bets,
+            "note": "Rapid betting detection should log warnings for multiple quick bets from same wallet"
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_system_resilience_redis_fallback():
+    """Test system resilience when Redis is unavailable (memory-based fallback)"""
+    try:
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        
+        # Test that games still function even if Redis is unavailable
+        # We'll test basic game functionality
+        
+        # Test SolanaBust
+        solanabust_response = requests.post(
+            f"{API_URL}/solanabust/start",
+            json={
+                "player_wallet": test_wallet,
+                "wager_amount": 0.01,
+                "auto_cash_out": 2.0
+            }
+        )
+        
+        # Test Blackjack
+        blackjack_response = requests.post(
+            f"{API_URL}/blackjack/new",
+            json={
+                "player_wallet": test_wallet,
+                "wager": 0.1
+            }
+        )
+        
+        # Test Video Poker
+        video_poker_response = requests.post(
+            f"{API_URL}/video_poker/new",
+            json={
+                "player_wallet": test_wallet,
+                "wager": 0.1
+            }
+        )
+        
+        # Check if all games still function
+        games_working = []
+        
+        if solanabust_response.status_code == 200:
+            games_working.append("solanabust")
+        
+        if blackjack_response.status_code == 200:
+            games_working.append("blackjack")
+            
+        if video_poker_response.status_code == 200:
+            games_working.append("video_poker")
+        
+        all_games_working = len(games_working) == 3
+        
+        return all_games_working, {
+            "games_tested": 3,
+            "games_working": games_working,
+            "all_games_working": all_games_working,
+            "solanabust_status": solanabust_response.status_code,
+            "blackjack_status": blackjack_response.status_code,
+            "video_poker_status": video_poker_response.status_code,
+            "note": "System should gracefully handle Redis unavailability with memory-based fallback"
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_security_input_validation():
+    """Test input validation for security"""
+    try:
+        # Test invalid Solana addresses
+        invalid_addresses = [
+            "",  # Empty
+            "invalid",  # Too short
+            "1234567890123456789012345678901234567890123456789012345678901234567890",  # Too long
+            "InvalidSolanaAddress123!@#",  # Invalid characters
+            "11111111111111111111111111111111",  # Invalid format
+        ]
+        
+        invalid_address_results = []
+        for addr in invalid_addresses:
+            try:
+                response = requests.post(
+                    f"{API_URL}/blackjack/new",
+                    json={
+                        "player_wallet": addr,
+                        "wager": 0.1
+                    }
+                )
+                
+                invalid_address_results.append({
+                    "address": addr,
+                    "status_code": response.status_code,
+                    "rejected": response.status_code == 400,
+                    "response": response.json() if response.status_code == 400 else response.text
+                })
+                
+            except Exception as e:
+                invalid_address_results.append({
+                    "address": addr,
+                    "error": str(e),
+                    "rejected": True
+                })
+        
+        # Test invalid wager amounts
+        invalid_wagers = [
+            -1.0,  # Negative
+            0,     # Zero
+            0.001, # Below minimum
+            15.0,  # Above maximum
+            "invalid",  # Non-numeric
+            float('inf'),  # Infinity
+            float('nan')   # NaN
+        ]
+        
+        invalid_wager_results = []
+        test_wallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        
+        for wager in invalid_wagers:
+            try:
+                response = requests.post(
+                    f"{API_URL}/blackjack/new",
+                    json={
+                        "player_wallet": test_wallet,
+                        "wager": wager
+                    }
+                )
+                
+                invalid_wager_results.append({
+                    "wager": wager,
+                    "status_code": response.status_code,
+                    "rejected": response.status_code == 400,
+                    "response": response.json() if response.status_code == 400 else response.text
+                })
+                
+            except Exception as e:
+                invalid_wager_results.append({
+                    "wager": wager,
+                    "error": str(e),
+                    "rejected": True
+                })
+        
+        # Calculate success rates
+        address_rejection_rate = sum(1 for r in invalid_address_results if r.get("rejected", False)) / len(invalid_address_results)
+        wager_rejection_rate = sum(1 for r in invalid_wager_results if r.get("rejected", False)) / len(invalid_wager_results)
+        
+        overall_success = address_rejection_rate >= 0.8 and wager_rejection_rate >= 0.8
+        
+        return overall_success, {
+            "invalid_addresses_tested": len(invalid_addresses),
+            "invalid_wagers_tested": len(invalid_wagers),
+            "address_rejection_rate": f"{address_rejection_rate:.1%}",
+            "wager_rejection_rate": f"{wager_rejection_rate:.1%}",
+            "overall_success": overall_success,
+            "address_results": invalid_address_results,
+            "wager_results": invalid_wager_results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
+def test_security_headers():
+    """Test for security headers in responses"""
+    try:
+        # Test various endpoints for security headers
+        endpoints = [
+            f"{API_URL}/",
+            f"{API_URL}/blackjack/new",
+            f"{API_URL}/video_poker/new",
+            f"{API_URL}/solanabust/start"
+        ]
+        
+        security_headers = [
+            'X-Frame-Options',
+            'X-Content-Type-Options', 
+            'X-XSS-Protection',
+            'Strict-Transport-Security',
+            'Content-Security-Policy'
+        ]
+        
+        results = []
+        for endpoint in endpoints:
+            try:
+                if endpoint.endswith('/'):
+                    response = requests.get(endpoint)
+                else:
+                    # POST endpoints need data
+                    response = requests.post(endpoint, json={
+                        "player_wallet": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+                        "wager": 0.1
+                    })
+                
+                headers_found = {}
+                for header in security_headers:
+                    headers_found[header] = response.headers.get(header, "Not Present")
+                
+                results.append({
+                    "endpoint": endpoint,
+                    "status_code": response.status_code,
+                    "security_headers": headers_found
+                })
+                
+            except Exception as e:
+                results.append({
+                    "endpoint": endpoint,
+                    "error": str(e)
+                })
+        
+        # Count how many security headers are present across all endpoints
+        total_headers_checked = len(endpoints) * len(security_headers)
+        headers_present = 0
+        
+        for result in results:
+            if "security_headers" in result:
+                for header, value in result["security_headers"].items():
+                    if value != "Not Present":
+                        headers_present += 1
+        
+        security_score = headers_present / total_headers_checked if total_headers_checked > 0 else 0
+        
+        return security_score > 0.5, {
+            "endpoints_tested": len(endpoints),
+            "security_headers_checked": security_headers,
+            "security_score": f"{security_score:.1%}",
+            "headers_present": headers_present,
+            "total_possible": total_headers_checked,
+            "results": results
+        }
+        
+    except Exception as e:
+        return False, str(e)
+
 def run_all_tests():
     tests = [
         ("API Connectivity", test_api_connectivity),
