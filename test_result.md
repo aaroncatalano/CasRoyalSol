@@ -584,6 +584,9 @@ metadata:
       - working: false
         agent: "testing"
         comment: "RATE LIMITING TESTING FAILED - No rate limiting detected on critical game endpoints. Tested /api/solanabust/start, /api/blackjack/new, and /api/video_poker/new with 15 rapid successive requests each. All 15 requests succeeded for each endpoint with no HTTP 429 responses or timeouts. Rate limiting is not active on game endpoints, which poses a security risk for abuse and DDoS attacks."
+      - working: false
+        agent: "testing"
+        comment: "🔒 RATE LIMITING VERIFICATION FAILED - Comprehensive testing shows rate limiting is NOT working as expected: ❌ SolanaBust Rate Limiting (5/min): Made 6 rapid requests, all returned HTTP 200 instead of expected HTTP 429 on request #6. No rate limit headers detected. ❌ Blackjack Rate Limiting (3/min): Made 4 rapid requests, all returned HTTP 200 instead of expected HTTP 429 on request #4. No rate limit headers detected. CRITICAL ISSUE: Despite rate limiting decorators being present in code (@limiter.limit('5/minute') for SolanaBust, @limiter.limit('3/minute') for Blackjack), the actual rate limiting is not functioning. This poses a significant security risk for DDoS attacks and abuse. The system appears to have fallback to memory-based limiting but it's not enforcing the limits properly."
 
   - task: "Security Testing - Input Validation"
     implemented: true
