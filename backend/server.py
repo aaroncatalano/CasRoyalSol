@@ -700,12 +700,23 @@ async def create_game_session(player_wallet: str, game_type: str, num_hands: int
         raise HTTPException(status_code=500, detail=f"Failed to create game session: {str(e)}")
 
 @api_router.post("/blackjack/new")
-@limiter.limit("3/minute") if RATE_LIMITING_AVAILABLE and limiter else lambda f: f
 async def start_blackjack_game(
     request: Request,
     data: dict
 ):
     """Start a new blackjack game with security validation"""
+    
+    # 🚦 MANUAL RATE LIMITING: Check before processing
+    if RATE_LIMITING_AVAILABLE and limiter:
+        try:
+            await limiter.check_limit(request, "3/minute")
+        except RateLimitExceeded:
+            logger.warning(f"🚦 Rate limit exceeded for Blackjack from IP: {get_remote_address(request)}")
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded: 3 Blackjack games per minute. Please wait.",
+                headers={"Retry-After": "60"}
+            )
     
     # 🔒 SECURITY: Input validation
     if SECURITY_AVAILABLE:
