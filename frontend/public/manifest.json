@@ -1,0 +1,51 @@
+{
+  "name": "Solana Gaming Platform",
+  "short_name": "SolanaGames",
+  "description": "Play Blackjack, Video Poker, and SolanaBust on Solana blockchain",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#16213e",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["games", "entertainment", "finance"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png", 
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-apple-touch.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Play Blackjack",
+      "short_name": "Blackjack",
+      "description": "Start a Blackjack game",
+      "url": "/?game=blackjack",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Play SolanaBust", 
+      "short_name": "SolanaBust",
+      "description": "Start a SolanaBust crash game",
+      "url": "/?game=solanabust",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
