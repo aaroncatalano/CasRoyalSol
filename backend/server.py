@@ -697,18 +697,6 @@ async def start_blackjack_game(
 ):
     """Start a new blackjack game with security validation"""
     
-    # 🚦 MANUAL RATE LIMITING: Check before processing
-    if RATE_LIMITING_AVAILABLE and limiter:
-        try:
-            await limiter.check_limit(request, "3/minute")
-        except RateLimitExceeded:
-            logger.warning(f"🚦 Rate limit exceeded for Blackjack from IP: {get_remote_address(request)}")
-            raise HTTPException(
-                status_code=429,
-                detail="Rate limit exceeded: 3 Blackjack games per minute. Please wait.",
-                headers={"Retry-After": "60"}
-            )
-    
     # 🔒 SECURITY: Input validation
     if SECURITY_AVAILABLE:
         try:
