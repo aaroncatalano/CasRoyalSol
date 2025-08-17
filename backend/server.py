@@ -1626,12 +1626,23 @@ async def start_solanabust_single_player(
         raise HTTPException(status_code=500, detail=f"Failed to start SolanaBust game: {str(e)}")
 
 @api_router.post("/solanabust/cash-out")
-@limiter.limit("10/minute") if RATE_LIMITING_AVAILABLE and limiter else lambda f: f
 async def cash_out_solanabust_single_player(
     request: Request,
     data: dict
 ):
     """Cash out SolanaBust single player game with security validation"""
+    
+    # 🚦 MANUAL RATE LIMITING: Check before processing
+    if RATE_LIMITING_AVAILABLE and limiter:
+        try:
+            await limiter.check_limit(request, "10/minute")
+        except RateLimitExceeded:
+            logger.warning(f"🚦 Rate limit exceeded for SolanaBust cash-out from IP: {get_remote_address(request)}")
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded: 10 cash-outs per minute. Please wait.",
+                headers={"Retry-After": "60"}
+            )
     
     # 🔒 SECURITY: Input validation
     if SECURITY_AVAILABLE:
