@@ -4971,6 +4971,20 @@ def test_security_headers():
 
 def run_all_tests():
     tests = [
+        # PRIORITY 1: SECURITY TESTS - RATE LIMITING
+        ("🔒 PRIORITY 1: Rate Limiting - SolanaBust (5/min)", test_rate_limiting_solanabust),
+        ("🔒 PRIORITY 1: Rate Limiting - Blackjack (3/min)", test_rate_limiting_blackjack),
+        
+        # PRIORITY 2: SECURITY TESTS - FRAUD DETECTION
+        ("🔒 PRIORITY 2: Fraud Detection - Large Bets", test_fraud_detection_large_bets),
+        ("🔒 PRIORITY 2: Fraud Detection - Rapid Betting", test_fraud_detection_rapid_betting),
+        
+        # PRIORITY 3: SECURITY TESTS - SYSTEM RESILIENCE
+        ("🔒 PRIORITY 3: System Resilience - Redis Fallback", test_system_resilience_redis_fallback),
+        ("🔒 Security Input Validation", test_security_input_validation),
+        ("🔒 Security Headers", test_security_headers),
+        
+        # EXISTING TESTS
         ("API Connectivity", test_api_connectivity),
         ("Status Check API", test_status_check),
         ("Solana Web3 Integration - Wallet Balance", test_wallet_balance),
