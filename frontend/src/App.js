@@ -1760,7 +1760,7 @@ const SolanaBustGame = () => {
         <p>🎮 <strong>How to play:</strong> Click START GAME, watch multiplier rise, cash out before it crashes!</p>
         <p>💰 <strong>Payouts:</strong> Your wager × multiplier when you cash out</p>
         <p>⚡ <strong>Auto Cash Out:</strong> Set multiplier to automatically cash out</p>
-        <p>🎲 <strong>Crash Point:</strong> Random between 1.01x - 50x (house edge built in)</p>
+        <p>🎲 <strong>Crash Point:</strong> Random between 1.01x - 50x</p>
       </div>
     </div>
   );
