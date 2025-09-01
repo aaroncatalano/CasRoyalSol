@@ -2066,7 +2066,6 @@ const AppContent = () => {
         {/* Footer */}
         <div className="text-center mt-8 text-gray-400">
           <p>🔗 Running on Solana Testnet</p>
-          <p className="text-sm">Dev Fee: 12%</p>
           <p className="text-xs mt-2">Built with React + FastAPI + Solana Web3 + Real-time Polling</p>
           <div className="mt-4 text-xs">
             <p className="text-green-400">✅ PRODUCTION v3.0 - Real SOL Payouts + Multiplayer Live!</p>
