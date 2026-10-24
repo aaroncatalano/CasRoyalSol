@@ -226,7 +226,8 @@ class BlackjackGame:
                 payout_multiplier = 0
             
             # Check for blackjack (21 with 2 cards)
-            if len(hand.cards) == 2 and player_value == 21:
+            dealer_blackjack = len(self.dealer_hand.cards) == 2 and dealer_value == 21
+            if len(hand.cards) == 2 and player_value == 21 and not dealer_blackjack:
                 result = "blackjack"
                 payout_multiplier = 2.5
             
